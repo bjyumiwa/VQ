@@ -9,7 +9,7 @@
   html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;overflow:hidden}
   .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none}
 
-  /* 背景は「グラデ＋画像」をレイヤー。画像が無くても海っぽく見える */
+  /* 背景：画像が無くても海っぽく見えるフェイルセーフ */
   .bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0}
   .bg.sky{
     background:
@@ -35,19 +35,19 @@
 
   /* 貝 */
   .clams{position:absolute;inset:0;z-index:4;pointer-events:none}
-  .clam{position:absolute;width:64px;height:48px;transform:translate(-50%, -50%);opacity:0;pointer-events:auto;cursor:pointer;transition:opacity .25s}
+  .clam{position:absolute;width:64px;height:48px;transform:translate(-50%,-50%);opacity:0;pointer-events:auto;cursor:pointer;transition:opacity .25s}
   .clam.revealed{opacity:1}
   .clam img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
 
-  /* キャラは砂より前面固定 */
+  /* キャラは最前面（砂の上） */
   #charWrap{position:absolute;left:50%;bottom:10vh;transform:translateX(-50%);z-index:7;pointer-events:none}
-  #char{display:block;width:min(38vw, 420px);height:auto;image-rendering:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.55))}
+  #char{display:block;width:min(38vw,420px);height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.55))}
   @keyframes idleFloat{0%{transform:translate(-50%,0)}50%{transform:translate(-50%,-6px)}100%{transform:translate(-50%,0)}}
   #charWrap.idle{animation:idleFloat 3.6s ease-in-out infinite}
 
-  /* アクセ（キャラ内座標系） */
+  /* アクセはキャラ内レイヤー座標 */
   #accLayer{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:8}
-  .acc{position:absolute;transform-origin:center center;pointer-events:none;image-rendering:auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+  .acc{position:absolute;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
 
   /* HUD */
   .hud{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;z-index:9;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
@@ -58,9 +58,6 @@
   /* トースト */
   #toast{position:absolute;left:50%;top:9.5vh;transform:translateX(-50%);z-index:10;background:rgba(0,0,0,.7);padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .25s}
   #toast.show{opacity:1}
-
-  /* 読み込みオーバーレイ（前フレーム保持のため透明） */
-  #loading{position:absolute;inset:0;z-index:6;background:transparent;display:none}
 
   @media (max-width:480px){
     #char{width:58vw}
@@ -84,8 +81,8 @@
   </div>
 
   <div class="hud">
-    <div class="pill" id="statPill">
-      <span>会話チケット：</span><b id="ticketCount">0</b>
+    <div class="pill">
+      会話チケット：<b id="ticketCount">0</b>
       <span style="margin-left:10px">アクセP：</span><b id="accPoint">0</b>
     </div>
     <div style="display:flex;gap:8px">
@@ -95,27 +92,38 @@
   </div>
 
   <div id="toast">+1 shell / +1P</div>
-  <div id="loading" aria-hidden="true"></div>
 </div>
 
 <script>
 (() => {
-  /* ===== 設定 ===== */
-  const HEAD_ANCHORS = {
-    pink:   { x:0.50, y:0.18, baseScale:0.18 },
-    blue:   { x:0.50, y:0.18, baseScale:0.18 },
-    green:  { x:0.50, y:0.18, baseScale:0.18 },
-    purple: { x:0.50, y:0.18, baseScale:0.18 },
-    friend: { x:0.50, y:0.18, baseScale:0.18 },
-  };
-  const ACCESSORY_FINE_TUNE = { /* "ribbon_red": { dx:0, dy:-4, scaleMul:0.92 }, */ };
-  const ACC_BASE  = "public/accessories/";
+  /* ================== 設定 ================== */
   const CHAR_BASE = "public/assets/stage1/";
+  const ACC_BASE  = "public/accessories/";
+
+  // 色別の頭アンカー＆基本スケール（アクセ幅 = キャラ幅 * baseScale）
+  const HEAD_ANCHORS = {
+    pink:   { x:0.50, y:0.18, baseScale:0.26 },
+    blue:   { x:0.50, y:0.18, baseScale:0.26 },
+    green:  { x:0.50, y:0.18, baseScale:0.26 },
+    purple: { x:0.50, y:0.18, baseScale:0.26 },
+    friend: { x:0.50, y:0.18, baseScale:0.26 }, // friend対応
+  };
+
+  // アクセ個別の微調整（必要に応じて増やしてください）
+  const ACCESSORY_FINE_TUNE = {
+    // 例:  "hat_straw": { dx: 0, dy: -10, scaleMul: 1.18 },
+    //      "ribbon_red": { dx: 0, dy: -6,  scaleMul: 1.05 },
+  };
+
+  // friend 画像が無い場合の色フォールバック
+  const COLOR_FALLBACK = { friend: "pink" };
+
+  // 砂なで＆貝
   const BRUSH_RADIUS = 26;
   const CLAM_COUNT = 8;
   const REWARD = { ticket:1, accPoint:1 };
 
-  /* ===== 互換：who_char_color → who_character ===== */
+  /* ================== 互換 & 参照 ================== */
   function migrateLegacyCharacter(){
     try{
       const old = localStorage.getItem("who_char_color");
@@ -124,50 +132,78 @@
       localStorage.setItem("who_character", JSON.stringify({type:"tane", color:val}));
     }catch(e){}
   }
+
   function readCharacter(){
     migrateLegacyCharacter();
-    const raw = localStorage.getItem("who_character");
-    if (!raw) return {type:"tane", color:"pink"};
     try{
-      const obj = JSON.parse(raw);
-      if (!obj || obj.type!=="tane") return {type:"tane", color:"pink"};
-      return {type:"tane", color:(obj.color||"pink")};
+      const raw = localStorage.getItem("who_character");
+      if (!raw) return {type:"tane", color:"pink"};
+      const o = JSON.parse(raw);
+      if (!o || o.type!=="tane") return {type:"tane", color:"pink"};
+      return o;
     }catch(e){ return {type:"tane", color:"pink"} }
   }
 
-  /* ===== 画像ローダ ===== */
-  function ensureImage(src){
-    return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(src); im.onerror=()=>rej(new Error("load:"+src)); im.src=src; });
-  }
-  async function loadSpriteWithFallback(color){
-    for (const name of [`${color}_open.png`, `${color}_closed.png`, `${color}.png`]){
-      const url = CHAR_BASE + name;
-      try{ await ensureImage(url); return url; }catch(e){}
-    }
-    return null; // 代替は出さず、前フレーム維持
-  }
   function readAccessoryEquip(){
-    const raw = localStorage.getItem("who_accessory_equip");
-    if (!raw) return [];
     try{
-      const v = JSON.parse(raw);
-      if (Array.isArray(v)) return v;
-      if (v && typeof v==="object") return Object.values(v).filter(Boolean);
+      const raw = JSON.parse(localStorage.getItem("who_accessory_equip"));
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw==="object") return Object.values(raw).filter(Boolean);
     }catch(e){}
     return [];
   }
-  function readIntLS(key, def=0){ const v=parseInt(localStorage.getItem(key)||`${def}`,10); return isNaN(v)?def:v; }
-  function writeIntLS(key,val){ localStorage.setItem(key,String(val)); }
 
-  /* ===== 砂なで ===== */
+  function readIntLS(key, def=0){
+    const v = parseInt(localStorage.getItem(key) || `${def}`, 10);
+    return isNaN(v) ? def : v;
+  }
+  function writeIntLS(key, val){ localStorage.setItem(key, String(val)); }
+
+  /* ================== 画像ローダ ================== */
+  function ensureImage(src){
+    return new Promise((res, rej)=>{
+      const im = new Image();
+      im.onload = ()=>res(src);
+      im.onerror = ()=>rej(new Error("load:"+src));
+      im.src = src;
+    });
+  }
+  async function loadSpriteWithFallback(color){
+    const tryColor = async (c)=>{
+      for (const name of [`${c}_open.png`, `${c}_closed.png`, `${c}.png`]){
+        const url = CHAR_BASE + name;
+        try{ await ensureImage(url); return url; }catch(e){}
+      }
+      return null;
+    };
+    // まず指定色
+    let url = await tryColor(color);
+    if (url) return url;
+    // 指定色が無ければフォールバック色
+    const fb = COLOR_FALLBACK[color];
+    if (fb) return await tryColor(fb);
+    return null; // 代替は出さない（前フレーム保持）
+  }
+
+  async function getImageSize(src){
+    return new Promise((res,rej)=>{
+      const im = new Image();
+      im.onload = ()=>res({w:im.naturalWidth||256, h:im.naturalHeight||256});
+      im.onerror = rej; im.src = src;
+    });
+  }
+
+  /* ================== 砂なで & 貝 ================== */
   const sandCanvas = document.getElementById("sandCanvas");
   const ctx = sandCanvas.getContext("2d");
-  let isPointerDown=false;
+  let isPointerDown = false;
+
   function resizeCanvas(){
     ctx.clearRect(0,0,sandCanvas.width,sandCanvas.height);
     ctx.fillStyle = "rgba(0,0,0,0.32)";
     ctx.fillRect(0,0,sandCanvas.width,sandCanvas.height);
   }
+
   function getCanvasPos(evt){
     const rect = sandCanvas.getBoundingClientRect();
     const pt = (evt.touches && evt.touches[0]) ? evt.touches[0] : evt;
@@ -175,18 +211,18 @@
     const y = (pt.clientY - rect.top)  * (sandCanvas.height / rect.height);
     return {x,y};
   }
+
   function brush(x,y){
     const g = ctx.createRadialGradient(x,y,0,x,y,BRUSH_RADIUS);
     g.addColorStop(0,"rgba(0,0,0,0)");
     g.addColorStop(1,"rgba(0,0,0,0.6)");
     ctx.globalCompositeOperation = "destination-out";
     ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x,y,BRUSH_RADIUS,0,Math.PI*2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,BRUSH_RADIUS,0,Math.PI*2); ctx.fill();
     ctx.globalCompositeOperation = "source-over";
     revealClamsUnder(x,y,BRUSH_RADIUS*1.1);
   }
+
   function setupBrushEvents(){
     sandCanvas.addEventListener("pointerdown",(e)=>{isPointerDown=true; sandCanvas.setPointerCapture(e.pointerId); const p=getCanvasPos(e); brush(p.x,p.y);});
     sandCanvas.addEventListener("pointermove",(e)=>{if(!isPointerDown) return; const p=getCanvasPos(e); brush(p.x,p.y);});
@@ -196,29 +232,23 @@
     sandCanvas.addEventListener("touchmove",(e)=>{if((e.touches||[]).length){const p=getCanvasPos(e); brush(p.x,p.y);}});
   }
 
-  /* ===== 貝 ===== */
   const clamsEl = document.getElementById("clams");
   function rand(min,max){ return Math.random()*(max-min)+min; }
   function spawnClams(n=CLAM_COUNT){
     clamsEl.innerHTML = "";
     for(let i=0;i<n;i++){
-      const x = rand(10, 90); // vw %
-      const y = rand(30, 75); // vh %
+      const x = rand(10,90); const y = rand(30,75);
       const el = document.createElement("div");
-      el.className = "clam";
-      el.style.left = x + "vw";
-      el.style.top  = y + "vh";
-      const img = document.createElement("img");
-      img.alt = "clam";
-      img.src = "public/assets/stage1/clam.png";
+      el.className="clam"; el.style.left=x+"vw"; el.style.top=y+"vh";
+      const img=document.createElement("img"); img.src="public/assets/stage1/clam.png"; img.alt="clam";
       el.appendChild(img);
       el.addEventListener("click", onCollectClam, {passive:true});
       clamsEl.appendChild(el);
     }
   }
+
   function revealClamsUnder(x,y,r){
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
     const px = x / sandCanvas.width  * vw;
     const py = y / sandCanvas.height * vh;
     [...clamsEl.children].forEach(c=>{
@@ -229,41 +259,43 @@
       if (d < (r * (vw / sandCanvas.width)) * 1.15) c.classList.add("revealed");
     });
   }
+
   function onCollectClam(e){
     const node = e.currentTarget;
     if (!node.classList.contains("revealed")) return;
     node.removeEventListener("click", onCollectClam);
-    node.style.pointerEvents = "none";
-    node.style.transition = "transform .25s, opacity .25s";
-    node.style.transform = "translate(-50%,-50%) scale(0.6)";
-    node.style.opacity = "0";
-    setTimeout(()=>node.remove(), 260);
-    const t = readIntLS("who_tickets", 0) + REWARD.ticket;
-    const p = readIntLS("who_accessory_points", 0) + REWARD.accPoint;
+    node.style.pointerEvents="none";
+    node.style.transition="transform .25s, opacity .25s";
+    node.style.transform="translate(-50%,-50%) scale(0.6)";
+    node.style.opacity="0";
+    setTimeout(()=>node.remove(),260);
+
+    const t = readIntLS("who_tickets",0)+REWARD.ticket;
+    const p = readIntLS("who_accessory_points",0)+REWARD.accPoint;
     writeIntLS("who_tickets", t);
     writeIntLS("who_accessory_points", p);
     updateHUD();
     showToast(`+${REWARD.ticket} ticket / +${REWARD.accPoint}P`);
   }
 
-  /* ===== キャラ＆アクセ ===== */
+  /* ================== キャラ＆アクセ ================== */
   const charWrap = document.getElementById("charWrap");
   const charImg  = document.getElementById("char");
   const accLayer = document.getElementById("accLayer");
+
   let currentColor = "pink";
   let lastCharURL = null;
   let holdTimer = null;
 
   async function setupCharacter(){
-    const { color } = readCharacter();
-    currentColor = color in HEAD_ANCHORS ? color : "pink";
-    const loading = document.getElementById("loading");
-    loading.style.display = "block";
+    const info = readCharacter();
+    currentColor = info.color || "pink";
+
     const url = await loadSpriteWithFallback(currentColor);
     if (url){ charImg.src = url; lastCharURL = url; }
-    setTimeout(()=>{ loading.style.display = "none"; }, 1600);
+
     charWrap.classList.add("idle");
-    await drawAccessories();
+    await drawAccessories(); // 初回描画
   }
 
   async function drawAccessories(){
@@ -271,28 +303,23 @@
     const equips = readAccessoryEquip();
     if (!equips.length) return;
 
-    // 1) 画面上のキャラ矩形
-    const imgRect = charImg.getBoundingClientRect();
-    // 2) accLayer（=キャラ内レイヤー）の左上（基準）
+    const imgRect   = charImg.getBoundingClientRect();
     const layerRect = accLayer.getBoundingClientRect();
 
-    const anchor = HEAD_ANCHORS[currentColor] || HEAD_ANCHORS.pink;
+    const anchor = HEAD_ANCHORS[currentColor] || HEAD_ANCHORS[COLOR_FALLBACK[currentColor]] || HEAD_ANCHORS.pink;
     const baseAccPx = imgRect.width * anchor.baseScale;
 
-    // 画面座標のアンカー（ページ基準）
-    const ax_page = imgRect.left + imgRect.width  * anchor.x;
-    const ay_page = imgRect.top  + imgRect.height * anchor.y;
+    // ページ座標のアンカー → キャラ内座標へ補正
+    const ax = (imgRect.left + imgRect.width  * anchor.x) - layerRect.left;
+    const ay = (imgRect.top  + imgRect.height * anchor.y) - layerRect.top;
 
-    // ★ キャラ内座標へ補正（これが前版の不具合点）
-    const ax = ax_page - layerRect.left;
-    const ay = ay_page - layerRect.top;
-
-    for (const name of equips){
-      const src = `${ACC_BASE}${name}.png`;
+    for (const id of equips){
+      const src = `${ACC_BASE}${id}.png`;
       try{ await ensureImage(src); }catch(e){ continue; }
-      const fine = ACCESSORY_FINE_TUNE[name] || {dx:0, dy:0, scaleMul:1.0};
-      const dim = await loadImage(src);
-      const aspect = (dim.w||256)/(dim.h||256);
+
+      const fine = ACCESSORY_FINE_TUNE[id] || {dx:0, dy:0, scaleMul:1.0};
+      const {w:iw, h:ih} = await getImageSize(src);
+      const aspect = (iw||256)/(ih||256);
 
       const w = baseAccPx * (fine.scaleMul||1.0);
       const h = w / aspect;
@@ -300,28 +327,20 @@
       const top  = (ay + (fine.dy||0)) - h/2;
 
       const el = document.createElement("img");
-      el.className = "acc";
-      el.alt = name;
-      el.src = src;
-      el.style.width = `${w}px`;
-      el.style.height = `${h}px`;
-      el.style.left = `${left}px`;
-      el.style.top  = `${top}px`;
+      el.className = "acc"; el.src = src; el.alt = id;
+      el.style.width = `${w}px`; el.style.height = `${h}px`;
+      el.style.left  = `${left}px`; el.style.top = `${top}px`;
       accLayer.appendChild(el);
     }
   }
 
-  function loadImage(src){
-    return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res({w:im.naturalWidth,h:im.naturalHeight}); im.onerror=rej; im.src=src; });
-  }
-
   async function pulseHoldOnce(){
     if (holdTimer) clearTimeout(holdTimer);
-    const url = CHAR_BASE + `${currentColor}_closed.png`;
+    const tryUrl = CHAR_BASE + `${currentColor}_closed.png`;
     try{
-      await ensureImage(url);
+      await ensureImage(tryUrl);
       charWrap.classList.remove("idle");
-      charImg.src = url;
+      charImg.src = tryUrl;
       holdTimer = setTimeout(()=>{
         if (lastCharURL) charImg.src = lastCharURL;
         charWrap.classList.add("idle");
@@ -330,14 +349,14 @@
     }catch(e){}
   }
 
-  /* ===== HUD / トースト ===== */
+  /* ================== HUD / トースト ================== */
   const ticketEl = document.getElementById("ticketCount");
   const accPntEl = document.getElementById("accPoint");
-  const toastEl = document.getElementById("toast");
   function updateHUD(){
     ticketEl.textContent = readIntLS("who_tickets", 0);
     accPntEl.textContent = readIntLS("who_accessory_points", 0);
   }
+  const toastEl = document.getElementById("toast");
   let toastTimer=null;
   function showToast(msg){
     toastEl.textContent = msg;
@@ -346,7 +365,7 @@
     toastTimer = setTimeout(()=>toastEl.classList.remove("show"), 1200);
   }
 
-  /* ===== イベント ===== */
+  /* ================== イベント ================== */
   document.getElementById("btnBack").addEventListener("click", ()=>{
     localStorage.setItem("who_lastPage", "asari.html");
     location.href = "collection.html";
@@ -356,9 +375,12 @@
     showToast("砂の濃い所をなでてみてね");
   });
 
+  // 画面サイズやスクロールで再配置（座標系ズレ防止）
   window.addEventListener("resize", drawAccessories);
+  // 画像読み込み完了後に再配置（naturalWidth/Heightが揃ってから）
+  charImg.addEventListener("load", drawAccessories);
 
-  /* ===== 起動 ===== */
+  /* ================== 起動 ================== */
   function init(){
     resizeCanvas();
     setupBrushEvents();
