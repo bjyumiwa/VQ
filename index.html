@@ -73,11 +73,11 @@
 
   <!-- メイン -->
   <main class="center">
-    <h1 data-i18n="title">WHOAI</h1>
+    <h1 data-i18n="title">WHO VQ</h1>
     <p class="subtitle" data-i18n="subtitle">あなたのお世話が、誰かの世界に</p>
     <div class="buttons">
-      <button class="btn primary" id="btnStart" data-i18n="start">スタート</button>
-      <button class="btn secondary" id="btnContinue" data-i18n="continue">続きから</button>
+      <button class="btn ghost" id="btnStart" data-i18n="start">スタート</button>
+      <button class="btn ghost" id="btnContinue" data-i18n="continue">続きから</button>
       <button class="btn ghost" id="btnAbout" data-i18n="about">研究について</button>
     </div>
     <div class="note" id="resumeNote"></div>
@@ -86,10 +86,10 @@
   <script>
     /********** i18n **********/
     const translations = {
-      ja:{title:'WHOAI',subtitle:'あなたのお世話が、誰かの世界に',start:'スタート',continue:'続きから',about:'研究について'},
-      en:{title:'WHOAI',subtitle:"Your care becomes someone's world",start:'Start',continue:'Continue',about:'About'},
-      zh:{title:'WHOAI',subtitle:'您的关怀，成就他人的世界',start:'开始',continue:'继续',about:'关于研究'},
-      ko:{title:'WHOAI',subtitle:'당신의 돌봄이 누군가의 세상이 됩니다',start:'시작',continue:'계속하기',about:'연구 소개'}
+      ja:{title:'WHO VQ',subtitle:'あなたのお世話が、誰かの世界に',start:'スタート',continue:'続きから',about:'研究について'},
+      en:{title:'WHO VQ',subtitle:"Your care becomes someone's world",start:'Start',continue:'Continue',about:'About'},
+      zh:{title:'WHO VQ',subtitle:'您的关怀，成就他人的世界',start:'开始',continue:'继续',about:'关于研究'},
+      ko:{title:'WHO VQ',subtitle:'당신의 돌봄이 누군가의 세상이 됩니다',start:'시작',continue:'계속하기',about:'연구 소개'}
     };
     let currentLang = localStorage.getItem('who_language') || 'ja';
     function updateTexts(){
