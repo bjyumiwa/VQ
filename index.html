@@ -1,157 +1,70 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — Start</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Helvetica Neue','Arial','Hiragino Kaku Gothic ProN','Meiryo',sans-serif;
-      overflow: hidden;
-      background: #000;
-      color: #fff;
-    }
-    .bg {
-      position: absolute;
-      inset: 0;
-      background-size: cover;
-      background-position: center;
-      transition: opacity 1s;
-      z-index: 0;
-    }
-    .overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.25);
-      z-index: 1;
-    }
-    header.topbar {
-      position: absolute; top: 0; left: 0; right: 0;
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 20px;
-      background: linear-gradient(180deg, rgba(0,0,0,0.5), transparent);
-      z-index: 2;
-    }
-    .logo { font-size: 28px; font-weight: bold; letter-spacing: 2px; }
-    #langSelect {
-      background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.4);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 16px;
-    }
-    main.center {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%,-50%);
-      text-align: center;
-      z-index: 3;
-    }
-    main.center h1 {
-      font-size: 3rem;
-      margin-bottom: 10px;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-    }
-    .subtitle { margin-bottom: 30px; font-size: 1.1rem; }
-    .buttons { display: flex; flex-direction: column; gap: 15px; align-items: center; }
-    .btn {
-      min-width: 200px;
-      padding: 14px 30px;
-      border: none;
-      border-radius: 30px;
-      font-size: 16px;
-      cursor: pointer;
-      transition: 0.3s;
-      color: #fff;
-    }
-    .btn.primary { background: #3498db; }
-    .btn.primary:hover { background: #2980b9; }
-    .btn.secondary { background: #7f8c8d; }
-    .btn.secondary:hover { background: #95a5a6; }
-    .btn.ghost { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); }
-    .btn.ghost:hover { background: rgba(255,255,255,0.25); }
-    /* 潮干狩り体験リンク */
-    .btn.special { background: #e67e22; }
-    .btn.special:hover { background: #d35400; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHOAI | Index</title>
+<meta name="color-scheme" content="light dark" />
+<style>
+  html,body{
+    margin:0;padding:0;height:100%;
+    font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+    color:#fff;overflow:hidden;
+  }
+  body{
+    background:url("public/assets/bg/sunrise.png") no-repeat center center;
+    background-size:cover;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+  }
+  .overlay{
+    position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(0,0,0,0.4),rgba(0,0,0,0.7));
+    z-index:0;
+  }
+  .container{
+    position:relative;z-index:1;text-align:center;
+  }
+  h1{
+    font-size:2.2rem;font-weight:700;margin-bottom:40px;text-shadow:0 2px 6px rgba(0,0,0,0.6);
+  }
+  .menu{display:flex;flex-direction:column;gap:16px;align-items:center}
+  button{
+    appearance:none;border:none;cursor:pointer;
+    padding:12px 24px;border-radius:14px;
+    background:rgba(255,255,255,0.15);color:#fff;
+    font-size:1.2rem;font-weight:700;letter-spacing:.05em;
+    backdrop-filter:blur(4px);
+    box-shadow:0 8px 16px rgba(0,0,0,0.3);
+    transition:transform .1s ease,filter .2s ease;
+  }
+  button:hover{filter:brightness(1.1)}
+  button:active{transform:translateY(2px)}
+</style>
 </head>
-<body data-page="index">
-  <!-- 背景 -->
-  <div class="bg" id="bg"></div>
-  <div class="overlay"></div>
+<body>
+<div class="overlay"></div>
+<div class="container">
+  <h1>WHOAI</h1>
+  <div class="menu">
+    <button id="startBtn">スタート</button>
+    <button id="continueBtn">続きから</button>
+    <button id="aboutBtn">研究について</button>
+  </div>
+</div>
 
-  <!-- ヘッダー -->
-  <header class="topbar">
-    <div class="logo">WHO VQ</div>
-    <div>
-      <select id="langSelect">
-        <option value="ja">日本語</option>
-        <option value="en">English</option>
-        <option value="zh">中文</option>
-        <option value="ko">한국어</option>
-      </select>
-    </div>
-  </header>
+<script>
+const getLS=(k,def=null)=>{try{const v=localStorage.getItem(k);return v==null?def:JSON.parse(v);}catch{return def;}};
 
-  <!-- メイン -->
-  <main class="center">
-    <h1 data-i18n="title">WHO VQ</h1>
-    <p class="subtitle" data-i18n="subtitle">あなたのお世話が、誰かの世界に</p>
-    <div class="buttons">
-      <button class="btn primary" id="btnStart" data-i18n="start">スタート</button>
-      <button class="btn secondary" id="btnContinue" data-i18n="continue">続きから</button>
-      <button class="btn special" id="btnAsari" data-i18n="asari">潮干狩り体験</button>
-      <button class="btn ghost" id="btnAbout" data-i18n="about">研究について</button>
-    </div>
-  </main>
-
-  <script>
-    // 言語テキスト
-    const translations = {
-      ja:{title:"WHO VQ",subtitle:"あなたのお世話が、誰かの世界に",start:"スタート",continue:"続きから",about:"研究について",asari:"潮干狩り体験"},
-      en:{title:"WHO VQ",subtitle:"Your care becomes someone's world",start:"Start",continue:"Continue",about:"About Research",asari:"Clam Digging"},
-      zh:{title:"WHO VQ",subtitle:"您的关怀，成就他人的世界",start:"开始",continue:"继续",about:"关于研究",asari:"挖蛤蜊体验"},
-      ko:{title:"WHO VQ",subtitle:"당신의 돌봄이 누군가의 세상이 됩니다",start:"시작",continue:"계속하기",about:"연구 소개",asari:"조개잡이 체험"}
-    };
-    let currentLang = localStorage.getItem("who_language") || "ja";
-
-    function updateTexts(){
-      const texts = translations[currentLang];
-      document.querySelectorAll("[data-i18n]").forEach(el=>{
-        const key = el.getAttribute("data-i18n");
-        if(texts[key]) el.textContent = texts[key];
-      });
-      document.title = texts.title + " — Start";
-    }
-
-    // 背景を時間帯で切替
-    function setBackground(){
-      const hour = new Date().getHours();
-      let bgPath = "public/bg/beach_day.jpg";
-      if(hour >= 18 || hour < 5){
-        bgPath = "public/bg/night_beach.jpg";
-      }else if(hour >= 5 && hour < 8){
-        bgPath = "public/bg/sunrise.jpg";
-      }
-      document.getElementById("bg").style.backgroundImage = `url(${bgPath})`;
-    }
-
-    window.addEventListener("DOMContentLoaded",()=>{
-      document.getElementById("langSelect").value = currentLang;
-      updateTexts();
-      setBackground();
-
-      document.getElementById("langSelect").addEventListener("change",e=>{
-        currentLang = e.target.value;
-        localStorage.setItem("who_language",currentLang);
-        updateTexts();
-      });
-
-      document.getElementById("btnStart").onclick = ()=>{localStorage.removeItem("who_lastPage");location.href="char.html";};
-      document.getElementById("btnContinue").onclick = ()=>{location.href=localStorage.getItem("who_lastPage")||"char.html";};
-      document.getElementById("btnAbout").onclick = ()=>{location.href="about.html";};
-      document.getElementById("btnAsari").onclick = ()=>{location.href="asari.html";};
-    });
-  </script>
+document.getElementById("startBtn").addEventListener("click",()=>{
+  location.href="char.html";
+});
+document.getElementById("continueBtn").addEventListener("click",()=>{
+  const last=getLS("who_last_page",null);
+  location.href = last ? last : "char.html";
+});
+document.getElementById("aboutBtn").addEventListener("click",()=>{
+  location.href="about.html";
+});
+</script>
 </body>
 </html>
