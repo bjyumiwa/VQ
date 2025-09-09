@@ -6,21 +6,15 @@
   <title>WHO VQ — キャラクター選択</title>
 
   <!-- 背景を先読み（朝日・昼・夜） -->
-  <link rel="preload" as="image" href="public/items/bg/sunrise.jpg" />
-  <link rel="preload" as="image" href="public/items/bg/beach_day.jpg" />
-  <link rel="preload" as="image" href="public/items/bg/night_beach.jpg" />
+  <link rel="preload" as="image" href="public/bg/sunrise.jpg" />
+  <link rel="preload" as="image" href="public/bg/beach_day.jpg" />
+  <link rel="preload" as="image" href="public/bg/night_beach.jpg" />
 
-  <!-- タネ画像を先読み -->
+  <!-- タネ画像を先読み（必要に応じて追加OK） -->
   <link rel="preload" as="image" href="public/assets/stage1/pink_closed.png" />
-  <link rel="preload" as="image" href="public/assets/stage1/blue_open.png" />
-  <link rel="preload" as="image" href="public/assets/stage1/green_open.png" />
+  <link rel="preload" as="image" href="public/assets/stage1/blue_closed.png" />
+  <link rel="preload" as="image" href="public/assets/stage1/green_closed.png" />
   <link rel="preload" as="image" href="public/assets/stage1/purple_closed.png" />
-
-  <!-- マカロン画像（任意：あれば読み込みが速くなります） -->
-  <link rel="preload" as="image" href="public/assets/stage1/macaron_pink.png" />
-  <link rel="preload" as="image" href="public/assets/stage1/macaron_blue.png" />
-  <link rel="preload" as="image" href="public/assets/stage1/macaron_green.png" />
-  <link rel="preload" as="image" href="public/assets/stage1/macaron_purple.png" />
 
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -55,11 +49,7 @@
     }
     .card:hover{transform: translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .card.selected{outline:2px solid #64b5ff; box-shadow:0 0 0 3px rgba(100,181,255,.35) inset}
-    .card.locked{filter:saturate(.3) brightness(.8)}
-    .card .lock{
-      position:absolute; inset:auto 10px 10px auto; background:rgba(0,0,0,.5);
-      border:1px solid rgba(255,255,255,.2); border-radius:10px; padding:4px 6px; font-size:12px
-    }
+
     .tag{
       display:inline-block; padding:4px 8px; border-radius:999px;
       border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); font-size:12px
@@ -90,14 +80,14 @@
 <body>
   <header>
     <div class="logo">WHO VQ</div>
-    <div class="meta">総取得：<span id="total">0</span> 個 / マカロン解禁：<strong>100個</strong>〜</div>
+    <div class="meta">総取得：<span id="total">0</span> 個</div>
   </header>
 
   <div class="wrap">
     <h1>キャラクターを選ぶ</h1>
-    <p class="lead">最初は <strong>タネ</strong> からはじめます。<br>貝が100個集まると、下の <strong>マカロン色</strong> が解禁され、色だけ選べます（進化はしません）。</p>
+    <p class="lead">最初は <strong>タネ</strong> からはじめます。<br>色はタネの色のみ（マカロンは使いません）。</p>
 
-    <!-- タネキャラ -->
+    <!-- タネキャラだけ -->
     <section>
       <div class="row" style="justify-content:space-between; margin-bottom:10px;">
         <h2 style="font-size:1.2rem;font-weight:700">タネ</h2>
@@ -105,16 +95,6 @@
       </div>
       <div class="grid" id="seedGrid"></div>
       <div class="notice" id="seedNote">選択結果：<span id="seedSel">未選択</span></div>
-    </section>
-
-    <!-- マカロン色（解禁後） -->
-    <section>
-      <div class="row" style="justify-content:space-between; margin-bottom:10px;">
-        <h2 style="font-size:1.2rem;font-weight:700">マカロン色</h2>
-        <span class="tag" id="macaronState">ロック中：貝を100個集めると選べます</span>
-      </div>
-      <div class="grid" id="macaronGrid"></div>
-      <div class="notice" id="macaronNote">選択結果：<span id="macaronSel">未選択</span></div>
     </section>
 
     <section style="margin-top:22px; display:flex; gap:10px; justify-content:flex-end">
@@ -127,40 +107,24 @@
     // 画像パス（public/assets/stage1/ に統一）
     const ASSET = (name)=>`public/assets/stage1/${name}`;
 
-    // タネ
+    // タネ（必要なら *_open.png に揃えてもOK）
     const SEEDS = [
-      {key:'pink',  name:'Mi（ピンク）',  src:ASSET('pink_closed.png')},
-      {key:'blue',  name:'Be（ブルー）',  src:ASSET('blue_closed.png')},
+      {key:'pink',  name:'Mi（ピンク）',  src:ASSET('pink_open.png')},
+      {key:'blue',  name:'Be（ブルー）',  src:ASSET('blue_open.png')},
       {key:'green', name:'Co（グリーン）',src:ASSET('green_open.png')},
-      {key:'purple',name:'Su（パープル）',src:ASSET('purple_closed.png')}
-    ];
-
-    // マカロン（例に合わせたファイル名：macaron_blue.png など）
-    const MACARON_COLORS = [
-      {key:'pink',  name:'マカロン（ピンク）',  src:ASSET('macaron_pink.png'),   fallback:'#ff86af'},
-      {key:'blue',  name:'マカロン（ブルー）',  src:ASSET('macaron_blue.png'),   fallback:'#4ea3ff'},
-      {key:'green', name:'マカロン（グリーン）',src:ASSET('macaron_green.png'),  fallback:'#38d39f'},
-      {key:'purple',name:'マカロン（パープル）',src:ASSET('macaron_purple.png'), fallback:'#9c7cff'}
+      {key:'purple',name:'Su（パープル）',src:ASSET('purple_open.png')}
     ];
 
     // 状態
     const total = parseInt(localStorage.getItem('who_shells_total') || '0', 10);
-    const macaronUnlocked = total >= 100;
-
     const savedChar = JSON.parse(localStorage.getItem('who_character') || 'null');
-    const savedMac  = localStorage.getItem('who_macaron_color') || null;
-
-    let seedChoice   = savedChar?.type === 'tane' ? savedChar.color : null;
-    let macaronColor = savedMac || null;
+    let seedChoice = savedChar?.type === 'tane' ? savedChar.color : null;
 
     // DOM取得
     const totalEl = document.getElementById('total');
     const seedGrid = document.getElementById('seedGrid');
-    const macaronGrid = document.getElementById('macaronGrid');
-    const seedSel = document.getElementById('seedSel');
-    const macSel  = document.getElementById('macaronSel');
-    const macState= document.getElementById('macaronState');
-    const saveBtn = document.getElementById('saveBtn');
+    const seedSel  = document.getElementById('seedSel');
+    const saveBtn  = document.getElementById('saveBtn');
 
     totalEl.textContent = total.toString();
 
@@ -185,54 +149,16 @@
       if(found) seedSel.textContent = found.name;
     }
 
-    // マカロンカード描画（画像が無い場合は色チップにフォールバック）
-    MACARON_COLORS.forEach(item=>{
-      const c = document.createElement('div'); c.className = 'card';
-      c.innerHTML = `
-        <div class="imgbox">
-          <img src="${item.src}" alt="${item.name}" onerror="
-            this.style.display='none';
-            const ph=document.createElement('div');
-            ph.style.width='120px';ph.style.height='120px';
-            ph.style.borderRadius='24px';
-            ph.style.background='${item.fallback || '#666'}';
-            ph.style.boxShadow='inset 0 0 30px rgba(0,0,0,.25)';
-            this.parentNode.appendChild(ph);
-          "/>
-        </div>
-        <div class="name">${item.name}</div>
-        <div class="sub">色だけ選べます（進化しません）</div>`;
-      if(!macaronUnlocked){
-        c.classList.add('locked');
-        const lock = document.createElement('div'); lock.className='lock'; lock.textContent='100個で解禁';
-        c.appendChild(lock);
-      }else{
-        c.addEventListener('click', ()=>{
-          macaronColor = item.key;
-          [...macaronGrid.children].forEach(el=>el.classList.remove('selected'));
-          c.classList.add('selected');
-          macSel.textContent = item.name;
-        });
-      }
-      if(macaronColor === item.key) c.classList.add('selected');
-      macaronGrid.appendChild(c);
-    });
-    if(macaronUnlocked){
-      macState.textContent = '解禁済み：好きな色を選べます';
-      if(macaronColor){
-        const found = MACARON_COLORS.find(m=>m.key===macaronColor);
-        if(found) macSel.textContent = found.name;
-      }
-    }
-
-    // 保存 & 遷移
+    // 保存 & 遷移（マカロンは使わない）
     saveBtn.addEventListener('click', ()=>{
       if(!seedChoice){
-        alert('タネをひとつ選んでください。');
+        alert('キャラをひとつ選んでください。');
         return;
       }
       localStorage.setItem('who_character', JSON.stringify({type:'tane', color:seedChoice}));
-      if(macaronUnlocked && macaronColor) localStorage.setItem('who_macaron_color', macaronColor);
+      // 互換：もし過去に保存されていたマカロン色があっても無視（削除したい場合は以下ON）
+      // localStorage.removeItem('who_macaron_color');
+
       localStorage.setItem('who_lastPage', 'asari.html');
       location.href = 'asari.html';
     });
