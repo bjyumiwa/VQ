@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <title>WHO VQ — 潮干狩り</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:'Helvetica Neue','Arial','Hiragino Kaku Gothic ProN','Hiragino Sans','Meiryo',sans-serif;
+      overflow:hidden;background:#000;color:#fff
+    }
+    .game-container{position:relative;width:100vw;height:100vh;overflow:hidden}
+    .bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;transition:opacity .8s ease;z-index:0}
+    .bg.fallback{
+      background:
+        radial-gradient(ellipse at 70% 15%, rgba(255,255,200,.6), transparent 50%),
+        linear-gradient(180deg,#87ceeb 0%,#98d8e8 30%,#4682b4 60%,#2e4f99 100%)
+    }
+    .overlay{position:absolute;inset:0;background:rgba(0,0,0,.12);z-index:1}
+
+    /* UI */
+    .ui{position:absolute;inset:0;pointer-events:none;z-index:100}
+    .topbar{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:14px 18px;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent);
+      backdrop-filter:blur(10px);pointer-events:auto
+    }
+    .logo{font-size:20px;font-weight:700;letter-spacing:.5px;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+    .stats{display:flex;gap:14px;font-weight:400;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+    .btn{
+      background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+      color:#fff;padding:8px 12px;border-radius:18px;cursor:pointer;font-size:13px;
+      transition:.25s;backdrop-filter:blur(8px)
+    }
+    .btn:hover{background:rgba(255,255,255,.28);transform:translateY(-1px)}
+    .btn.primary{background:#e67e22;border-color:#ffc396}
+    .btn.primary:hover{background:#d35400}
+
+    /* 右ナビ */
+    .navigation{
+      position:absolute;top:50%;right:12px;transform:translateY(-50%);
+      display:flex;flex-direction:column;gap:8px;pointer-events:auto;z-index:120
+    }
+    .nav-btn{
+      background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.35);
+      color:#fff;padding:9px 12px;border-radius:22px;min-width:120px;
+      text-decoration:none;text-align:center;font-size:13px;transition:.25s
+    }
+    .nav-btn:hover{background:rgba(255,255,255,.18);transform:translateX(-3px)}
+
+    /* キャンバス */
+    canvas#scene, canvas#sand{position:absolute;inset:0;z-index:50;touch-action:none}
+    canvas#sand{z-index:60;cursor:grab}
+    canvas#sand.brushing{cursor:grabbing}
+
+    /* 下部インフォ */
+    .panel{
+      position:absolute;left:12px;right:12px;bottom:12px;
+      background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);
+      border-radius:14px;padding:12px 14px;backdrop-filter:blur(8px);pointer-events:auto
+    }
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
+    .collections{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+    .chip{
+      display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.25);padding:5px 9px;border-radius:18px;font-size:12px
+    }
+    .chip img{width:20px;height:20px;border-radius:50%;object-fit:contain;background:#fff}
+    .chip .cnt{font-variant-numeric:tabular-nums}
+
+    .exam{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:8px;flex-wrap:wrap}
+    .badge{padding:4px 8px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);font-size:12px}
+
+    @media (max-width:768px){
+      .logo{font-size:18px}
+      .stats{gap:10px;font-size:13px}
+      .nav-btn{min-width:100px}
+    }
+  </style>
+</head>
+<body data-page="beach">
+  <div class="game-container">
+    <div class="bg fallback" id="bg"></div>
+    <div class="overlay"></div>
+
+    <!-- UI -->
+    <div class="ui">
+      <div class="topbar">
+        <div class="logo">WHO VQ 潮干狩り</div>
+        <div class="stats">
+          <div>時間：<span id="timeDisplay">昼</span></div>
+          <div>収集：<span id="totalCollected">0</span> 個</div>
+          <div>会話チケット：<span id="talkTickets">0</span></div>
+          <div>アクセP：<span id="accPoints">0</span></div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="timeBtn">時間変更</button>
+          <button class="btn primary" id="examBtn">アサリ取り検定 開始</button>
+        </div>
+      </div>
+      <div class="navigation">
+        <a href="night.html" class="nav-btn">夜の会話</a>
+        <a href="accessory.html" class="nav-btn">アクセサリー</a>
+        <a href="collection.html" class="nav-btn">コレクション</a>
+        <a href="index.html" class="nav-btn">ホーム</a>
+      </div>
+    </div>
+
+    <!-- 描画キャンバス -->
+    <canvas id="scene"></canvas>
+    <canvas id="sand"></canvas>
+
+    <!-- 下部パネル -->
+    <div class="panel" id="panel">
+      <div class="row" id="hint">砂をなでて貝を見つけよう。十分に出てきたらタップ/クリックで回収！</div>
+      <div class="collections" id="collections"></div>
+      <div class="exam" id="examInfo" style="display:none;">
+        <span class="badge">検定モード中</span>
+        <span class="badge">残り <strong id="examTime">60</strong>s</span>
+        <span class="badge">スコア <strong id="examScore">0</strong></span>
+        <span class="badge">ベスト <strong id="examBest">0</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /********** 設定・状態 **********/
+    // 背景（時間帯）
+    const BG = {
+      sunrise:'public/bg/sunrise.jpg',
+      day:'public/bg/beach_day.jpg',
+      sunset:'public/bg/sunrise.jpg',
+      night:'public/bg/night_beach.jpg'
+    };
+    const PHASES = ['sunrise','day','sunset','night'];
+    const bgEl = document.getElementById('bg');
+    const timeDisplay = document.getElementById('timeDisplay');
+    let timePhase = localStorage.getItem('who_timePhase') || inferPhaseByClock();
+
+    // 貝の種類（要件どおりに報酬フラグ付与）
+    const shellSprites = {
+      // 会話ができる（チケット）
+      asari3: { name:'アサリ(橙)', src:'public/items/asari3.png', rarity:0.15, points:2, reward:'talk' },
+      flame:  { name:'炎の貝',     src:'public/items/flame_shell.png',   rarity:0.08, points:3, reward:'talk' },
+      aurora: { name:'オーロラ貝', src:'public/items/aurora_shell.png',  rarity:0.07, points:4, reward:'talk' },
+      luminous:{name:'光る貝',     src:'public/items/luminous_shell.png',rarity:0.06, points:5, reward:'talk' },
+
+      // アクセサリーと交換できる（ポイント）
+      mystic: { name:'神秘の貝',   src:'public/items/mystic_shell.png',  rarity:0.05, points:6, reward:'accessory' },
+      night:  { name:'夜空の貝',   src:'public/items/night_sky_shell.png',rarity:0.03, points:8, reward:'accessory' },
+      rainbow:{ name:'虹色のレア貝',src:'public/items/rare_rainbow.png', rarity:0.02, points:10,reward:'accessory' },
+      pearl:  { name:'レア真珠',   src:'public/items/rare_pearl.png',    rarity:0.01, points:15,reward:'accessory' },
+
+      // 検定対象（時間制限モード）
+      asari1: { name:'アサリ(白)', src:'public/items/asari1.png', rarity:0.25, points:1, exam:true },
+      asari2: { name:'アサリ(黄)', src:'public/items/asari2.png', rarity:0.20, points:1, exam:true }
+      // asari3 は上で exam ではなく talk 報酬
+    };
+
+    // 画像プリロード
+    const shellImages = {};
+    for(const k in shellSprites){ const im=new Image(); im.src=shellSprites[k].src; shellImages[k]=im; }
+
+    // 収集カウント/通貨
+    const counts = JSON.parse(localStorage.getItem('who_collection_counts')||'{}');
+    for(const k of Object.keys(shellSprites)){ if(!(k in counts)) counts[k]=0; }
+    let talkTickets = parseInt(localStorage.getItem('who_talk_tickets')||'0',10);
+    let accPoints   = parseInt(localStorage.getItem('who_accessory_points')||'0',10);
+
+    // 検定
+    const EXAM_DURATION = 60; // 秒
+    let examActive = false, examLeft = EXAM_DURATION, examScore = 0;
+    const bestKey = 'who_exam_best';
+    let examBest = parseInt(localStorage.getItem(bestKey)||'0',10);
+    let examTimer = null;
+
+    // DOM
+    const totalCollectedEl = document.getElementById('totalCollected');
+    const talkTicketsEl = document.getElementById('talkTickets');
+    const accPointsEl   = document.getElementById('accPoints');
+    const collectionsEl = document.getElementById('collections');
+    const examInfo = document.getElementById('examInfo');
+    const examTimeEl = document.getElementById('examTime');
+    const examScoreEl = document.getElementById('examScore');
+    const examBestEl  = document.getElementById('examBest');
+
+    /********** キャンバス準備 **********/
+    const scene = document.getElementById('scene');
+    const sand  = document.getElementById('sand');
+    const sctx = scene.getContext('2d');
+    const mctx = sand.getContext('2d');
+    function resize(){
+      scene.width = sand.width = innerWidth;
+      scene.height = sand.height = innerHeight;
+      drawAll();
+    }
+    addEventListener('resize', resize);
+
+    /********** 砂埋めロジック **********/
+    const BRUSH = { size: 50 };
+    let brushing=false, lastX=0, lastY=0;
+    function resetSand(){
+      mctx.globalCompositeOperation='source-over';
+      const g=mctx.createLinearGradient(0,sand.height*0.5,0,sand.height);
+      g.addColorStop(0,'rgba(220,190,120,0.88)'); g.addColorStop(1,'rgba(210,180,110,0.92)');
+      mctx.fillStyle=g; mctx.fillRect(0,0,sand.width,sand.height);
+      // ノイズ
+      const density=Math.floor((sand.width*sand.height)/1200); mctx.globalAlpha=.08;
+      for(let i=0;i<density;i++){ mctx.fillStyle=`rgba(255,255,255,${Math.random()*0.6})`; mctx.fillRect(Math.random()*sand.width,Math.random()*sand.height,1,1); }
+      mctx.globalAlpha=1;
+    }
+    function eraseAt(x,y){
+      mctx.save(); mctx.globalCompositeOperation='destination-out';
+      mctx.beginPath(); mctx.arc(x,y,BRUSH.size/2,0,Math.PI*2); mctx.fill(); mctx.restore();
+      // 露出度
+      for(const sh of shells){
+        const d=Math.hypot(x-sh.x,y-sh.y);
+        if(d < sh.r + BRUSH.size*0.6){ sh.reveal++; if(sh.reveal>12) sh.revealed=true; }
+      }
+    }
+    function pos(e){ return e.touches && e.touches[0] ? {x:e.touches[0].clientX,y:e.touches[0].clientY} : {x:e.clientX,y:e.clientY}; }
+    sand.addEventListener('pointerdown',e=>{
+      sand.setPointerCapture(e.pointerId); brushing=true; sand.classList.add('brushing');
+      const p=pos(e); eraseAt(p.x,p.y); lastX=p.x; lastY=p.y;
+    });
+    sand.addEventListener('pointermove',e=>{
+      if(!brushing) return; const p=pos(e);
+      const steps=Math.max(1,Math.floor(Math.hypot(p.x-lastX,p.y-lastY)/8));
+      for(let i=1;i<=steps;i++){
+        const ix=lastX+(p.x-lastX)*i/steps, iy=lastY+(p.y-lastY)*i/steps;
+        eraseAt(ix,iy);
+      }
+      lastX=p.x; lastY=p.y;
+    });
+    sand.addEventListener('pointerup',()=>{brushing=false;sand.classList.remove('brushing')});
+    sand.addEventListener('pointercancel',()=>{brushing=false;sand.classList.remove('brushing')});
+
+    // クリックで回収
+    sand.addEventListener('click', e=>{
+      const p=pos(e);
+      for(const sh of shells){
+        if(sh.collected) continue;
+        const d=Math.hypot(p.x-sh.x,p.y-sh.y);
+        if(d<=sh.r && sh.revealed){
+          collectShell(sh);
+          break;
+        }
+      }
+    });
+
+    /********** シェル配置 **********/
+    let shells=[];
+    function spawnShells(n=18){
+      shells=[];
+      const W=scene.width,H=scene.height;
+      for(let i=0;i<n;i++){
+        const type = pickShellType();
+        const r = rand(22,36);
+        const x = rand(r, W-r);
+        const y = rand(H*0.45, H-r-20);
+        shells.push({type,x,y,r,reveal:0,revealed:false,collected:false,pulse:0});
+      }
+    }
+    function pickShellType(){
+      // 検定中は asari1/2/3 のみを重み付け
+      const pool = examActive
+        ? {asari1:0.45, asari2:0.35, asari3:0.20}
+        : Object.fromEntries(Object.entries(shellSprites).map(([k,v])=>[k,v.rarity]));
+      const total = Object.values(pool).reduce((a,b)=>a+b,0);
+      let r=Math.random()*total;
+      for(const [k,w] of Object.entries(pool)){ if((r-=w)<=0) return k; }
+      return 'asari1';
+    }
+
+    /********** 収集処理 **********/
+    function collectShell(sh){
+      sh.collected=true; sh.pulse=1;
+      counts[sh.type] = (counts[sh.type]||0)+1;
+
+      // 報酬処理
+      const spec = shellSprites[sh.type];
+      if(spec.reward==='talk'){
+        talkTickets += 1;
+        localStorage.setItem('who_talk_tickets', talkTickets);
+        flashHint(`会話チケット +1（${spec.name}）→ 夜の会話へ行けます`);
+      }else if(spec.reward==='accessory'){
+        accPoints += spec.points;
+        localStorage.setItem('who_accessory_points', accPoints);
+        flashHint(`${spec.name} を回収！ アクセP +${spec.points}（合計 ${accPoints}）`);
+      }
+
+      // 検定スコア
+      if(examActive && (spec.exam || sh.type==='asari3')){ // 検定は asari1/2/3
+        examScore += (sh.type==='asari3' ? 2 : 1);
+        examScoreEl.textContent = examScore;
+      }
+
+      persistCounts();
+      updateTopStats();
+      updateCollectionChips();
+    }
+
+    function persistCounts(){
+      localStorage.setItem('who_collection_counts', JSON.stringify(counts));
+      const total = Object.values(counts).reduce((a,b)=>a+b,0);
+      localStorage.setItem('who_shells_total', total);
+    }
+
+    /********** 描画 **********/
+    function drawAll(){
+      sctx.clearRect(0,0,scene.width,scene.height);
+      for(const sh of shells){ if(!sh.collected) drawShell(sh); }
+    }
+    function drawShell(sh){
+      sctx.save();
+      if(sh.revealed){ const pulse=(Math.sin(Date.now()/200)+1)/2; sctx.shadowColor=`rgba(255,255,200,${.35+pulse*.25})`; sctx.shadowBlur=18+pulse*10; }
+      const img=shellImages[sh.type];
+      if(img && img.complete && img.naturalWidth){
+        sctx.drawImage(img, sh.x-sh.r, sh.y-sh.r, sh.r*2, sh.r*2);
+      }else{
+        sctx.fillStyle='#ccc'; sctx.beginPath(); sctx.arc(sh.x,sh.y,sh.r,0,Math.PI*2); sctx.fill();
+      }
+      sctx.restore();
+    }
+    function loop(){
+      drawAll();
+      // 簡易回収アニメ
+      for(const sh of shells){
+        if(sh.pulse>0){
+          sh.pulse += .08;
+          sctx.save();
+          sctx.globalAlpha = Math.max(0,1-(sh.pulse-1)*0.9);
+          sctx.translate(sh.x,sh.y); sctx.scale(sh.pulse,sh.pulse);
+          drawShell({...sh,x:0,y:0});
+          sctx.restore();
+          if(sh.pulse>2) sh.pulse=0;
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+
+    /********** 背景・時間帯 **********/
+    function inferPhaseByClock(){
+      const h=new Date().getHours();
+      if(h>=18||h<5) return 'night';
+      if(h>=5&&h<9)  return 'sunrise';
+      if(h>=16&&h<18) return 'sunset';
+      return 'day';
+    }
+    function setBackground(phase){
+      const img=new Image();
+      img.onload=()=>{bgEl.style.backgroundImage=`url(${BG[phase]})`;bgEl.classList.remove('fallback');};
+      img.onerror=()=>bgEl.classList.add('fallback');
+      img.src=BG[phase];
+      timeDisplay.textContent = ({sunrise:'朝焼け',day:'昼',sunset:'夕景',night:'夜'})[phase];
+      localStorage.setItem('who_timePhase', phase);
+    }
+    document.getElementById('timeBtn').addEventListener('click', ()=>{
+      const i = PHASES.indexOf(timePhase);
+      timePhase = PHASES[(i+1)%PHASES.length];
+      setBackground(timePhase);
+    });
+
+    /********** 検定モード **********/
+    const examBtn = document.getElementById('examBtn');
+    examBtn.addEventListener('click', ()=>{
+      if(!examActive) startExam();
+      else endExam(true);
+    });
+
+    function startExam(){
+      examActive = true; examLeft = EXAM_DURATION; examScore = 0;
+      examBtn.textContent = '検定 終了';
+      examInfo.style.display = '';
+      examTimeEl.textContent = examLeft;
+      examScoreEl.textContent = '0';
+      examBestEl.textContent = examBest.toString();
+      // 検定向けに再配置＆砂リセット
+      spawnShells(22); resetSand();
+      flashHint('アサリ取り検定スタート！ asari1/2/3 を集めてスコアを伸ばそう！');
+      examTimer = setInterval(()=>{
+        examLeft--; examTimeEl.textContent = examLeft;
+        if(examLeft<=0) endExam(false);
+      },1000);
+    }
+    function endExam(manual){
+      if(!examActive) return;
+      examActive=false;
+      examBtn.textContent='アサリ取り検定 開始';
+      clearInterval(examTimer); examTimer=null;
+      examInfo.style.display='none';
+      if(examScore>examBest){ examBest=examScore; localStorage.setItem(bestKey, String(examBest)); }
+      flashHint(`検定おわり！ スコア ${examScore}（ベスト ${examBest}）${manual?'':''}`);
+      // 通常シーンへリセット
+      spawnShells(18); resetSand();
+    }
+
+    /********** UI 更新 **********/
+    function updateTopStats(){
+      totalCollectedEl.textContent = Object.values(counts).reduce((a,b)=>a+b,0);
+      talkTicketsEl.textContent = talkTickets;
+      accPointsEl.textContent   = accPoints;
+    }
+    function updateCollectionChips(){
+      collectionsEl.innerHTML='';
+      // 代表順
+      const order = ['asari1','asari2','asari3','flame','aurora','luminous','mystic','night','rainbow','pearl'];
+      for(const key of order){
+        const sp = shellSprites[key]; if(!sp) continue;
+        const chip=document.createElement('div'); chip.className='chip';
+        const img=document.createElement('img'); img.src=sp.src; img.alt=sp.name;
+        img.onerror=()=>{img.style.display='none';};
+        const label=document.createElement('span'); label.textContent=sp.name;
+        const cnt=document.createElement('span'); cnt.className='cnt'; cnt.textContent=counts[key]||0;
+        chip.appendChild(img); chip.appendChild(label); chip.append(' × '); chip.appendChild(cnt);
+        collectionsEl.appendChild(chip);
+      }
+    }
+    function flashHint(msg){
+      const hint=document.getElementById('hint');
+      hint.textContent = msg;
+      hint.style.opacity='1';
+      setTimeout(()=>{hint.style.opacity='.9';},1600);
+    }
+
+    /********** 初期化 **********/
+    function init(){
+      setBackground(timePhase);
+      resize();
+      spawnShells(18);
+      resetSand();
+      updateTopStats();
+      updateCollectionChips();
+      localStorage.setItem('who_lastPage','asari.html');
+    }
+    init(); loop();
+
+    /********** util **********/
+    function rand(a,b){return a+Math.random()*(b-a)}
+  </script>
+</body>
+</html>
