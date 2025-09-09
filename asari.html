@@ -3,81 +3,104 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-<title>WHO VQ — アクセサリーショップ</title>
+<title>WHO VQ — 潮干狩り</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;overflow:hidden}
-  .page{display:grid;grid-template-rows:auto 1fr;grid-template-columns:1fr;grid-template-areas:"top""main";height:100vh}
-  .top{grid-area:top;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,0))}
-  .btn{border:none;border-radius:10px;padding:8px 12px;background:#ffd76a;color:#432;font-weight:700;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.25)}
-  .btn:active{transform:translateY(1px)}
-  .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);font-size:14px}
-  .main{grid-area:main;display:grid;grid-template-columns: 1fr 320px;gap:10px;height:100%}
-  .store{position:relative;overflow:auto;padding:10px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
-  .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
-  .thumb{height:120px;border-radius:8px;background:rgba(255,255,255,.05);display:grid;place-items:center;overflow:hidden}
-  .thumb img{width:100%;height:100%;object-fit:contain}
-  .name{font-weight:700}
-  .price{opacity:.9}
-  .buy{border:none;border-radius:8px;padding:8px 10px;background:#68e0a3;color:#103;font-weight:800;cursor:pointer}
-  .buy[disabled]{background:#778095;color:#203;cursor:not-allowed}
-  .side{border-left:1px solid rgba(255,255,255,.08);position:relative;overflow:hidden}
+  .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none}
+
+  /* 背景は「グラデ＋画像」をレイヤー。画像が無くても海っぽく見える */
   .bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0}
-  .bg.sky{background-image:url("public/assets/stage1/sky_morning.png")}
-  .bg.sea{background-image:url("public/assets/stage1/sea.png");opacity:.95}
-  .bg.sand{background-image:url("public/assets/stage1/sand.png")}
-  #charWrap{position:absolute;left:50%;bottom:10vh;transform:translateX(-50%);z-index:2;pointer-events:none}
-  #char{display:block;width:min(42vw,460px);height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.55))}
+  .bg.sky{
+    background:
+      linear-gradient(180deg,#87ceeb 0%,#98d8e8 40%,#bfe6f3 70%,transparent 100%),
+      url("public/assets/stage1/sky_morning.png");
+  }
+  .bg.sea{
+    opacity:.95;
+    background:
+      radial-gradient(ellipse at 50% 20%, rgba(255,255,255,.25), transparent 45%),
+      linear-gradient(180deg,#5ec1e8 0%, #2ea1cf 60%, #1d7aa5 100%),
+      url("public/assets/stage1/sea.png");
+  }
+  .bg.sand{
+    background:
+      radial-gradient(ellipse at 70% 85%, rgba(255,255,255,.18), transparent 55%),
+      linear-gradient(180deg, #e6d2a3 0%, #d6bf8a 50%, #b99e6d 100%),
+      url("public/assets/stage1/sand.png");
+  }
+
+  /* 砂なで */
+  #sandCanvas{position:absolute;inset:0;z-index:3;touch-action:none}
+
+  /* 貝 */
+  .clams{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .clam{position:absolute;width:64px;height:48px;transform:translate(-50%, -50%);opacity:0;pointer-events:auto;cursor:pointer;transition:opacity .25s}
+  .clam.revealed{opacity:1}
+  .clam img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+
+  /* キャラは砂より前面固定 */
+  #charWrap{position:absolute;left:50%;bottom:10vh;transform:translateX(-50%);z-index:7;pointer-events:none}
+  #char{display:block;width:min(38vw, 420px);height:auto;image-rendering:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.55))}
   @keyframes idleFloat{0%{transform:translate(-50%,0)}50%{transform:translate(-50%,-6px)}100%{transform:translate(-50%,0)}}
   #charWrap.idle{animation:idleFloat 3.6s ease-in-out infinite}
-  #accLayer{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:3}
-  .acc{position:absolute;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
-  .toast{position:absolute;left:50%;top:9.5vh;transform:translateX(-50%);z-index:6;background:rgba(0,0,0,.7);padding:10px 14px;border-radius:10px;opacity:0;transition:opacity .25s}
-  .toast.show{opacity:1}
-  @media (max-width: 920px){
-    .main{grid-template-columns:1fr}
-    #char{width:64vw}
-    .side{height:46vh}
+
+  /* アクセ（キャラ内座標系） */
+  #accLayer{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:8}
+  .acc{position:absolute;transform-origin:center center;pointer-events:none;image-rendering:auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+
+  /* HUD */
+  .hud{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;z-index:9;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
+  .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);font-size:14px}
+  .btn{border:none;border-radius:10px;padding:8px 12px;background:#ffd76a;color:#432;font-weight:700;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+  .btn:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+
+  /* トースト */
+  #toast{position:absolute;left:50%;top:9.5vh;transform:translateX(-50%);z-index:10;background:rgba(0,0,0,.7);padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .25s}
+  #toast.show{opacity:1}
+
+  /* 読み込みオーバーレイ（前フレーム保持のため透明） */
+  #loading{position:absolute;inset:0;z-index:6;background:transparent;display:none}
+
+  @media (max-width:480px){
+    #char{width:58vw}
+    .clam{width:52px;height:40px}
   }
 </style>
 </head>
 <body>
-<div class="page">
-  <div class="top">
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn" id="btnBack">← コレクションへ</button>
-      <div class="pill">所持アクセ：<b id="ownedCount">0</b></div>
-      <div class="pill">装着中：<b id="equipCount">0</b></div>
+<div class="game" id="game">
+  <div class="bg sky"></div>
+  <div class="bg sea"></div>
+  <div class="bg sand"></div>
+
+  <canvas id="sandCanvas" width="1920" height="1080"></canvas>
+  <div class="clams" id="clams"></div>
+
+  <!-- キャラ最前面 -->
+  <div id="charWrap" class="idle">
+    <img id="char" alt="character" src="public/assets/stage1/pink_open.png">
+    <div id="accLayer"></div>
+  </div>
+
+  <div class="hud">
+    <div class="pill" id="statPill">
+      <span>会話チケット：</span><b id="ticketCount">0</b>
+      <span style="margin-left:10px">アクセP：</span><b id="accPoint">0</b>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <div class="pill">アクセP：<b id="accPoint">0</b></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="btnBack">戻る</button>
+      <button class="btn" id="btnHint">ヒント</button>
     </div>
   </div>
 
-  <div class="main">
-    <section class="store">
-      <div class="grid" id="grid"></div>
-    </section>
-
-    <aside class="side">
-      <div class="bg sky"></div>
-      <div class="bg sea"></div>
-      <div class="bg sand"></div>
-      <div id="charWrap" class="idle">
-        <img id="char" alt="character" src="public/assets/stage1/pink_open.png">
-        <div id="accLayer"></div>
-      </div>
-      <div class="toast" id="toast">Purchased</div>
-    </aside>
-  </div>
+  <div id="toast">+1 shell / +1P</div>
+  <div id="loading" aria-hidden="true"></div>
 </div>
 
 <script>
 (() => {
-  // ====== 共通設定（asari/collection と統一）======
-  const CHAR_BASE = "public/assets/stage1/";
-  const ACC_BASE  = "public/accessories/";
+  /* ===== 設定 ===== */
   const HEAD_ANCHORS = {
     pink:   { x:0.50, y:0.18, baseScale:0.18 },
     blue:   { x:0.50, y:0.18, baseScale:0.18 },
@@ -85,19 +108,14 @@
     purple: { x:0.50, y:0.18, baseScale:0.18 },
     friend: { x:0.50, y:0.18, baseScale:0.18 },
   };
-  const ACCESSORY_FINE_TUNE = {
-    // 例: "ribbon_red": { dx:0, dy:-4, scaleMul:0.92 },
-  };
+  const ACCESSORY_FINE_TUNE = { /* "ribbon_red": { dx:0, dy:-4, scaleMul:0.92 }, */ };
+  const ACC_BASE  = "public/accessories/";
+  const CHAR_BASE = "public/assets/stage1/";
+  const BRUSH_RADIUS = 26;
+  const CLAM_COUNT = 8;
+  const REWARD = { ticket:1, accPoint:1 };
 
-  // デモ用商品リスト（id・表示名・価格）
-  const CATALOG = [
-    { id:"ribbon_red", name:"レッドリボン", price:5 },
-    { id:"star_small", name:"ちいさな星",   price:4 },
-    { id:"shell_pearl", name:"真珠シェル",  price:6 },
-    { id:"clover", name:"クローバー",       price:4 },
-    { id:"crown_tiny", name:"ちいさな王冠", price:8 },
-  ];
-
+  /* ===== 互換：who_char_color → who_character ===== */
   function migrateLegacyCharacter(){
     try{
       const old = localStorage.getItem("who_char_color");
@@ -111,11 +129,13 @@
     const raw = localStorage.getItem("who_character");
     if (!raw) return {type:"tane", color:"pink"};
     try{
-      const o = JSON.parse(raw);
-      if (!o || o.type!=="tane") return {type:"tane", color:"pink"};
-      return {type:"tane", color:(o.color||"pink")};
+      const obj = JSON.parse(raw);
+      if (!obj || obj.type!=="tane") return {type:"tane", color:"pink"};
+      return {type:"tane", color:(obj.color||"pink")};
     }catch(e){ return {type:"tane", color:"pink"} }
   }
+
+  /* ===== 画像ローダ ===== */
   function ensureImage(src){
     return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(src); im.onerror=()=>rej(new Error("load:"+src)); im.src=src; });
   }
@@ -124,22 +144,9 @@
       const url = CHAR_BASE + name;
       try{ await ensureImage(url); return url; }catch(e){}
     }
-    return null;
+    return null; // 代替は出さず、前フレーム維持
   }
-  function readOwned(){
-    const raw = localStorage.getItem("who_accessory_owned");
-    if (!raw) return [];
-    try{
-      const v = JSON.parse(raw);
-      if (Array.isArray(v)) return v;
-      if (v && typeof v==="object") return Object.keys(v).filter(k=>v[k]);
-    }catch(e){}
-    return [];
-  }
-  function writeOwned(list){
-    localStorage.setItem("who_accessory_owned", JSON.stringify([...new Set(list)]));
-  }
-  function readEquip(){
+  function readAccessoryEquip(){
     const raw = localStorage.getItem("who_accessory_equip");
     if (!raw) return [];
     try{
@@ -149,152 +156,217 @@
     }catch(e){}
     return [];
   }
-  function readIntLS(key, def=0){
-    const v = parseInt(localStorage.getItem(key)||`${def}`,10);
-    return isNaN(v)?def:v;
+  function readIntLS(key, def=0){ const v=parseInt(localStorage.getItem(key)||`${def}`,10); return isNaN(v)?def:v; }
+  function writeIntLS(key,val){ localStorage.setItem(key,String(val)); }
+
+  /* ===== 砂なで ===== */
+  const sandCanvas = document.getElementById("sandCanvas");
+  const ctx = sandCanvas.getContext("2d");
+  let isPointerDown=false;
+  function resizeCanvas(){
+    ctx.clearRect(0,0,sandCanvas.width,sandCanvas.height);
+    ctx.fillStyle = "rgba(0,0,0,0.32)";
+    ctx.fillRect(0,0,sandCanvas.width,sandCanvas.height);
   }
-  function writeIntLS(key, val){ localStorage.setItem(key, String(val)); }
+  function getCanvasPos(evt){
+    const rect = sandCanvas.getBoundingClientRect();
+    const pt = (evt.touches && evt.touches[0]) ? evt.touches[0] : evt;
+    const x = (pt.clientX - rect.left) * (sandCanvas.width / rect.width);
+    const y = (pt.clientY - rect.top)  * (sandCanvas.height / rect.height);
+    return {x,y};
+  }
+  function brush(x,y){
+    const g = ctx.createRadialGradient(x,y,0,x,y,BRUSH_RADIUS);
+    g.addColorStop(0,"rgba(0,0,0,0)");
+    g.addColorStop(1,"rgba(0,0,0,0.6)");
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x,y,BRUSH_RADIUS,0,Math.PI*2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    revealClamsUnder(x,y,BRUSH_RADIUS*1.1);
+  }
+  function setupBrushEvents(){
+    sandCanvas.addEventListener("pointerdown",(e)=>{isPointerDown=true; sandCanvas.setPointerCapture(e.pointerId); const p=getCanvasPos(e); brush(p.x,p.y);});
+    sandCanvas.addEventListener("pointermove",(e)=>{if(!isPointerDown) return; const p=getCanvasPos(e); brush(p.x,p.y);});
+    sandCanvas.addEventListener("pointerup",()=>{isPointerDown=false;});
+    sandCanvas.addEventListener("pointercancel",()=>{isPointerDown=false;});
+    sandCanvas.addEventListener("touchstart",(e)=>{const p=getCanvasPos(e); brush(p.x,p.y);},{passive:true});
+    sandCanvas.addEventListener("touchmove",(e)=>{if((e.touches||[]).length){const p=getCanvasPos(e); brush(p.x,p.y);}});
+  }
 
-  // ====== UI refs ======
-  const gridEl = document.getElementById("grid");
-  const ownedCountEl = document.getElementById("ownedCount");
-  const equipCountEl = document.getElementById("equipCount");
-  const accPntEl = document.getElementById("accPoint");
-  const toastEl = document.getElementById("toast");
+  /* ===== 貝 ===== */
+  const clamsEl = document.getElementById("clams");
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+  function spawnClams(n=CLAM_COUNT){
+    clamsEl.innerHTML = "";
+    for(let i=0;i<n;i++){
+      const x = rand(10, 90); // vw %
+      const y = rand(30, 75); // vh %
+      const el = document.createElement("div");
+      el.className = "clam";
+      el.style.left = x + "vw";
+      el.style.top  = y + "vh";
+      const img = document.createElement("img");
+      img.alt = "clam";
+      img.src = "public/assets/stage1/clam.png";
+      el.appendChild(img);
+      el.addEventListener("click", onCollectClam, {passive:true});
+      clamsEl.appendChild(el);
+    }
+  }
+  function revealClamsUnder(x,y,r){
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const px = x / sandCanvas.width  * vw;
+    const py = y / sandCanvas.height * vh;
+    [...clamsEl.children].forEach(c=>{
+      const rect = c.getBoundingClientRect();
+      const cx = rect.left + rect.width/2;
+      const cy = rect.top  + rect.height/2;
+      const d = Math.hypot(cx - px, cy - py);
+      if (d < (r * (vw / sandCanvas.width)) * 1.15) c.classList.add("revealed");
+    });
+  }
+  function onCollectClam(e){
+    const node = e.currentTarget;
+    if (!node.classList.contains("revealed")) return;
+    node.removeEventListener("click", onCollectClam);
+    node.style.pointerEvents = "none";
+    node.style.transition = "transform .25s, opacity .25s";
+    node.style.transform = "translate(-50%,-50%) scale(0.6)";
+    node.style.opacity = "0";
+    setTimeout(()=>node.remove(), 260);
+    const t = readIntLS("who_tickets", 0) + REWARD.ticket;
+    const p = readIntLS("who_accessory_points", 0) + REWARD.accPoint;
+    writeIntLS("who_tickets", t);
+    writeIntLS("who_accessory_points", p);
+    updateHUD();
+    showToast(`+${REWARD.ticket} ticket / +${REWARD.accPoint}P`);
+  }
 
+  /* ===== キャラ＆アクセ ===== */
   const charWrap = document.getElementById("charWrap");
   const charImg  = document.getElementById("char");
   const accLayer = document.getElementById("accLayer");
-
-  // ====== State ======
-  let owned = readOwned();
-  let equips = readEquip();
-  let points = readIntLS("who_accessory_points", 0);
   let currentColor = "pink";
+  let lastCharURL = null;
+  let holdTimer = null;
 
-  // ====== Init ======
-  async function init(){
-    localStorage.setItem("who_lastPage", "accessory.html");
-    accPntEl.textContent = points;
-    ownedCountEl.textContent = owned.length;
-    equipCountEl.textContent = equips.length;
-
-    // キャラ
+  async function setupCharacter(){
     const { color } = readCharacter();
     currentColor = color in HEAD_ANCHORS ? color : "pink";
+    const loading = document.getElementById("loading");
+    loading.style.display = "block";
     const url = await loadSpriteWithFallback(currentColor);
-    if (url){ charImg.src = url; }
+    if (url){ charImg.src = url; lastCharURL = url; }
+    setTimeout(()=>{ loading.style.display = "none"; }, 1600);
     charWrap.classList.add("idle");
-    await drawAccessoriesPreview();
-
-    // 商品表示
-    renderCatalog();
-
-    // 戻る
-    document.getElementById("btnBack").addEventListener("click", ()=>{
-      location.href = "collection.html";
-    });
-
-    // リサイズ
-    window.addEventListener("resize", drawAccessoriesPreview);
+    await drawAccessories();
   }
 
-  function renderCatalog(){
-    gridEl.innerHTML = "";
-    CATALOG.forEach(item=>{
-      const card = document.createElement("div");
-      card.className = "card";
-
-      const th = document.createElement("div");
-      th.className = "thumb";
-      const im = document.createElement("img");
-      const src = `${ACC_BASE}${item.id}.png`;
-      im.alt = item.id;
-      im.src = src;
-      im.onerror = ()=>{ th.textContent = "Missing"; im.remove(); };
-      th.appendChild(im);
-
-      const nm = document.createElement("div");
-      nm.className = "name"; nm.textContent = item.name;
-
-      const pr = document.createElement("div");
-      pr.className = "price"; pr.textContent = `${item.price} P`;
-
-      const btn = document.createElement("button");
-      btn.className = "buy";
-      const already = owned.includes(item.id);
-      btn.textContent = already ? "購入済み" : "購入";
-      btn.disabled = already || (points < item.price);
-      btn.addEventListener("click", ()=>{
-        if (btn.disabled) return;
-        if (points < item.price) return;
-        points -= item.price;
-        accPntEl.textContent = points;
-        writeIntLS("who_accessory_points", points);
-        owned.push(item.id);
-        writeOwned(owned);
-        ownedCountEl.textContent = owned.length;
-        btn.textContent = "購入済み";
-        btn.disabled = true;
-        showToast(`「${item.name}」を購入しました`);
-      });
-
-      card.appendChild(th);
-      card.appendChild(nm);
-      card.appendChild(pr);
-      card.appendChild(btn);
-      gridEl.appendChild(card);
-    });
-  }
-
-  function showToast(msg){
-    toastEl.textContent = msg;
-    toastEl.classList.add("show");
-    setTimeout(()=>toastEl.classList.remove("show"), 1100);
-  }
-
-  async function drawAccessoriesPreview(){
+  async function drawAccessories(){
     accLayer.innerHTML = "";
+    const equips = readAccessoryEquip();
     if (!equips.length) return;
 
-    const rect = charImg.getBoundingClientRect();
+    // 1) 画面上のキャラ矩形
+    const imgRect = charImg.getBoundingClientRect();
+    // 2) accLayer（=キャラ内レイヤー）の左上（基準）
+    const layerRect = accLayer.getBoundingClientRect();
+
     const anchor = HEAD_ANCHORS[currentColor] || HEAD_ANCHORS.pink;
-    const baseAccPx = rect.width * anchor.baseScale;
-    const ax = rect.left + rect.width  * anchor.x;
-    const ay = rect.top  + rect.height * anchor.y;
+    const baseAccPx = imgRect.width * anchor.baseScale;
 
-    for (const id of equips){
-      const src = `${ACC_BASE}${id}.png`;
+    // 画面座標のアンカー（ページ基準）
+    const ax_page = imgRect.left + imgRect.width  * anchor.x;
+    const ay_page = imgRect.top  + imgRect.height * anchor.y;
+
+    // ★ キャラ内座標へ補正（これが前版の不具合点）
+    const ax = ax_page - layerRect.left;
+    const ay = ay_page - layerRect.top;
+
+    for (const name of equips){
+      const src = `${ACC_BASE}${name}.png`;
       try{ await ensureImage(src); }catch(e){ continue; }
-      const fine = ACCESSORY_FINE_TUNE[id] || {dx:0, dy:0, scaleMul:1.0};
-      const imgEl = document.createElement("img");
-      imgEl.className = "acc";
-      imgEl.alt = id; imgEl.src = src;
-
+      const fine = ACCESSORY_FINE_TUNE[name] || {dx:0, dy:0, scaleMul:1.0};
       const dim = await loadImage(src);
       const aspect = (dim.w||256)/(dim.h||256);
+
       const w = baseAccPx * (fine.scaleMul||1.0);
       const h = w / aspect;
       const left = (ax + (fine.dx||0)) - w/2;
       const top  = (ay + (fine.dy||0)) - h/2;
 
-      imgEl.style.width = `${w}px`;
-      imgEl.style.height = `${h}px`;
-      imgEl.style.left = `${left}px`;
-      imgEl.style.top  = `${top}px`;
-      accLayer.appendChild(imgEl);
+      const el = document.createElement("img");
+      el.className = "acc";
+      el.alt = name;
+      el.src = src;
+      el.style.width = `${w}px`;
+      el.style.height = `${h}px`;
+      el.style.left = `${left}px`;
+      el.style.top  = `${top}px`;
+      accLayer.appendChild(el);
     }
   }
+
   function loadImage(src){
-    return new Promise((res,rej)=>{
-      const im = new Image();
-      im.onload = ()=>res({w:im.naturalWidth,h:im.naturalHeight});
-      im.onerror = rej;
-      im.src = src;
-    });
+    return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res({w:im.naturalWidth,h:im.naturalHeight}); im.onerror=rej; im.src=src; });
   }
 
-  // 起動
+  async function pulseHoldOnce(){
+    if (holdTimer) clearTimeout(holdTimer);
+    const url = CHAR_BASE + `${currentColor}_closed.png`;
+    try{
+      await ensureImage(url);
+      charWrap.classList.remove("idle");
+      charImg.src = url;
+      holdTimer = setTimeout(()=>{
+        if (lastCharURL) charImg.src = lastCharURL;
+        charWrap.classList.add("idle");
+        holdTimer = null;
+      }, 1000);
+    }catch(e){}
+  }
+
+  /* ===== HUD / トースト ===== */
+  const ticketEl = document.getElementById("ticketCount");
+  const accPntEl = document.getElementById("accPoint");
+  const toastEl = document.getElementById("toast");
+  function updateHUD(){
+    ticketEl.textContent = readIntLS("who_tickets", 0);
+    accPntEl.textContent = readIntLS("who_accessory_points", 0);
+  }
+  let toastTimer=null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toastEl.classList.remove("show"), 1200);
+  }
+
+  /* ===== イベント ===== */
+  document.getElementById("btnBack").addEventListener("click", ()=>{
+    localStorage.setItem("who_lastPage", "asari.html");
+    location.href = "collection.html";
+  });
+  document.getElementById("btnHint").addEventListener("click", ()=>{
+    pulseHoldOnce();
+    showToast("砂の濃い所をなでてみてね");
+  });
+
+  window.addEventListener("resize", drawAccessories);
+
+  /* ===== 起動 ===== */
+  function init(){
+    resizeCanvas();
+    setupBrushEvents();
+    spawnClams(CLAM_COUNT);
+    setupCharacter();
+    updateHUD();
+    localStorage.setItem("who_lastPage", "asari.html");
+  }
   init();
 })();
 </script>
