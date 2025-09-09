@@ -6,10 +6,8 @@
   <title>WHO VQ — 潮干狩り</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{
-      font-family:'Helvetica Neue','Arial','Hiragino Kaku Gothic ProN','Hiragino Sans','Meiryo',sans-serif;
-      overflow:hidden;background:#000;color:#fff
-    }
+    body{font-family:'Helvetica Neue','Arial','Hiragino Kaku Gothic ProN','Hiragino Sans','Meiryo',sans-serif;
+      overflow:hidden;background:#000;color:#fff}
     .game-container{position:relative;width:100vw;height:100vh;overflow:hidden}
     .bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;transition:opacity .8s ease;z-index:0}
     .bg.fallback{
@@ -49,11 +47,11 @@
     }
     .nav-btn:hover{background:rgba(255,255,255,.18);transform:translateX(-3px)}
 
-    /* キャンバス（キャラを最前面に） */
+    /* キャンバス（キャラを最前面） */
     canvas#scene{position:absolute;inset:0;z-index:50;touch-action:none}
     canvas#sand{position:absolute;inset:0;z-index:60;touch-action:none;cursor:grab}
     canvas#sand.brushing{cursor:grabbing}
-    canvas#char{position:absolute;inset:0;z-index:70;pointer-events:none} /* ←砂より上 */
+    canvas#char{position:absolute;inset:0;z-index:70;pointer-events:none}
 
     /* 下部インフォ */
     .panel{
@@ -73,10 +71,10 @@
     .exam{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:8px;flex-wrap:wrap}
     .badge{padding:4px 8px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);font-size:12px}
 
-    @media (max-width:768px){
-      .logo{font-size:18px}
-      .stats{gap:10px;font-size:13px}
-      .nav-btn{min-width:100px}
+    .loading{
+      position:absolute;inset:0;z-index:65;display:grid;place-items:center;
+      color:#dbeafe;background:linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.06));
+      font-weight:600;letter-spacing:.02em
     }
   </style>
 </head>
@@ -124,10 +122,13 @@
         <span class="badge">ベスト <strong id="examBest">0</strong></span>
       </div>
     </div>
+
+    <div id="loading" class="loading" hidden>読み込み中…</div>
   </div>
 
   <script>
     /********** 設定・状態 **********/
+    // 背景（時間帯）
     const BG = {
       sunrise:'public/bg/sunrise.jpg',
       day:'public/bg/beach_day.jpg',
@@ -139,35 +140,43 @@
     const timeDisplay = document.getElementById('timeDisplay');
     let timePhase = localStorage.getItem('who_timePhase') || inferPhaseByClock();
 
+    // 貝の種類
     const shellSprites = {
+      // 会話チケット
       asari3:{ name:'アサリ(橙)', src:'public/items/asari3.png', rarity:0.15, points:2, reward:'talk' },
       flame:{  name:'炎の貝',     src:'public/items/flame_shell.png',   rarity:0.08, points:3, reward:'talk' },
       aurora:{ name:'オーロラ貝', src:'public/items/aurora_shell.png',  rarity:0.07, points:4, reward:'talk' },
       luminous:{name:'光る貝',    src:'public/items/luminous_shell.png',rarity:0.06, points:5, reward:'talk' },
 
+      // アクセP
       mystic:{ name:'神秘の貝',   src:'public/items/mystic_shell.png',  rarity:0.05, points:6, reward:'accessory' },
       night:{  name:'夜空の貝',   src:'public/items/night_sky_shell.png',rarity:0.03, points:8, reward:'accessory' },
       rainbow:{name:'虹色のレア貝',src:'public/items/rare_rainbow.png', rarity:0.02, points:10, reward:'accessory' },
       pearl:{  name:'レア真珠',   src:'public/items/rare_pearl.png',    rarity:0.01, points:15, reward:'accessory' },
 
+      // 検定対象
       asari1:{ name:'アサリ(白)', src:'public/items/asari1.png', rarity:0.25, points:1, exam:true },
       asari2:{ name:'アサリ(黄)', src:'public/items/asari2.png', rarity:0.20, points:1, exam:true }
     };
 
+    // 画像プリロード（貝）
     const shellImages = {};
     for(const k in shellSprites){ const im=new Image(); im.src=shellSprites[k].src; shellImages[k]=im; }
 
+    // 収集カウント/通貨
     const counts = JSON.parse(localStorage.getItem('who_collection_counts')||'{}');
     for(const k of Object.keys(shellSprites)){ if(!(k in counts)) counts[k]=0; }
     let talkTickets = parseInt(localStorage.getItem('who_talk_tickets')||'0',10);
     let accPoints   = parseInt(localStorage.getItem('who_accessory_points')||'0',10);
 
-    const EXAM_DURATION = 60;
+    // 検定
+    const EXAM_DURATION = 60; // 秒
     let examActive = false, examLeft = EXAM_DURATION, examScore = 0;
     const bestKey = 'who_exam_best';
     let examBest = parseInt(localStorage.getItem(bestKey)||'0',10);
     let examTimer = null;
 
+    // DOM
     const totalCollectedEl = document.getElementById('totalCollected');
     const talkTicketsEl = document.getElementById('talkTickets');
     const accPointsEl   = document.getElementById('accPoints');
@@ -176,6 +185,7 @@
     const examTimeEl = document.getElementById('examTime');
     const examScoreEl = document.getElementById('examScore');
     const examBestEl  = document.getElementById('examBest');
+    const loadingEl   = document.getElementById('loading');
 
     /********** キャンバス準備 **********/
     const scene = document.getElementById('scene');
@@ -190,6 +200,7 @@
       scene.width = sand.width = charC.width = W;
       scene.height = sand.height = charC.height = H;
       drawAll();
+      drawChar(); // 再配置
     }
     addEventListener('resize', resize);
 
@@ -201,6 +212,7 @@
       const g=mctx.createLinearGradient(0,sand.height*0.5,0,sand.height);
       g.addColorStop(0,'rgba(220,190,120,0.88)'); g.addColorStop(1,'rgba(210,180,110,0.92)');
       mctx.fillStyle=g; mctx.fillRect(0,0,sand.width,sand.height);
+      // ノイズ
       const density=Math.floor((sand.width*sand.height)/1200); mctx.globalAlpha=.08;
       for(let i=0;i<density;i++){ mctx.fillStyle=`rgba(255,255,255,${Math.random()*0.6})`; mctx.fillRect(Math.random()*sand.width,Math.random()*sand.height,1,1); }
       mctx.globalAlpha=1;
@@ -209,6 +221,7 @@
       mctx.save(); mctx.globalCompositeOperation='destination-out';
       mctx.beginPath(); mctx.arc(x,y,BRUSH.size/2,0,Math.PI*2); mctx.fill(); mctx.restore();
       lastBrushAt = {x,y, t: performance.now()};
+      // 露出度
       for(const sh of shells){
         const d=Math.hypot(x-sh.x,y-sh.y);
         if(d < sh.r + BRUSH.size*0.6){ sh.reveal++; if(sh.reveal>12) sh.revealed=true; }
@@ -239,7 +252,8 @@
         const d=Math.hypot(p.x-sh.x,p.y-sh.y);
         if(d<=sh.r && sh.revealed){
           collectShell(sh);
-          triggerHold(sh.x, sh.y);
+          // 掘り中の静的切替を一瞬入れる（チカチカなし）
+          triggerDigOnce();
           break;
         }
       }
@@ -300,76 +314,69 @@
       localStorage.setItem('who_shells_total', total);
     }
 
-    /********** キャラクター（チカチカ禁止版） **********/
-    const CHAR = {
-      color: (localStorage.getItem('who_char_color')||'pink').toLowerCase().replace(/[^a-z]/g,'') || 'pink',
-      x: 0, y: 0, scale:1,
-      targetX: null, targetY: null,
-      state: 'idle', // idle | walk | dig | hold
-      facing: 1,
-      images: { idle:null, dig:null, hold:null },
-      footPhase: 0,
-      holdJumpT: 0,
-      lastSeenBrush: 0
-    };
-
-    function loadCharImages(){
-      const base = 'public/assets/stage1/';
-      const c = CHAR.color;
-      // チカチカ防止：各ステート1枚だけ使用
-      CHAR.images.idle = new Image(); CHAR.images.idle.src = `${base}${c}_open.png`;
-      CHAR.images.dig  = new Image(); CHAR.images.dig.src  = `${base}${c}_close.png`;
-      CHAR.images.hold = new Image(); CHAR.images.hold.src = `${base}${c}_hold.png`;
+    /********** キャラクター（チカチカしない・砂の上） **********/
+    function getSelectedColor(){
+      try{
+        const saved = JSON.parse(localStorage.getItem('who_character') || 'null');
+        const c = (saved && saved.color) ? String(saved.color).toLowerCase() : null;
+        return ['pink','blue','green','purple'].includes(c) ? c : 'pink';
+      }catch(e){ return 'pink'; }
     }
 
-    function initChar(){
-      loadCharImages();
-      const W=charC.width,H=charC.height;
-      CHAR.x = W*0.5;
-      CHAR.y = H*0.82;
-      CHAR.scale = Math.min(1, Math.max(0.7, W/1280));
+    const CHAR = {
+      color: getSelectedColor(),
+      x: 0, y: 0, scale:1, facing: 1,
+      state: 'idle', // idle | dig (一瞬のみ) | hold(回収喜び)
+      stateTimer: 0, holdTimer: 0,
+      imgIdle: null, imgDig: null, imgHold: null,
+      lastFrame: null // 消え対策
+    };
+    // 互換のため旧キーも更新（任意）
+    localStorage.setItem('who_char_color', CHAR.color);
+
+    function loadCharImages(){
+      loadingEl.hidden = false;
+      const base = 'public/assets/stage1/';
+      const idle = new Image(); idle.src = `${base}${CHAR.color}_open.png`;
+      const dig  = new Image(); dig.src  = `${base}${CHAR.color}_close.png`;
+      const hold = new Image(); hold.src = `${base}${CHAR.color}_hold.png`;
+
+      let ready = 0, need = 2; // idle と dig の2枚が来たら十分（holdは任意）
+      const done = ()=>{ if(++ready>=need){ loadingEl.hidden = true; drawChar(); } };
+
+      idle.onload=()=>{CHAR.imgIdle=idle; done();};
+      idle.onerror=()=>{console.warn('idle missing', idle.src); done();};
+
+      dig.onload =()=>{CHAR.imgDig=dig; done();};
+      dig.onerror=()=>{console.warn('dig missing', dig.src); done();};
+
+      hold.onload=()=>{CHAR.imgHold=hold;};
+      hold.onerror=()=>{console.warn('hold missing', hold.src);};
     }
 
     function updateChar(dt){
-      if(lastBrushAt && performance.now()-lastBrushAt.t < 2000){
-        CHAR.targetX = lastBrushAt.x;
-        CHAR.targetY = Math.max(charC.height*0.55, Math.min(charC.height*0.86, lastBrushAt.y+40));
-        CHAR.lastSeenBrush = lastBrushAt.t;
-      }else{
-        CHAR.targetX = null;
+      // 掘りトリガから一定時間でidleへ戻す（チカチカなしの静的1回切替）
+      if(CHAR.state==='dig'){
+        CHAR.stateTimer += dt;
+        if(CHAR.stateTimer>0.35){ CHAR.state='idle'; }
       }
-
-      const nearBrush = lastBrushAt && Math.hypot((lastBrushAt.x-CHAR.x),(lastBrushAt.y-CHAR.y)) < 140;
-      const diggingPossible = nearBrush && performance.now()-lastBrushAt.t < 1200;
-
-      if(CHAR.state !== 'hold'){
-        if(diggingPossible) CHAR.state = 'dig';
-        else if(CHAR.targetX!=null) CHAR.state = 'walk';
-        else CHAR.state = 'idle';
-      }
-
-      const speed = 320*CHAR.scale;
-      if(CHAR.state==='walk' || CHAR.state==='dig'){
-        const tx = CHAR.targetX ?? CHAR.x;
-        const ty = CHAR.targetY ?? CHAR.y;
-        const dx = tx-CHAR.x, dy = ty-CHAR.y;
-        const dist = Math.hypot(dx,dy);
-        if(dist>1){
-          CHAR.facing = dx>=0 ? 1 : -1;
-          const ux=dx/dist, uy=dy/dist;
-          const step = Math.min(dist, speed*dt);
-          CHAR.x += ux*step;
-          CHAR.y += uy*step;
-        }
-      }
-
-      // 歩きの上下ゆれは弱め（チカチカではない）
-      CHAR.footPhase += dt*(CHAR.state==='walk'?2.2:1.2);
-
       if(CHAR.state==='hold'){
-        CHAR.holdJumpT += dt;
-        if(CHAR.holdJumpT>0.8){
-          CHAR.state='idle'; CHAR.holdJumpT=0;
+        CHAR.holdTimer += dt;
+        if(CHAR.holdTimer>0.6){ CHAR.state='idle'; CHAR.holdTimer=0; }
+      }
+
+      // 直近ブラシに寄る（軽く追従）
+      if(lastBrushAt){
+        const targetX = lastBrushAt.x;
+        const targetY = Math.max(charC.height*0.58, Math.min(charC.height*0.84, lastBrushAt.y+40));
+        const dx = targetX-CHAR.x, dy = targetY-CHAR.y;
+        const dist = Math.hypot(dx,dy);
+        const speed = 260 * Math.min(1, Math.max(0.7, innerWidth/1280));
+        if(dist>1){
+          const step = Math.min(dist, speed*dt);
+          CHAR.x += dx/dist*step;
+          CHAR.y += dy/dist*step;
+          CHAR.facing = dx>=0 ? 1 : -1;
         }
       }
     }
@@ -378,45 +385,47 @@
       cctx.clearRect(0,0,charC.width,charC.height);
 
       // 影
-      const shadowW = 80*CHAR.scale, shadowH = 18*CHAR.scale;
+      const baseSize = Math.min(charC.width, charC.height) * 0.28;
+      const W = baseSize, H = baseSize;
+      const cx = charC.width * 0.5;
+      const cy = charC.height * 0.76;
+
+      // 初期配置
+      if(CHAR.x===0 && CHAR.y===0){ CHAR.x=cx; CHAR.y=cy; }
+
       cctx.save();
-      cctx.globalAlpha=0.25;
-      cctx.fillStyle='#000';
+      cctx.globalAlpha = 0.25;
+      cctx.fillStyle = '#000';
       cctx.beginPath();
-      cctx.ellipse(CHAR.x, CHAR.y+22*CHAR.scale, shadowW, shadowH, 0, 0, Math.PI*2);
+      cctx.ellipse(CHAR.x, CHAR.y + H*0.18, W*0.33, H*0.07, 0, 0, Math.PI*2);
       cctx.fill();
       cctx.restore();
 
-      // ジャンプ補正（holdのみ）
-      let jumpY = 0;
-      if(CHAR.state==='hold'){
-        const t = CHAR.holdJumpT;
-        jumpY = -Math.sin(Math.min(1,t)*Math.PI)*18*CHAR.scale;
+      // 使用画像（静的切替のみ）
+      let img = CHAR.imgIdle;
+      if(CHAR.state==='dig'  && CHAR.imgDig)  img = CHAR.imgDig;
+      if(CHAR.state==='hold' && CHAR.imgHold) img = CHAR.imgHold;
+
+      if(img && img.complete && img.naturalWidth){
+        cctx.save();
+        cctx.translate(CHAR.x, CHAR.y);
+        cctx.scale(CHAR.facing, 1);
+        cctx.drawImage(img, -W/2, -H, W, H);
+        cctx.restore();
+
+        // 前フレーム保持（消え対策）
+        try{ CHAR.lastFrame = cctx.getImageData(0,0,charC.width,charC.height); }catch{}
+      }else if(CHAR.lastFrame){
+        // 画像未準備でも直前フレームで埋め戻し
+        cctx.putImageData(CHAR.lastFrame, 0, 0);
       }
-
-      // 使用画像（1枚固定／チカチカしない）
-      let img = CHAR.images.idle;
-      if(CHAR.state==='dig')  img = CHAR.images.dig || CHAR.images.idle;
-      if(CHAR.state==='hold') img = CHAR.images.hold || CHAR.images.idle;
-
-      // 画像が無ければ描画しない（フォールバック形状は無し）
-      if(!(img && img.complete && img.naturalWidth)) return;
-
-      const W = 120*CHAR.scale, H = 120*CHAR.scale;
-      const bob = Math.sin(CHAR.footPhase)*2*CHAR.scale; // 微小な上下
-
-      cctx.save();
-      cctx.translate(CHAR.x, CHAR.y + bob + jumpY);
-      cctx.scale(CHAR.facing, 1);
-      cctx.drawImage(img, -W/2, -H, W, H);
-      cctx.restore();
     }
 
-    function triggerHold(px,py){
-      CHAR.targetX = px; CHAR.targetY = py;
-      CHAR.facing = (px-CHAR.x)>=0 ? 1 : -1;
-      CHAR.state = 'hold';
-      CHAR.holdJumpT = 0;
+    function triggerDigOnce(){
+      CHAR.state='dig';
+      CHAR.stateTimer=0;
+      // 回収喜びモーションは任意：掘りの後に一瞬holdへ
+      setTimeout(()=>{ if(CHAR.imgHold){ CHAR.state='hold'; CHAR.holdTimer=0; } }, 180);
     }
 
     /********** 背景・時間帯 **********/
@@ -500,7 +509,7 @@
       setTimeout(()=>{hint.style.opacity='.9';},1600);
     }
 
-    /********** 描画＆ループ **********/
+    /********** 描画（貝） **********/
     function drawAll(){
       sctx.clearRect(0,0,scene.width,scene.height);
       for(const sh of shells){ if(!sh.collected) drawShell(sh); }
@@ -517,8 +526,10 @@
       sctx.restore();
     }
 
+    /********** ループ **********/
     function loop(){
       requestAnimationFrame(loop);
+
       drawAll();
 
       // 簡易回収アニメ
@@ -534,7 +545,7 @@
         }
       }
 
-      // キャラ
+      // キャラ更新・描画
       const now = performance.now();
       if(!loop.last) loop.last = now;
       const dt = Math.min(0.033, (now - loop.last)/1000);
@@ -552,8 +563,12 @@
       updateTopStats();
       updateCollectionChips();
       localStorage.setItem('who_lastPage','asari.html');
-      initChar();
-      lastBrushAt = {x: innerWidth*0.6, y: innerHeight*0.7, t: performance.now()};
+
+      // キャラ画像ロード
+      loadCharImages();
+
+      // 初回誘導
+      lastBrushAt = {x: innerWidth*0.58, y: innerHeight*0.7, t: performance.now()};
     }
     init(); loop();
 
