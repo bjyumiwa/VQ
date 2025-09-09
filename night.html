@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <title>WHO VQ — 夜の会話</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:"Hiragino Sans","Meiryo",system-ui,sans-serif;
+      background:#000; color:#fff; height:100vh; overflow:hidden;
+    }
+    /* 背景 */
+    .bg{position:fixed;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity .8s}
+    .bg.show{opacity:1}
+    .bg.fallback{
+      background:
+        radial-gradient(ellipse at 60% 10%, rgba(255,255,255,.08), transparent 50%),
+        linear-gradient(180deg,#071225 0%,#0b1b33 40%,#03070f 100%);
+    }
+    .overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.6));pointer-events:none}
+
+    header{
+      position:fixed;left:0;right:0;top:0;z-index:10;
+      display:flex;justify-content:space-between;align-items:center;
+      padding:14px 16px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0));
+      backdrop-filter: blur(8px);
+    }
+    .logo{font-weight:700}
+    .meta{display:flex;gap:14px;align-items:center}
+    .badge{
+      padding:6px 10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.35); font-size:12px
+    }
+    .btn{
+      appearance:none;border:1px solid rgba(255,255,255,.35);
+      background:rgba(255,255,255,.12);color:#fff;border-radius:999px;
+      padding:8px 14px;cursor:pointer;transition:.2s
+    }
+    .btn:hover{filter:brightness(1.1)}
+    .btn.primary{background:var(--accent, #4ea3ff);border-color:rgba(255,255,255,.2)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+
+    main{position:fixed;inset:64px 0 0 0;display:flex;flex-direction:column}
+    .chat{flex:1;overflow-y:auto;padding:14px 12px 100px}
+    .bubble{
+      max-width:min(76%,800px); margin:8px 10px; padding:10px 12px; line-height:1.5;
+      border-radius:16px; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.45);
+      box-shadow:0 6px 18px rgba(0,0,0,.35);
+      word-break:break-word; white-space:pre-wrap;
+    }
+    .me{margin-left:auto; background:rgba(255,255,255,.16)}
+    .npc{margin-right:auto; background:rgba(255,255,255,.08)}
+    .npc .name{display:block; font-size:12px; opacity:.8; margin-bottom:4px}
+    .accent{color:var(--accent, #4ea3ff)}
+    .system{margin: 10px auto; text-align:center; font-size:13px; opacity:.9}
+
+    .composer{
+      position:fixed;left:10px;right:10px;bottom:10px;z-index:11;
+      display:flex;gap:8px;align-items:center;
+      background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.2);
+      border-radius:14px; backdrop-filter: blur(8px); padding:8px;
+    }
+    .composer input{
+      flex:1; background:transparent; border:none; outline:none; color:#fff;
+      font-size:16px; padding:10px 12px;
+    }
+    .composer .send{min-width:110px}
+    .lock{
+      position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:20;
+      background:rgba(0,0,0,.55); backdrop-filter: blur(4px);
+    }
+    .lock .panel{
+      width:min(560px,92vw); padding:16px; border-radius:14px;
+      background:rgba(10,12,20,.9); border:1px solid rgba(255,255,255,.18);
+      text-align:center
+    }
+    .row{display:flex; gap:10px; justify-content:center; margin-top:12px; flex-wrap:wrap}
+    .nav{
+      position:fixed; right:10px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:8px; z-index:12;
+    }
+    .nav a{
+      text-decoration:none; color:#fff; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.3);
+      padding:8px 12px; border-radius:16px; font-size:13px; text-align:center;
+    }
+  </style>
+</head>
+<body>
+  <!-- 背景 -->
+  <div id="bg" class="bg fallback"></div>
+  <div class="overlay"></div>
+
+  <header>
+    <div class="logo">WHO VQ</div>
+    <div class="meta">
+      <span class="badge">会話残：<span id="tickets">0</span></span>
+      <span class="badge">往復：<span id="turns">0</span>/3</span>
+      <button class="btn" onclick="location.href='asari.html'">潮干狩りへ</button>
+    </div>
+  </header>
+
+  <!-- 右ナビ -->
+  <div class="nav">
+    <a href="collection.html">コレクション</a>
+    <a href="accessory.html">アクセサリー</a>
+    <a href="index.html">ホーム</a>
+  </div>
+
+  <main>
+    <div id="chat" class="chat"></div>
+
+    <div class="composer">
+      <input id="input" type="text" placeholder="メッセージを入力（Enterで送信）"/>
+      <button id="send" class="btn primary send">送信</button>
+    </div>
+  </main>
+
+  <!-- チケットが無い時のロック画面 -->
+  <div id="gate" class="lock" style="display:none">
+    <div class="panel">
+      <div style="font-size:1.1rem; margin-bottom:6px;">会話チケットがありません</div>
+      <div style="opacity:.9">潮干狩りで <span class="accent">会話チケット対象の貝</span> を拾うと追加されます。</div>
+      <div class="row">
+        <a class="btn" href="asari.html">潮干狩りへ戻る</a>
+        <button id="useTicket" class="btn primary">1枚使って会話を始める</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API モジュール（存在しない場合は下のフォールバックが効く） -->
+  <script src="web/talk.js" defer></script>
+  <script>
+    /***** アクセントカラー（マカロン色） *****/
+    const mac = localStorage.getItem('who_macaron_color') || 'blue';
+    const ACCENTS = {pink:'#ff86af',blue:'#4ea3ff',green:'#38d39f',purple:'#9c7cff'};
+    document.documentElement.style.setProperty('--accent', ACCENTS[mac] || '#4ea3ff');
+
+    /***** 背景 *****/
+    const bg = document.getElementById('bg');
+    (function setBG(){
+      const img=new Image();
+      img.onload=()=>{bg.style.backgroundImage=`url(public/bg/night_beach.jpg)`; bg.classList.add('show'); bg.classList.remove('fallback');};
+      img.onerror=()=>{bg.classList.add('show');};
+      img.src='public/bg/night_beach.jpg';
+    })();
+
+    /***** 状態管理 *****/
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+    const gate = document.getElementById('gate');
+    const useTicketBtn = document.getElementById('useTicket');
+    const ticketsEl = document.getElementById('tickets');
+    const turnsEl = document.getElementById('turns');
+
+    let tickets = parseInt(localStorage.getItem('who_talk_tickets')||'0',10);
+    let turns = 0; // AIからの返信回数で数える（3で終了）
+
+    ticketsEl.textContent = tickets;
+
+    // キャラ情報（タネ）
+    const whoChar = JSON.parse(localStorage.getItem('who_character')||'{"type":"tane","color":"blue"}');
+    const charName = `タネ（${whoChar.color}）`;
+
+    // ページ記録
+    localStorage.setItem('who_lastPage','night.html');
+
+    /***** ゲート処理 *****/
+    function ensureTicketBeforeStart(){
+      if(tickets<=0){
+        gate.style.display = 'flex';
+        input.disabled = true; sendBtn.disabled = true;
+      }else{
+        gate.style.display = 'none';
+      }
+    }
+    ensureTicketBeforeStart();
+
+    // ボタンで1枚消費して開始
+    useTicketBtn.addEventListener('click', ()=>{
+      if(tickets<=0) return;
+      consumeTicketAndStart();
+    });
+
+    function consumeTicketAndStart(){
+      tickets -= 1;
+      localStorage.setItem('who_talk_tickets', tickets);
+      ticketsEl.textContent = tickets;
+      gate.style.display = 'none';
+      input.disabled = false; sendBtn.disabled = false;
+      systemMsg('会話をはじめました（残りチケット：'+tickets+'）');
+      input.focus();
+    }
+
+    /***** チャットUI *****/
+    function addBubble(text, who='me'){
+      const el = document.createElement('div');
+      el.className = `bubble ${who==='me'?'me':'npc'}`;
+      if(who==='npc'){
+        const nm = document.createElement('span');
+        nm.className = 'name';
+        nm.innerHTML = `<span class="accent">●</span> ${charName}`;
+        el.appendChild(nm);
+      }
+      el.appendChild(document.createTextNode(text));
+      chat.appendChild(el);
+      chat.scrollTop = chat.scrollHeight;
+    }
+    function systemMsg(text){
+      const el=document.createElement('div'); el.className='system accent'; el.textContent=text;
+      chat.appendChild(el); chat.scrollTop=chat.scrollHeight;
+    }
+
+    /***** 送信処理 *****/
+    sendBtn.addEventListener('click', onSend);
+    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); onSend(); } });
+
+    async function onSend(){
+      const text = (input.value || '').trim();
+      if(!text) return;
+      if(gate.style.display!=='none'){ // まだチケットを使ってない
+        consumeTicketAndStart();
+      }
+      addBubble(text,'me');
+      input.value='';
+
+      const reply = await callTalkAPI(text);
+      addBubble(reply,'npc');
+
+      turns += 1;
+      turnsEl.textContent = turns;
+      if(turns >= 3){
+        systemMsg('会話はここまで。また話そう。→ コレクションへ移動します。');
+        setTimeout(()=>{ location.href='collection.html'; }, 1400);
+      }
+    }
+
+    /***** API 呼び出し（web/talk.js が無い場合はダミー） *****/
+    async function callTalkAPI(userText){
+      // 送信用の文脈
+      const context = {
+        character: whoChar,
+        macaronColor: mac,
+        scene: 'night_beach',
+        // 会話が短くテンポ良くなるプロンプト指示（API側で利用）
+        style: 'concise, warm, a bit dreamy, 1-2 sentences'
+      };
+
+      try{
+        if(window.WHO_TALK && typeof WHO_TALK.send === 'function'){
+          const res = await WHO_TALK.send(userText, context);
+          if(res && (res.reply || res.text)) return (res.reply||res.text).trim();
+        }
+      }catch(e){
+        console.warn('talk API error:', e);
+      }
+      // フォールバック応答（ダミー）
+      const lines = [
+        '波の音って、言葉よりも確かな返事だと思うんだ。',
+        '月明かりが強い夜は、内緒話が少しだけ勇気になるね。',
+        'その気持ち、浜辺の砂みたいに指でなぞって確かめてみよう。',
+        'うん、きみの声はここに届いてるよ。'
+      ];
+      return lines[Math.floor(Math.random()*lines.length)];
+    }
+
+    /***** 初期化メッセージ *****/
+    (function greet(){
+      if(tickets<=0){
+        systemMsg('会話を始めるにはチケットが必要です。潮干狩りで集めよう。');
+      }else{
+        systemMsg('チケットがあるよ。メッセージを入力して話しかけてみて。');
+        // 入力可能にする（所持している場合）
+        input.disabled=false; sendBtn.disabled=false;
+      }
+    })();
+  </script>
+</body>
+</html>
