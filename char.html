@@ -85,12 +85,12 @@
 
   <div class="wrap">
     <h1>キャラクターを選ぶ</h1>
-    <p class="lead">最初は <strong>タネ</strong> からはじめます。<br>色はタネの色のみ（マカロンは使いません）。</p>
+   
 
     <!-- タネキャラだけ -->
     <section>
       <div class="row" style="justify-content:space-between; margin-bottom:10px;">
-        <h2 style="font-size:1.2rem;font-weight:700">タネ</h2>
+        <h2 style="font-size:1.2rem;font-weight:700">friend</h2>
         <span class="tag">必須：ひとつ選ぶ</span>
       </div>
       <div class="grid" id="seedGrid"></div>
@@ -107,7 +107,7 @@
     // 画像パス（public/assets/stage1/ に統一）
     const ASSET = (name)=>`public/assets/stage1/${name}`;
 
-    // タネ（必要なら *_open.png に揃えてもOK）
+    // friend（必要なら *_open.png に揃えてもOK）
     const SEEDS = [
       {key:'pink',  name:'Mi（ピンク）',  src:ASSET('pink_open.png')},
       {key:'blue',  name:'Be（ブルー）',  src:ASSET('blue_open.png')},
