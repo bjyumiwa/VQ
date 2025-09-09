@@ -1,170 +1,284 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — キャラクター選択</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHO VQ — キャラ選択</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;overflow:hidden}
 
-  <!-- 背景を先読み（朝日・昼・夜） -->
-  <link rel="preload" as="image" href="public/bg/sunrise.jpg" />
-  <link rel="preload" as="image" href="public/bg/beach_day.jpg" />
-  <link rel="preload" as="image" href="public/bg/night_beach.jpg" />
+  .page{display:grid;grid-template-rows:auto 1fr;grid-template-columns:1fr;grid-template-areas:"top""main";height:100vh}
+  .top{grid-area:top;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,0));z-index:5}
+  .btn{border:none;border-radius:10px;padding:8px 12px;background:#ffd76a;color:#432;font-weight:700;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+  .btn.secondary{background:#7fa8ff;color:#112}
+  .btn:active{transform:translateY(1px)}
 
-  <!-- タネ画像を先読み（必要に応じて追加OK） -->
-  <link rel="preload" as="image" href="public/assets/stage1/pink_closed.png" />
-  <link rel="preload" as="image" href="public/assets/stage1/blue_closed.png" />
-  <link rel="preload" as="image" href="public/assets/stage1/green_closed.png" />
-  <link rel="preload" as="image" href="public/assets/stage1/purple_closed.png" />
+  .main{grid-area:main;display:grid;grid-template-columns:420px 1fr;gap:10px;height:100%}
+  .left{border-right:1px solid rgba(255,255,255,.08);overflow:auto;padding:10px;background:linear-gradient(180deg,rgba(0,0,0,.35),transparent)}
+  .right{position:relative;overflow:hidden}
 
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{
-      font-family: "Hiragino Sans","Meiryo",system-ui,sans-serif;
-      background: radial-gradient(1200px 600px at 20% 0%, rgba(255,255,255,.08), transparent 60%),
-                  linear-gradient(180deg,#08121c 0%,#0b2236 40%,#06111a 100%);
-      color:#fff; min-height:100vh; overflow-x:hidden
-    }
-    header{
-      position:sticky; top:0; z-index:10;
-      display:flex; justify-content:space-between; align-items:center;
-      padding:14px 16px;
-      background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0));
-      backdrop-filter: blur(8px);
-    }
-    .logo{font-weight:700; letter-spacing:.06em}
-    .meta{opacity:.9; font-size:.95rem}
-    .wrap{max-width:1100px; margin:0 auto; padding:24px 16px 32px}
-    h1{font-size:1.6rem; font-weight:600; margin:6px 0 14px}
-    p.lead{opacity:.95; margin-bottom:18px}
+  .grid{display:grid;grid-template-columns:1fr;gap:10px}
+  .card{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;cursor:pointer;transition:transform .06s}
+  .card:active{transform:scale(0.995)}
+  .card input{appearance:none;width:18px;height:18px;border:2px solid #fff;border-radius:50%;margin-right:4px;display:grid;place-items:center}
+  .card input:checked{background:#68e0a3;border-color:#68e0a3;box-shadow:0 0 0 3px rgba(104,224,163,.25) inset}
+  .swatch{width:42px;height:42px;border-radius:10px;flex:0 0 auto;border:1px solid rgba(255,255,255,.18)}
+  .swatch.pink{background:#ff99c6}
+  .swatch.blue{background:#9bc7ff}
+  .swatch.green{background:#9bf0c1}
+  .swatch.purple{background:#c7a2ff}
+  .meta{display:flex;flex-direction:column;gap:2px}
+  .meta b{font-size:15px}
+  .meta small{opacity:.85}
+  .spacer{flex:1}
 
-    section{margin-top:26px}
-    .grid{display:grid; gap:16px; grid-template-columns: repeat(4, minmax(0,1fr));}
-    @media (max-width:900px){ .grid{grid-template-columns: repeat(2, minmax(0,1fr));} }
+  .bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0}
+  .bg.sky{background-image:url("public/assets/stage1/sky_morning.png")}
+  .bg.sea{background-image:url("public/assets/stage1/sea.png");opacity:.95}
+  .bg.sand{background-image:url("public/assets/stage1/sand.png")}
 
-    .card{
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.18);
-      border-radius:16px; padding:14px; text-align:center;
-      transition:.25s; position:relative; overflow:hidden
-    }
-    .card:hover{transform: translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    .card.selected{outline:2px solid #64b5ff; box-shadow:0 0 0 3px rgba(100,181,255,.35) inset}
+  #charWrap{position:absolute;left:50%;bottom:12vh;transform:translateX(-50%);z-index:3;pointer-events:none}
+  #char{display:block;width:min(42vw,520px);height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.55))}
+  @keyframes idleFloat{0%{transform:translate(-50%,0)}50%{transform:translate(-50%,-6px)}100%{transform:translate(-50%,0)}}
+  #charWrap.idle{animation:idleFloat 3.6s ease-in-out infinite}
 
-    .tag{
-      display:inline-block; padding:4px 8px; border-radius:999px;
-      border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); font-size:12px
-    }
-    .imgbox{height:160px; display:flex; align-items:center; justify-content:center; margin-bottom:8px}
-    .imgbox img{max-width:80%; max-height:160px; image-rendering:auto}
-    .name{font-weight:700; margin:6px 0 2px}
-    .sub{opacity:.8; font-size:.9rem}
+  .hud{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:10px 12px;z-index:5}
+  .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);font-size:14px}
 
-    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-    .btn{
-      appearance:none; border:none; cursor:pointer;
-      padding:10px 16px; border-radius:999px; font-weight:600; letter-spacing:.02em;
-      color:#fff; background:#2d6cdf; transition:.2s
-    }
-    .btn:hover{filter:brightness(1.08)}
-    .btn.ghost{background:transparent; border:1px solid rgba(255,255,255,.3)}
-    .btn.secondary{background:#0f7a5f}
-    .btn:disabled{opacity:.5; cursor:not-allowed}
+  .toast{position:absolute;left:50%;top:9.5vh;transform:translateX(-50%);z-index:6;background:rgba(0,0,0,.7);padding:10px 14px;border-radius:10px;opacity:0;transition:opacity .25s}
+  .toast.show{opacity:1}
 
-    .notice{
-      margin-top:10px; padding:10px 12px; border-radius:12px;
-      background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18);
-      font-size:.95rem
-    }
-  </style>
+  @media (max-width: 980px){
+    .main{grid-template-columns:1fr}
+    #char{width:64vw}
+  }
+</style>
 </head>
 <body>
-  <header>
-    <div class="logo">WHO VQ</div>
-    <div class="meta">総取得：<span id="total">0</span> 個</div>
-  </header>
-
-  <div class="wrap">
-    <h1>キャラクターを選ぶ</h1>
-   
-
-    <!-- タネキャラだけ -->
-    <section>
-      <div class="row" style="justify-content:space-between; margin-bottom:10px;">
-        <h2 style="font-size:1.2rem;font-weight:700">friend</h2>
-        <span class="tag">必須：ひとつ選ぶ</span>
-      </div>
-      <div class="grid" id="seedGrid"></div>
-      <div class="notice" id="seedNote">選択結果：<span id="seedSel">未選択</span></div>
-    </section>
-
-    <section style="margin-top:22px; display:flex; gap:10px; justify-content:flex-end">
-      <button class="btn ghost" onclick="location.href='index.html'">戻る</button>
-      <button class="btn secondary" id="saveBtn">決定してはじめる</button>
-    </section>
+<div class="page">
+  <div class="top">
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn secondary" id="btnBack">← 戻る</button>
+      <div class="pill">friend：<b id="selLabel">pink</b></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="btnConfirm">この色で冒険する</button>
+    </div>
   </div>
 
-  <script>
-    // 画像パス（public/assets/stage1/ に統一）
-    const ASSET = (name)=>`public/assets/stage1/${name}`;
+  <div class="main">
+    <section class="left">
+      <div class="grid" id="grid">
+        <!-- 選択カードがJSで入る -->
+      </div>
+    </section>
 
-    // friend（必要なら *_open.png に揃えてもOK）
-    const SEEDS = [
-      {key:'pink',  name:'Mi（ピンク）',  src:ASSET('pink_open.png')},
-      {key:'blue',  name:'Be（ブルー）',  src:ASSET('blue_open.png')},
-      {key:'green', name:'Co（グリーン）',src:ASSET('green_open.png')},
-      {key:'purple',name:'Su（パープル）',src:ASSET('purple_open.png')}
-    ];
+    <section class="right">
+      <div class="bg sky"></div>
+      <div class="bg sea"></div>
+      <div class="bg sand"></div>
+      <div id="charWrap" class="idle">
+        <img id="char" alt="character preview" src="public/assets/stage1/pink_open.png">
+      </div>
+      <div class="hud">
+        <div class="pill">会話チケット：<b id="ticketCount">0</b></div>
+        <div class="pill">アクセP：<b id="accPoint">0</b></div>
+      </div>
+      <div class="toast" id="toast">Saved</div>
+    </section>
+  </div>
+</div>
 
-    // 状態
-    const total = parseInt(localStorage.getItem('who_shells_total') || '0', 10);
-    const savedChar = JSON.parse(localStorage.getItem('who_character') || 'null');
-    let seedChoice = savedChar?.type === 'tane' ? savedChar.color : null;
+<script>
+(() => {
+  /* ============== 設定（色ラインナップ） ============== */
+  const COLORS = [
+    { key:"pink",   label:"Pink",   desc:"明るく元気なMi"   },
+    { key:"blue",   label:"Blue",   desc:"おだやかなBe"     },
+    { key:"green",  label:"Green",  desc:"やさしいCo"     },
+    { key:"purple", label:"Purple", desc:"しっとりSu"     },
+  ];
+  const CHAR_BASE = "public/assets/stage1/";
 
-    // DOM取得
-    const totalEl = document.getElementById('total');
-    const seedGrid = document.getElementById('seedGrid');
-    const seedSel  = document.getElementById('seedSel');
-    const saveBtn  = document.getElementById('saveBtn');
+  /* ============== 互換：旧 who_char_color → who_character = {type:'tane',color} ============== */
+  function migrateLegacyCharacter(){
+    try{
+      const old = localStorage.getItem("who_char_color");
+      if (!old) return;
+      const val = old.replace(/"/g,"").trim();
+      localStorage.setItem("who_character", JSON.stringify({type:"tane", color:val}));
+      // 必要なら旧キー削除：localStorage.removeItem("who_char_color");
+    }catch(e){}
+  }
 
-    totalEl.textContent = total.toString();
-
-    // タネカード描画
-    SEEDS.forEach(item=>{
-      const c = document.createElement('div'); c.className = 'card';
-      c.innerHTML = `
-        <div class="imgbox"><img src="${item.src}" alt="${item.name}" /></div>
-        <div class="name">${item.name}</div>
-        <div class="sub">はじめの相棒</div>`;
-      if(seedChoice === item.key) c.classList.add('selected');
-      c.addEventListener('click', ()=>{
-        seedChoice = item.key;
-        [...seedGrid.children].forEach(el=>el.classList.remove('selected'));
-        c.classList.add('selected');
-        seedSel.textContent = item.name;
-      });
-      seedGrid.appendChild(c);
-    });
-    if(seedChoice){
-      const found = SEEDS.find(s=>s.key===seedChoice);
-      if(found) seedSel.textContent = found.name;
+  function readCharacter(){
+    migrateLegacyCharacter();
+    const raw = localStorage.getItem("who_character");
+    if (!raw) return { type:"tane", color:"pink" };
+    try{
+      const obj = JSON.parse(raw);
+      if (!obj || obj.type!=="tane") return { type:"tane", color:"pink" };
+      return { type:"tane", color: (obj.color||"pink") };
+    }catch(e){
+      return { type:"tane", color:"pink" };
     }
+  }
 
-    // 保存 & 遷移（マカロンは使わない）
-    saveBtn.addEventListener('click', ()=>{
-      if(!seedChoice){
-        alert('キャラをひとつ選んでください。');
-        return;
-      }
-      localStorage.setItem('who_character', JSON.stringify({type:'tane', color:seedChoice}));
-      // 互換：もし過去に保存されていたマカロン色があっても無視（削除したい場合は以下ON）
-      // localStorage.removeItem('who_macaron_color');
+  function saveCharacter(color){
+    const data = { type:"tane", color };
+    localStorage.setItem("who_character", JSON.stringify(data));
+    localStorage.setItem("who_lastPage", "char.html");
+  }
 
-      localStorage.setItem('who_lastPage', 'asari.html');
-      location.href = 'asari.html';
+  /* ============== 画像ローダ（_open → _closed → .png） ============== */
+  function ensureImage(src){
+    return new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(src);
+      im.onerror = () => rej(new Error("img load failed: "+src));
+      im.src = src;
+    });
+  }
+  async function resolveCharURL(color){
+    const trials = [`${color}_open.png`, `${color}_closed.png`, `${color}.png`];
+    for (const t of trials){
+      const url = CHAR_BASE + t;
+      try{ await ensureImage(url); return url; }catch(e){}
+    }
+    // 代替は出さず、現状維持のため null（前フレーム保持）
+    return null;
+  }
+
+  /* ============== UI refs ============== */
+  const gridEl = document.getElementById("grid");
+  const charWrap = document.getElementById("charWrap");
+  const charImg  = document.getElementById("char");
+  const selLabel = document.getElementById("selLabel");
+  const toastEl  = document.getElementById("toast");
+  const ticketEl = document.getElementById("ticketCount");
+  const accPntEl = document.getElementById("accPoint");
+
+  /* ============== 状態 ============== */
+  let selected = "pink";
+  let lastURL = null;
+
+  /* ============== 初期化 ============== */
+  async function init(){
+    localStorage.setItem("who_lastPage", "char.html");
+    // HUD（任意の既存キーに合わせる）
+    ticketEl.textContent = parseInt(localStorage.getItem("who_tickets")||"0",10) || 0;
+    accPntEl.textContent = parseInt(localStorage.getItem("who_accessory_points")||"0",10) || 0;
+
+    // 以前の選択を反映
+    const prev = readCharacter();
+    if (COLORS.some(c=>c.key===prev.color)) selected = prev.color;
+
+    // リスト描画
+    renderCards();
+    // プレビュー反映
+    await applyPreview(selected);
+
+    // 戻る・決定
+    document.getElementById("btnBack").addEventListener("click", ()=> {
+      // 遷移先はプロジェクトの導線に合わせて変更可
+      location.href = "index.html";
+    });
+    document.getElementById("btnConfirm").addEventListener("click", async ()=> {
+      saveCharacter(selected);
+      showToast("キャラを保存しました");
+      // 少し待って潮干狩りへ
+      setTimeout(()=>{ location.href = "asari.html"; }, 250);
     });
 
-    // ページ記録
-    localStorage.setItem('who_lastPage','char.html');
-  </script>
+    // キーボード操作（↑↓／W-S で選択、Enterで決定）
+    window.addEventListener("keydown", onKeyNav);
+  }
+
+  function onKeyNav(e){
+    const idx = COLORS.findIndex(c=>c.key===selected);
+    if (e.key==="ArrowDown" || e.key==="s" || e.key==="S"){
+      const n = (idx+1) % COLORS.length;
+      pick(COLORS[n].key);
+    } else if (e.key==="ArrowUp" || e.key==="w" || e.key==="W"){
+      const n = (idx-1+COLORS.length) % COLORS.length;
+      pick(COLORS[n].key);
+    } else if (e.key==="Enter"){
+      document.getElementById("btnConfirm").click();
+    }
+  }
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    setTimeout(()=>toastEl.classList.remove("show"), 1000);
+  }
+
+  function renderCards(){
+    gridEl.innerHTML = "";
+    COLORS.forEach((c, i) => {
+      const card = document.createElement("label");
+      card.className = "card";
+      card.setAttribute("data-color", c.key);
+
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "tone";
+      radio.value = c.key;
+      radio.checked = (c.key === selected);
+      radio.addEventListener("change", async ()=> {
+        pick(c.key);
+      });
+
+      const sw = document.createElement("div");
+      sw.className = "swatch " + c.key;
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const b = document.createElement("b"); b.textContent = `${c.label}（${c.key}）`;
+      const s = document.createElement("small"); s.textContent = c.desc;
+      meta.appendChild(b); meta.appendChild(s);
+
+      const spacer = document.createElement("div"); spacer.className = "spacer";
+
+      card.appendChild(radio);
+      card.appendChild(sw);
+      card.appendChild(meta);
+      card.appendChild(spacer);
+
+      card.addEventListener("click", async (ev)=>{
+        // ラベル全体クリックでも選択
+        const key = card.getAttribute("data-color");
+        pick(key);
+      });
+
+      gridEl.appendChild(card);
+    });
+    selLabel.textContent = selected;
+  }
+
+  async function pick(color){
+    if (!COLORS.some(c=>c.key===color)) return;
+    selected = color;
+    selLabel.textContent = selected;
+    // ラジオUI更新
+    [...gridEl.querySelectorAll('input[type="radio"]')].forEach(r=>{
+      r.checked = (r.value === selected);
+    });
+    await applyPreview(selected);
+  }
+
+  async function applyPreview(color){
+    const url = await resolveCharURL(color);
+    if (!url) return; // 前フレーム維持
+    lastURL = url;
+    charWrap.classList.add("idle"); // 1枚静止+ゆらぎ
+    charImg.src = url;
+  }
+
+  // 起動
+  init();
+})();
+</script>
 </body>
 </html>
