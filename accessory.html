@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHOAI | アクセサリーショップ</title>
+<meta name="color-scheme" content="light dark" />
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#121922; --panel-soft:#0f151d; --text:#eaf2ff;
+    --muted:#9fb2c9; --accent:#7dd3fc; --ok:#22c55e; --warn:#f59e0b;
+    --chip:#1e293b; --card:#0f172a; --ring:#334155; --shadow:0 10px 25px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif}
+  .wrap{min-height:100dvh;display:flex;flex-direction:column}
+  header{position:sticky;top:0;z-index:20;padding:10px 14px;
+    background:linear-gradient(180deg,rgba(0,0,0,.7),rgba(0,0,0,0));
+    border-bottom:1px solid #0b1220}
+  .topbar{display:flex;gap:10px;align-items:center}
+  .title{font-weight:700;letter-spacing:.02em}
+  .spacer{flex:1}
+  .btn{appearance:none;border:none;cursor:pointer;background:var(--panel);color:var(--text);
+    padding:8px 12px;border-radius:12px;box-shadow:var(--shadow);
+    border:1px solid var(--ring);transition:transform .05s ease,filter .2s ease;background .2s ease;font-weight:600}
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
+  .btn.acc{background:var(--accent);color:#002235;border-color:transparent}
+  .btn.ok{background:var(--ok);color:#01210f;border-color:transparent}
+  .btn.warn{background:var(--warn);color:#2d1a00;border-color:transparent}
+  main{padding:16px;display:grid;gap:14px}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel-soft));
+    border:1px solid var(--ring);border-radius:18px;padding:14px;box-shadow:var(--shadow)}
+  .status{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .gallery{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+  .card{background:var(--card);border:1px solid var(--ring);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+  .thumb{aspect-ratio:1/1;background:#0b1420;display:grid;place-items:center}
+  .thumb img{width:80%;height:80%;object-fit:contain;filter:drop-shadow(0 8px 12px rgba(0,0,0,.5))}
+  .body{padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+  .name{font-weight:700}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:.78rem;background:var(--chip);border:1px solid var(--ring);
+    padding:4px 8px;border-radius:999px;color:var(--muted);font-weight:700}
+  .count{font-size:1rem;font-weight:800}
+  .cta{display:flex;gap:8px;margin-top:6px}
+  .empty{padding:20px;border:1px dashed var(--ring);border-radius:16px;color:var(--muted)}
+  .footnav{display:flex;gap:10px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="topbar">
+      <button class="btn" id="backBtn">← 戻る</button>
+      <div class="title">アクセサリーショップ</div>
+      <div class="spacer"></div>
+      <button class="btn acc" id="toCollection">コレクションへ</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="status">
+        <div>残りアクセサリーポイント: <b id="apRemain">0</b></div>
+      </div>
+    </section>
+
+    <section class="gallery" id="shopGallery"></section>
+
+    <section class="panel footnav">
+      <button class="btn" id="toIndex">タイトルへ</button>
+      <button class="btn" id="toCollection2">コレクションへ</button>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ========== 定義 ========== */
+const ACCESSORY_DEFS = [
+  { id:'knit_hat',     name:'ニット帽',     cost:5,  img:'public/assets/accessories/knit_hat.png' },
+  { id:'star_yellow',  name:'スター（黄）', cost:3,  img:'public/assets/accessories/star_yellow.png' },
+  { id:'ribbon_yellow',name:'リボン（黄）', cost:4,  img:'public/assets/accessories/ribbon_yellow.png' },
+  { id:'straw_hat',    name:'麦わら帽子',   cost:6,  img:'public/assets/accessories/straw_hat.png' },
+  { id:'sunglasses',   name:'サングラス',   cost:7,  img:'public/assets/accessories/sunglasses.png' },
+];
+const LS_KEYS = {
+  apRemain:'who_accessory_points',
+  inventory:'who_accessory_inventory',
+  lastPage:'who_last_page'
+};
+
+/* ========== LSユーティリティ ========== */
+const getLS=(k,def=null)=>{ try{const v=localStorage.getItem(k);return v==null?def:JSON.parse(v);}catch{return def;} };
+const setLS=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+/* ========== 状態ロード ========== */
+function loadState(){
+  const apRemain = getLS(LS_KEYS.apRemain,0);
+  const inventory = Object.assign(Object.fromEntries(ACCESSORY_DEFS.map(a=>[a.id,0])), getLS(LS_KEYS.inventory,{}));
+  return {apRemain,inventory};
+}
+
+/* ========== 購入処理 ========== */
+function purchase(state,acc){
+  if(state.apRemain < acc.cost){
+    alert(`ポイント不足です（必要: ${acc.cost}P）`);
+    return;
+  }
+  state.apRemain -= acc.cost;
+  state.inventory[acc.id] = (state.inventory[acc.id]||0) + 1;
+  setLS(LS_KEYS.apRemain,state.apRemain);
+  setLS(LS_KEYS.inventory,state.inventory);
+  render(state);
+  alert(`${acc.name} を購入しました！`);
+}
+
+/* ========== 描画 ========== */
+function buildCard(state,acc){
+  const qty = state.inventory[acc.id]||0;
+  const el=document.createElement('div');el.className='card';
+  el.innerHTML=`
+    <div class="thumb"><img src="${acc.img}" alt="${acc.name}"></div>
+    <div class="body">
+      <div class="name">${acc.name}</div>
+      <div class="tags"><span class="tag">必要P: ${acc.cost}</span></div>
+      <div class="count">所持: ${qty}</div>
+      <div class="cta">
+        <button class="btn ok small">購入</button>
+      </div>
+    </div>`;
+  el.querySelector('button').addEventListener('click',()=>purchase(state,acc));
+  return el;
+}
+function render(state){
+  document.getElementById('apRemain').textContent=state.apRemain;
+  const g=document.getElementById('shopGallery'); g.innerHTML='';
+  ACCESSORY_DEFS.forEach(acc=>g.appendChild(buildCard(state,acc)));
+}
+
+/* ========== イベント ========== */
+function wireNav(){
+  const go=href=>()=>location.href=href;
+  document.getElementById('backBtn').addEventListener('click',()=>history.back());
+  document.getElementById('toIndex').addEventListener('click',go('index.html'));
+  document.getElementById('toCollection').addEventListener('click',go('collection.html'));
+  document.getElementById('toCollection2').addEventListener('click',go('collection.html'));
+}
+
+/* ========== 初期化 ========== */
+(function init(){
+  setLS(LS_KEYS.lastPage,'accessory.html');
+  const state=loadState();
+  render(state);
+  wireNav();
+})();
+</script>
+</body>
+</html>
