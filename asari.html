@@ -3,56 +3,51 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no" />
-<title>WHO VQ — 潮干狩り（なでる＋回収）</title>
+<title>WHO VQ — 潮干狩り（フェイルセーフ版）</title>
 <style>
-  :root{
-    --fg:#fff; --glass:rgba(0,0,0,.38);
-  }
+  :root{ --fg:#fff; --glass:rgba(0,0,0,.38); }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
     background:#000;color:var(--fg);overflow:hidden;
     font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
-    /* iOS/Safariでの画面スクロールを抑えてブラシを優先 */
-    touch-action:none;
+    touch-action:none; /* ブラシ優先 */
   }
 
-  /* 背景：時間帯で切替（朝/昼/夜） */
+  /* 背景（時間帯で切替） */
   .bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-size:cover;background-position:center;transition:opacity .8s}
   .bg.sunrise{background-image:url("public/items/bg/sunrise.jpg")}
   .bg.day{background-image:url("public/items/bg/beach_day.jpg")}
   .bg.night{background-image:url("public/items/bg/night_beach.jpg")}
-  .bg.dim{opacity:.35}      /* 砂が残っている間は暗め */
-  .bg.revealed{opacity:1}  /* 砂を85%削ったら全開 */
+  .bg.dim{opacity:.35}
+  .bg.revealed{opacity:1}
 
   /* シーン */
   .scene{position:relative;z-index:1;width:100vw;height:100vh;overflow:hidden}
 
-  /* 下層：貝（砂の下に置く） */
+  /* 下層：貝（砂の下） */
   .under{position:absolute;inset:0;z-index:1}
   .clam{
-    position:absolute; width:46px; height:46px;
+    position:absolute;width:46px;height:46px;
     background:url("public/items/asari3.png") center/contain no-repeat;
     filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));
-    opacity:0;                      /* 砂で隠れている間は非表示 */
-    transition:opacity .15s ease, transform .15s ease;
-    cursor:pointer;                 /* 砂を削って見えたらクリック可能 */
+    opacity:0;transition:opacity .15s ease, transform .15s ease;
+    cursor:pointer;
   }
   .clam.seen{opacity:1}
   .clam.collected{opacity:0;transform:scale(.6);pointer-events:none}
 
-  /* 上層：砂キャンバス（ここを削る） */
-  #sandCanvas{
-    position:absolute;inset:0;z-index:2;cursor:crosshair;
-    /* ブラシ操作を確実に受けるため、ここは pointer-events: auto のまま */
-    touch-action:none;
-  }
+  /* デバッグ枠（?debug=1 で表示） */
+  .clam.debug{outline:2px dashed rgba(255,80,80,.8);}
 
-  /* キャラ（70%表示、ふわふわ、見つけたら寄る） */
+  /* 上層：砂キャンバス */
+  #sandCanvas{position:absolute;inset:0;z-index:2;cursor:crosshair;touch-action:none;}
+
+  /* キャラ（70%サイズ、ふわふわ） */
   .friend{
     position:absolute;left:50%;bottom:18vh;transform:translateX(-50%);
     z-index:3;
-    height:calc(min(38vh, 50vw) * 0.7);  /* ← 70% */
+    height:calc(min(38vh, 50vw) * 0.7);
     max-height:40vh;max-width:65vw;object-fit:contain;
     filter:drop-shadow(0 8px 18px rgba(0,0,0,.45));
     opacity:0;transition:opacity .25s ease, transform .22s ease;
@@ -63,31 +58,31 @@
 
   /* 吹き出し */
   .bubble{
-    position:absolute;left:50%;bottom:calc(18vh + 40vh); /* 友だちの上辺り */
+    position:absolute;left:50%;bottom:calc(18vh + 40vh);
     transform:translateX(-50%);z-index:4;
     background:rgba(255,255,255,.95);color:#000;padding:6px 10px;border-radius:12px;
-    font-size:13px;white-space:nowrap;opacity:0;transition:opacity .2s;
-    pointer-events:none;
+    font-size:13px;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none;
   }
   .bubble.show{opacity:1}
 
-  /* HUD */
+  /* HUD / 操作 */
   .hud{
     position:fixed;top:env(safe-area-inset-top,8px);right:8px;z-index:5;
     display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:14px;
     background:var(--glass);backdrop-filter:blur(6px);font-size:14px
   }
   .hud b{font-size:16px}
-  .hint{
-    position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:5;font-size:12px;opacity:.9
-  }
-  .btnbar{
-    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,10px) + 10px);
-    transform:translateX(-50%);z-index:5;display:flex;gap:10px
-  }
-  .btn{border:none;border-radius:12px;padding:8px 12px;cursor:pointer;
-       background:linear-gradient(180deg,#ffde8a,#ffbf6b);color:#2b1b07;font-weight:700}
+  .hint{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:5;font-size:12px;opacity:.9}
+  .btnbar{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,10px) + 10px);transform:translateX(-50%);z-index:5;display:flex;gap:10px}
+  .btn{border:none;border-radius:12px;padding:8px 12px;cursor:pointer;background:linear-gradient(180deg,#ffde8a,#ffbf6b);color:#2b1b07;font-weight:700}
   .ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
+
+  /* トースト（エラー/通知） */
+  .toast{
+    position:fixed;left:50%;bottom:64px;transform:translateX(-50%);
+    background:rgba(0,0,0,.85);color:#fff;padding:8px 12px;border-radius:10px;font-size:13px;opacity:0;transition:.18s;z-index:6
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 </style>
 </head>
 <body>
@@ -99,30 +94,46 @@
   <img id="friend" class="friend" alt="friend"/>
 </div>
 
-<div class="bubble" id="bubble"></div>
+<div id="bubble" class="bubble"></div>
 <div class="hud">🐚 <b id="count">0</b><span id="unit">個</span></div>
-<div class="hint" id="hint">砂をなでてみよう → 見えた貝をタップ！</div>
+<div class="hint" id="hint">砂をなでて（指/マウス）→ 見えた貝をタップ！</div>
 <div class="btnbar">
   <button class="btn ghost" id="resetBtn">砂を元に戻す</button>
   <button class="btn ghost" id="backBtn">戻る</button>
 </div>
+<div id="toast" class="toast"></div>
 
 <script>
 (function(){
-  // ===== 既存のローカルストレージキー =====
-  const LS_CHAR='who_character';   // 'pink' | 'blue' | 'green' | 'purple' …
-  const LS_CLAM='who_clams';       // 累計カウント
+  const V='v='+Date.now(); // キャッシュ無効化トークン
+  const params=new URLSearchParams(location.search);
+  const DEBUG=params.get('debug')==='1';
 
-  // ===== 画像パス（あなたのルールに準拠） =====
+  /* ===== ストレージキー ===== */
+  const LS_CHAR='who_character'; // 'pink' or フルパス
+  const LS_CLAM='who_clams';
+
+  /* ===== 要素 ===== */
+  const bg=document.getElementById('bg');
+  const scene=document.getElementById('scene');
+  const under=document.getElementById('under');
+  const canvas=document.getElementById('sandCanvas');
+  const ctx=canvas.getContext('2d');
+  const friend=document.getElementById('friend');
+  const bubble=document.getElementById('bubble');
+  const toast=document.getElementById('toast');
+  const countEl=document.getElementById('count');
+  const resetBtn=document.getElementById('resetBtn');
+  const backBtn=document.getElementById('backBtn');
+
+  /* ===== 画像パス ===== */
   const FRIEND_PATH=(color)=>{
-    // 値がファイルパスで保存されていた場合も許容
-    if(color && color.includes('/')) return color;
+    if(color && color.includes('/')) return color; // 既にパスが入っている場合
     return `public/assets/stage1/${color||'pink'}_closed.png`;
   };
-  const CLAM_IMG='public/items/asari3.png';
+  const CLAM_IMG=`public/items/asari3.png?${V}`;
 
-  // ===== 背景の時間帯切替 =====
-  const bg=document.getElementById('bg');
+  /* ===== 背景切替 ===== */
   (function setTimeBG(){
     const h=new Date().getHours();
     bg.classList.remove('sunrise','day','night');
@@ -131,57 +142,57 @@
     else bg.classList.add('night');
   })();
 
-  // ===== 要素 =====
-  const scene=document.getElementById('scene');
-  const under=document.getElementById('under');
-  const canvas=document.getElementById('sandCanvas');
-  const ctx=canvas.getContext('2d');
-  const friend=document.getElementById('friend');
-  const bubble=document.getElementById('bubble');
-  const countEl=document.getElementById('count');
-  const resetBtn=document.getElementById('resetBtn');
-  const backBtn=document.getElementById('backBtn');
-
-  // ===== 状態 =====
+  /* ===== 状態 ===== */
   let W=0,H=0;
   let total=parseInt(localStorage.getItem(LS_CLAM)||'0',10);
   let nodes=[]; // {x,y,s,el,seen,dead}
   let drawing=false,lastX=0,lastY=0;
 
-  // ===== 表示の初期化 =====
-  function updateCount(){countEl.textContent=total;}
-  (function loadFriend(){
-    const color = localStorage.getItem(LS_CHAR) || 'pink';
-    const src = FRIEND_PATH(color);
-    friend.onload=()=>friend.classList.add('show');
-    friend.onerror=()=>console.warn('friend image not found:', src);
-    friend.src=src;
-  })();
-  updateCount();
+  /* ===== ユーティリティ ===== */
+  function showToast(msg,isErr=false){
+    toast.textContent=msg;
+    toast.style.background=isErr?'rgba(180,30,30,.95)':'rgba(0,0,0,.85)';
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t=setTimeout(()=>toast.classList.remove('show'),1300);
+  }
+  function log(...a){ if(DEBUG) console.log('[asari]',...a); }
 
-  // ===== レイアウト =====
+  /* ===== カウンタ ===== */
+  function updateCount(){ countEl.textContent=total; }
+
+  /* ===== キャラ読込（70%・ふわふわ） ===== */
+  (function loadFriend(){
+    try{
+      const saved = localStorage.getItem(LS_CHAR);
+      const src = FRIEND_PATH(saved||'pink');
+      friend.onload = ()=>{ friend.classList.add('show'); log('friend loaded:',src); };
+      friend.onerror= ()=>{ showToast('キャラ画像が見つかりません',true); console.warn('friend image not found:',src); };
+      // キャッシュ回避
+      friend.src = src + (src.includes('?')?'&':'?') + V;
+    }catch(e){
+      showToast('キャラ読込エラー',true); console.error(e);
+    }
+  })();
+
+  /* ===== レイアウト ===== */
   function resize(){
     const r=scene.getBoundingClientRect();
     W=canvas.width=Math.ceil(r.width);
     H=canvas.height=Math.ceil(r.height);
     drawSandBase();
     placeClams();
-    bg.classList.add('dim');
-    bg.classList.remove('revealed');
+    bg.classList.add('dim'); bg.classList.remove('revealed');
   }
   window.addEventListener('resize',resize,{passive:true});
-  resize();
+  updateCount(); resize();
 
-  // ===== 砂（不透明で塗って、削ると透明に）=====
+  /* ===== 砂（上面を塗って削ると透明） ===== */
   function drawSandBase(){
     ctx.globalCompositeOperation='source-over';
-    // 砂グラデ
     const grd=ctx.createLinearGradient(0,H*0.35,0,H);
-    grd.addColorStop(0,'#d9c7a0');
-    grd.addColorStop(0.45,'#cdb893');
-    grd.addColorStop(1,'#b79362');
+    grd.addColorStop(0,'#d9c7a0'); grd.addColorStop(0.45,'#cdb893'); grd.addColorStop(1,'#b79362');
     ctx.globalAlpha=0.96; ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
-    // 軽ノイズ
     ctx.globalAlpha=0.15;
     for(let i=0;i<48;i++){
       const nx=Math.random()*W, ny=(H*0.48)+Math.random()*(H*0.52);
@@ -192,8 +203,8 @@
     ctx.globalAlpha=1;
   }
 
-  // ===== 貝を配置（最低保証で必ず出る） =====
-  const CLAM_COUNT=16;           // 置く数
+  /* ===== 貝（最低保証で配置＆見え始め制御） ===== */
+  const CLAM_COUNT=16, BRUSH=28, CLEAR_RATIO=0.85;
   function placeClams(){
     under.innerHTML=''; nodes=[];
     const usableTop=H*0.42;
@@ -204,6 +215,7 @@
 
       const el=document.createElement('div');
       el.className='clam';
+      if(DEBUG) el.classList.add('debug');
       el.style.left=(x-s/2)+'px';
       el.style.top =(y-s/2)+'px';
       el.style.width=s+'px'; el.style.height=s+'px';
@@ -212,18 +224,16 @@
 
       nodes.push({x,y,s,el,seen:false,dead:false});
     }
+    log('clams placed:', nodes.length);
   }
 
-  // ===== ブラシで削る／近くの貝を見える状態にする =====
-  const BRUSH=28, CLEAR_RATIO=0.85;
+  /* ===== ブラシ ===== */
   function eraseCircle(x,y){
     ctx.save();
     ctx.globalCompositeOperation='destination-out';
     const g=ctx.createRadialGradient(x,y,BRUSH*0.2,x,y,BRUSH);
-    g.addColorStop(0,'rgba(0,0,0,0.95)');
-    g.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=g;
-    ctx.beginPath(); ctx.arc(x,y,BRUSH,0,Math.PI*2); ctx.fill();
+    g.addColorStop(0,'rgba(0,0,0,0.95)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,BRUSH,0,Math.PI*2); ctx.fill();
     ctx.restore();
 
     const r2=BRUSH*BRUSH*1.2;
@@ -234,8 +244,7 @@
     }
   }
   function sampleClearedRatio(){
-    const step=8;
-    const img=ctx.getImageData(0,0,W,H).data;
+    const step=8, img=ctx.getImageData(0,0,W,H).data;
     let t=0,c=0;
     for(let y=0;y<H;y+=step){
       for(let x=0;x<W;x+=step){
@@ -246,14 +255,15 @@
     return c/t;
   }
 
-  // ===== 入力（Pointer Eventsで統一。iOS/Android/PC全部OK） =====
+  /* ===== 入力（Pointer Eventsで統一） ===== */
   canvas.addEventListener('pointerdown', (ev)=>{
-    drawing=true; canvas.setPointerCapture(ev.pointerId);
-    const x=ev.clientX, y=ev.clientY; lastX=x; lastY=y; eraseCircle(x,y); ev.preventDefault();
+    drawing=true; canvas.setPointerCapture?.(ev.pointerId);
+    const {clientX:x, clientY:y}=ev; lastX=x; lastY=y; eraseCircle(x,y);
+    ev.preventDefault();
   }, {passive:false});
   canvas.addEventListener('pointermove', (ev)=>{
     if(!drawing) return;
-    const x=ev.clientX, y=ev.clientY;
+    const {clientX:x, clientY:y}=ev;
     const dx=x-lastX, dy=y-lastY, dist=Math.hypot(dx,dy);
     const steps=Math.max(1,Math.floor(dist/(BRUSH*0.6)));
     for(let i=1;i<=steps;i++){
@@ -265,22 +275,17 @@
     if(!canvas._t){
       canvas._t=setTimeout(()=>{
         canvas._t=null;
-        if(sampleClearedRatio()>=CLEAR_RATIO){
-          bg.classList.remove('dim'); bg.classList.add('revealed');
-        }
+        if(sampleClearedRatio()>=CLEAR_RATIO){ bg.classList.remove('dim'); bg.classList.add('revealed'); }
       },220);
     }
     ev.preventDefault();
   }, {passive:false});
-  window.addEventListener('pointerup', (ev)=>{
-    drawing=false;
-  }, {passive:true});
+  window.addEventListener('pointerup', ()=>{ drawing=false; }, {passive:true});
 
-  // ===== クリックで回収（キャンバスが前面でも確実にヒットさせる） =====
+  /* ===== 回収（canvas越しでも確実に当てる） ===== */
   function tryCollectAt(px,py){
-    // 一瞬だけキャンバスのヒットを無効化して下層要素を拾う
     const prev = canvas.style.pointerEvents;
-    canvas.style.pointerEvents='none';
+    canvas.style.pointerEvents='none'; // 一瞬だけ透過
     const el = document.elementFromPoint(px,py);
     canvas.style.pointerEvents=prev;
 
@@ -288,54 +293,46 @@
     const n=nodes.find(n=>n.el===el && !n.dead);
     if(!n) return false;
 
-    // カウント＆消去
-    n.dead=true;
-    el.classList.add('collected');
+    n.dead=true; el.classList.add('collected');
     setTimeout(()=>el.remove(),160);
     total+=1; localStorage.setItem(LS_CLAM,String(total)); updateCount();
 
-    // キャラを寄せて吹き出し
-    moveFriendTo(n.x, n.y);
+    moveFriendTo(n.x,n.y);
     speak(["ここだよ！","やったね！","ナイス！"][Math.floor(Math.random()*3)]);
     return true;
   }
-  // キャンバスのクリック（/タップ）で回収判定
   canvas.addEventListener('click', (ev)=>{ tryCollectAt(ev.clientX, ev.clientY); });
-
-  // 直接見えている貝自身のクリックにも対応
   under.addEventListener('click', (ev)=>{
-    const target = ev.target.closest('.clam');
-    if(!target) return;
-    // 砂越しクリックを統一したいので、上と同じ処理へ
-    const rect = target.getBoundingClientRect();
-    tryCollectAt(rect.left+rect.width/2, rect.top+rect.height/2);
+    const t=ev.target.closest('.clam'); if(!t) return;
+    const r=t.getBoundingClientRect(); tryCollectAt(r.left+r.width/2, r.top+r.height/2);
   });
 
-  // ===== キャラ移動（xに寄る＋小ジャンプ） =====
+  /* ===== キャラ移動＋吹き出し ===== */
   function moveFriendTo(px,py){
     const rect=scene.getBoundingClientRect();
     const ratioX=(px-rect.width/2)/rect.width;
-    const dx=Math.max(-18,Math.min(18, ratioX*60)); // ±18px寄せ
+    const dx=Math.max(-18,Math.min(18, ratioX*60));
     friend.classList.remove('idle');
     friend.style.transform=`translateX(calc(-50% + ${dx}px)) translateY(-8px)`;
     setTimeout(()=>{ friend.style.transform='translateX(-50%)'; friend.classList.add('idle'); },260);
   }
-
-  // ===== 吹き出し =====
   function speak(msg){
-    bubble.textContent=msg;
-    bubble.classList.add('show');
-    clearTimeout(speak._t);
-    speak._t=setTimeout(()=>bubble.classList.remove('show'),1200);
+    bubble.textContent=msg; bubble.classList.add('show');
+    clearTimeout(speak._t); speak._t=setTimeout(()=>bubble.classList.remove('show'),1200);
   }
 
-  // ===== ボタン =====
+  /* ===== ボタン ===== */
   resetBtn.addEventListener('click', ()=>{
-    drawSandBase();
-    placeClams();
-    bg.classList.add('dim'); bg.classList.remove('revealed');
+    drawSandBase(); placeClams(); bg.classList.add('dim'); bg.classList.remove('revealed');
   });
   backBtn.addEventListener('click', ()=>{ location.href='index.html'; });
+
+  /* ===== 起動チェック ===== */
+  window.addEventListener('load', ()=>{
+    // 画像404などのときに気づけるように軽くチェック
+    if(friend.naturalWidth===0){ showToast('キャラ画像の読み込みに失敗しました',true); }
+    if(document.querySelectorAll('.clam').length===0){ showToast('貝の配置に失敗しました',true); }
+  });
 
 })();
 </script>
