@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="light dark" />
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; margin: 0; background: #000; color: #fff; font-family: system-ui, "Noto Sans JP", "Segoe UI", Arial, sans-serif; }
+    html, body { height: 100%; margin: 0; background: #000; color: #fff; font-family: system-ui,"Noto Sans JP","Segoe UI",Arial,sans-serif; }
 
     /* 背景 */
     .bg {
@@ -57,7 +57,6 @@
     .btn:active { transform: translateY(1px) scale(.98); }
     .btn.primary { background: linear-gradient(180deg, rgba(255,255,255,.25), rgba(255,255,255,.08)); }
     .btn.secondary { background: rgba(255,255,255,.15); font-weight: 600; }
-    .btn.special { background: linear-gradient(90deg, #ff7f50, #ffb347); color: #fff; }
     .btn.ghost { background: rgba(255,255,255,.08); font-weight: 500; }
     .btn.disabled { opacity: .6; pointer-events: none; }
 
@@ -88,30 +87,29 @@
     </div>
   </header>
 
-  <!-- メイン（ご指定の構成） -->
+  <!-- メイン -->
   <main class="center">
     <h1 data-i18n="title">WHO VQ</h1>
     <p class="subtitle" data-i18n="subtitle">あなたのお世話が、誰かの世界に</p>
     <div class="buttons">
-      <button class="btn primary"   id="btnStart"     data-i18n="start">スタート</button>
-      <button class="btn secondary" id="btnContinue"  data-i18n="continue">続きから</button>
-      <button class="btn special"   id="btnAsariInfo" data-i18n="asariInfo">潮干狩り体験説明</button>
-      <button class="btn ghost"     id="btnAbout"     data-i18n="about">研究・ゲーム説明</button>
+      <button class="btn primary"   id="btnStart"    data-i18n="start">スタート</button>
+      <button class="btn secondary" id="btnContinue" data-i18n="continue">続きから</button>
+      <button class="btn ghost"     id="btnAbout"    data-i18n="about">研究について</button>
+      <button class="btn ghost"     id="btnGame"     data-i18n="game">ゲーム説明</button>
     </div>
   </main>
 
   <footer><div id="foot" data-i18n="footer">© WHO VQ Project</div></footer>
 
   <script>
-    /* 多言語 */
     const I18N = {
       ja: {
         title: "WHO VQ",
         subtitle: "あなたのお世話が、誰かの世界に",
         start: "スタート",
         continue: "続きから",
-        asariInfo: "潮干狩り体験説明",
-        about: "研究・ゲーム説明",
+        about: "研究について",
+        game: "ゲーム説明",
         footer: "© WHO VQ プロジェクト"
       },
       zh: {
@@ -119,8 +117,8 @@
         subtitle: "你的照顾，会成为别人的世界",
         start: "开始",
         continue: "继续",
-        asariInfo: "挖贝体验说明",
-        about: "研究与游戏说明",
+        about: "关于研究",
+        game: "游戏说明",
         footer: "© WHO VQ 项目"
       },
       en: {
@@ -128,8 +126,8 @@
         subtitle: "Your care becomes someone’s world",
         start: "Start",
         continue: "Continue",
-        asariInfo: "Clam-digging Guide",
-        about: "Research & Game Guide",
+        about: "About Research",
+        game: "Game Guide",
         footer: "© WHO VQ Project"
       },
       ko: {
@@ -137,15 +135,14 @@
         subtitle: "당신의 돌봄이 누군가의 세상이 됩니다",
         start: "시작",
         continue: "이어하기",
-        asariInfo: "조개잡이 체험 안내",
-        about: "연구·게임 설명",
+        about: "연구에 대하여",
+        game: "게임 설명",
         footer: "© WHO VQ 프로젝트"
       }
     };
 
     const LS_KEYS = { lang: "who_lang", last: "who_lastPage" };
 
-    /* 背景制御 */
     const bg = {
       sunrise: document.getElementById('bg-sunrise'),
       day: document.getElementById('bg-day'),
@@ -163,7 +160,6 @@
       return 'night';
     }
 
-    /* 言語適用 */
     const langSel = document.getElementById('lang');
     function applyLang(lang) {
       const dict = I18N[lang] || I18N.ja;
@@ -175,14 +171,13 @@
       localStorage.setItem(LS_KEYS.lang, lang);
     }
 
-    /* ボタン遷移 */
-    const btnStart     = document.getElementById('btnStart');
-    const btnContinue  = document.getElementById('btnContinue');
-    const btnAsariInfo = document.getElementById('btnAsariInfo');
-    const btnAbout     = document.getElementById('btnAbout');
+    const btnStart    = document.getElementById('btnStart');
+    const btnContinue = document.getElementById('btnContinue');
+    const btnAbout    = document.getElementById('btnAbout');
+    const btnGame     = document.getElementById('btnGame');
 
     btnStart.addEventListener('click', () => {
-      const next = 'char.html';              // まずはキャラ選択へ
+      const next = 'char.html';
       localStorage.setItem(LS_KEYS.last, next);
       location.href = next;
     });
@@ -192,19 +187,16 @@
       location.href = last || 'char.html';
     });
 
-    // 潮干狩り体験「説明」→ ゲーム説明ページのアサリ節へジャンプ
-    btnAsariInfo.addEventListener('click', () => {
-      localStorage.setItem(LS_KEYS.last, 'about.html'); // 最終ページ記録
-      location.href = 'about.html#asari';
-    });
-
-    // 研究・ゲーム説明（全体）
     btnAbout.addEventListener('click', () => {
       localStorage.setItem(LS_KEYS.last, 'about.html');
       location.href = 'about.html';
     });
 
-    /* 初期化 */
+    btnGame.addEventListener('click', () => {
+      localStorage.setItem(LS_KEYS.last, 'game.html');
+      location.href = 'game.html';
+    });
+
     (function boot(){
       const savedBG = localStorage.getItem('who_bg') || decideBGByTime();
       showBG(savedBG);
@@ -219,7 +211,7 @@
       langSel.addEventListener('change', e => applyLang(e.target.value));
 
       const last = localStorage.getItem(LS_KEYS.last);
-      if (!last) document.getElementById('btnContinue').classList.add('disabled');
+      if (!last) btnContinue.classList.add('disabled');
     })();
   </script>
 </body>
