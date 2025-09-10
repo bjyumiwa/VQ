@@ -1,397 +1,226 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-<title>WHO VQ — 潮干狩り</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;overflow:hidden}
-  .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <title>WHO VQ — 潮干狩り</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans","Meiryo",sans-serif;
+      background: url("public/items/bg/beach_day.jpg") no-repeat center/cover;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
 
-  /* 背景（画像が無くても海に見えるフェイルセーフ） */
-  .bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0}
-  .bg.sky{
-    background:
-      linear-gradient(180deg,#87ceeb 0%,#98d8e8 40%,#bfe6f3 70%,transparent 100%),
-      url("public/assets/stage1/sky_morning.png");
-  }
-  .bg.sea{
-    opacity:.95;
-    background:
-      radial-gradient(ellipse at 50% 20%, rgba(255,255,255,.25), transparent 45%),
-      linear-gradient(180deg,#5ec1e8 0%, #2ea1cf 60%, #1d7aa5 100%),
-      url("public/assets/stage1/sea.png");
-  }
-  .bg.sand{
-    background:
-      radial-gradient(ellipse at 70% 85%, rgba(255,255,255,.18), transparent 55%),
-      linear-gradient(180deg,#e6d2a3 0%, #d6bf8a 50%, #b99e6d 100%),
-      url("public/assets/stage1/sand.png");
-  }
+    /* キャラ表示 */
+    .character-area {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .character-area img {
+      height: 40vh;
+      width: auto;
+      animation: sway 3s ease-in-out infinite;
+      filter: drop-shadow(0 8px 6px rgba(0,0,0,0.4));
+    }
+    @keyframes sway {
+      0%,100% { transform: translateX(-50%) rotate(-2deg); }
+      50%     { transform: translateX(-50%) rotate(2deg); }
+    }
 
-  /* 砂カバー（こすって削る） */
-  #sandCanvas{position:absolute;inset:0;z-index:3;touch-action:none}
+    /* 貝 */
+    .clam {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background: url("public/assets/items/clam.png") no-repeat center/contain;
+    }
+    .clam.rare {
+      background: url("public/assets/items/clam_gold.png") no-repeat center/contain;
+    }
 
-  /* アサリ */
-  .clams{position:absolute;inset:0;z-index:4;pointer-events:none}
-  .clam{position:absolute;width:64px;height:48px;transform:translate(-50%,-50%);opacity:0;pointer-events:auto;cursor:pointer;transition:opacity .22s}
-  .clam.revealed{opacity:1}
-  .clam img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+    /* HUD */
+    .hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
 
-  /* キャラ（砂の上・最前面）。→ 小さく。 */
-  #charWrap{position:absolute;left:50%;bottom:10vh;transform:translateX(-50%);z-index:7;pointer-events:none}
-  #char{display:block;width:min(28vw, 360px);height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.55))}
-  @keyframes idleFloat{0%{transform:translate(-50%,0)}50%{transform:translate(-50%,-6px)}100%{transform:translate(-50%,0)}}
-  #charWrap.idle{animation:idleFloat 3.6s ease-in-out infinite}
-
-  /* アクセ（キャラ内レイヤー）。サイズは vw 基準で一定感を維持 */
-  #accLayer{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:8}
-  .acc{position:absolute;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
-
-  /* HUD */
-  .hud{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;z-index:9;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
-  .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);font-size:14px}
-  .btn{border:none;border-radius:10px;padding:8px 12px;background:#ffd76a;color:#432;font-weight:700;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.25)}
-  .btn:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
-
-  /* トースト */
-  #toast{position:absolute;left:50%;top:9.5vh;transform:translateX(-50%);z-index:10;background:rgba(0,0,0,.7);padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .25s}
-  #toast.show{opacity:1}
-
-  @media (max-width:480px){
-    #char{width:46vw}
-    .clam{width:52px;height:40px}
-  }
-</style>
+    /* 操作用ボタン */
+    .controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .controls button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.8);
+    }
+  </style>
 </head>
 <body>
-<div class="game" id="game">
-  <div class="bg sky"></div>
-  <div class="bg sea"></div>
-  <div class="bg sand"></div>
-
-  <canvas id="sandCanvas" width="1920" height="1080"></canvas>
-  <div class="clams" id="clams"></div>
-
-  <!-- キャラ最前面 -->
-  <div id="charWrap" class="idle">
-    <img id="char" alt="character" src="public/assets/stage1/pink_open.png">
-    <div id="accLayer"></div>
-  </div>
-
-  <div class="hud">
-    <div class="pill">
-      会話チケット：<b id="ticketCount">0</b>
-      <span style="margin-left:10px">アクセP：</span><b id="accPoint">0</b>
+  <div class="game-container" id="gameArea">
+    <!-- HUD -->
+    <div class="hud">
+      アサリ: <span id="clamCount">0</span>
+      <br>
+      称号: <span id="title">なし</span>
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn" id="btnBack">戻る</button>
-      <button class="btn" id="btnHint">ヒント</button>
+
+    <!-- 操作ボタン -->
+    <div class="controls">
+      <button id="toggleChar">キャラ表示ON/OFF</button>
+      <button id="examMode">検定モード</button>
+      <button id="releaseBtn">海に返す</button>
+    </div>
+
+    <!-- キャラ -->
+    <div class="character-area" id="charArea">
+      <img id="charImg" src="" alt="キャラ">
     </div>
   </div>
 
-  <div id="toast">+1 shell / +1P</div>
-</div>
-
-<script>
-(() => {
-  /* ================== 基本設定 ================== */
-  const CHAR_BASE = "public/assets/stage1/";
-  const ACC_BASE  = "public/accessories/";
-
-  // 色ごとの頭アンカー。アクセ幅は画面幅×baseVW（=キャラサイズに依存しない）
-  const HEAD_ANCHORS = {
-    pink:   { x:0.50, y:0.18, baseVW:0.100 },
-    blue:   { x:0.50, y:0.18, baseVW:0.100 },
-    green:  { x:0.50, y:0.18, baseVW:0.100 },
-    purple: { x:0.50, y:0.18, baseVW:0.100 },
-    friend: { x:0.50, y:0.18, baseVW:0.100 },
-  };
-  // アクセ個別微調整（必要に応じて追記）
-  const ACCESSORY_FINE_TUNE = {
-    // 例: "hat_straw": { dx:0, dy:-10, scaleMul:1.15 },
-  };
-  // friend 画像が無い場合のフォールバック
-  const COLOR_FALLBACK = { friend: "pink" };
-
-  // 砂＆アサリ
-  const BRUSH_RADIUS = 32;        // ← 少し大きく
-  const CLAM_COUNT   = 10;        // ← 少し多く
-  const REWARD = { ticket:1, accPoint:1 };
-
-  /* ================== 互換 & 参照 ================== */
-  function migrateLegacyCharacter(){
-    try{
-      const old = localStorage.getItem("who_char_color");
-      if (!old) return;
-      const val = old.replace(/"/g,"").trim();
-      localStorage.setItem("who_character", JSON.stringify({type:"tane", color:val}));
-    }catch(e){}
-  }
-  function readCharacter(){
-    migrateLegacyCharacter();
-    try{
-      const raw = localStorage.getItem("who_character");
-      if (!raw) return {type:"tane", color:"pink"};
-      const o = JSON.parse(raw);
-      if (!o || o.type!=="tane") return {type:"tane", color:"pink"};
-      return o;
-    }catch(e){ return {type:"tane", color:"pink"} }
-  }
-  function readAccessoryEquip(){
-    try{
-      const raw = JSON.parse(localStorage.getItem("who_accessory_equip"));
-      if (Array.isArray(raw)) return raw;
-      if (raw && typeof raw==="object") return Object.values(raw).filter(Boolean);
-    }catch(e){}
-    return [];
-  }
-  function readIntLS(key, def=0){
-    const v = parseInt(localStorage.getItem(key) || `${def}`, 10);
-    return isNaN(v) ? def : v;
-  }
-  function writeIntLS(key, val){ localStorage.setItem(key, String(val)); }
-
-  /* ================== 画像ローダ ================== */
-  function ensureImage(src){
-    return new Promise((res, rej)=>{
-      const im = new Image();
-      im.onload = ()=>res(src);
-      im.onerror = ()=>rej(new Error("load:"+src));
-      im.src = src;
-    });
-  }
-  async function loadSpriteWithFallback(color){
-    const tryColor = async (c)=>{
-      for (const name of [`${c}_open.png`, `${c}_closed.png`, `${c}.png`]){
-        const url = CHAR_BASE + name;
-        try{ await ensureImage(url); return url; }catch(e){}
-      }
-      return null;
+  <script>
+    const LS_KEYS = {
+      character: "who_character",
+      clam: "who_clam",
+      title: "who_title",
+      unlocks: "who_unlocks"
     };
-    let url = await tryColor(color);
-    if (url) return url;
-    const fb = COLOR_FALLBACK[color];
-    if (fb) return await tryColor(fb);
-    return null;
-  }
-  async function getImageSize(src){
-    return new Promise((res,rej)=>{
-      const im = new Image();
-      im.onload = ()=>res({w:im.naturalWidth||256, h:im.naturalHeight||256});
-      im.onerror = rej; im.src = src;
-    });
-  }
 
-  /* ================== 砂なで & アサリ ================== */
-  const sandCanvas = document.getElementById("sandCanvas");
-  const ctx = sandCanvas.getContext("2d");
-  let isPointerDown=false;
+    const gameArea = document.getElementById("gameArea");
+    const charImg = document.getElementById("charImg");
+    const clamCountEl = document.getElementById("clamCount");
+    const titleEl = document.getElementById("title");
 
-  function resizeCanvas(){
-    ctx.clearRect(0,0,sandCanvas.width,sandCanvas.height);
-    ctx.fillStyle = "rgba(0,0,0,0.34)"; // 少し濃く
-    ctx.fillRect(0,0,sandCanvas.width,sandCanvas.height);
-  }
-  function getCanvasPos(evt){
-    const rect = sandCanvas.getBoundingClientRect();
-    const pt = (evt.touches && evt.touches[0]) ? evt.touches[0] : evt;
-    const x = (pt.clientX - rect.left) * (sandCanvas.width / rect.width);
-    const y = (pt.clientY - rect.top)  * (sandCanvas.height / rect.height);
-    return {x,y};
-  }
-  function brush(x,y){
-    const g = ctx.createRadialGradient(x,y,0,x,y,BRUSH_RADIUS);
-    g.addColorStop(0,"rgba(0,0,0,0)");
-    g.addColorStop(1,"rgba(0,0,0,0.65)");
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(x,y,BRUSH_RADIUS,0,Math.PI*2); ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-    revealClamsUnder(x,y,BRUSH_RADIUS * 1.6); // ← 判定広げる
-  }
-  function setupBrushEvents(){
-    sandCanvas.addEventListener("pointerdown",(e)=>{isPointerDown=true; sandCanvas.setPointerCapture(e.pointerId); const p=getCanvasPos(e); brush(p.x,p.y);});
-    sandCanvas.addEventListener("pointermove",(e)=>{if(!isPointerDown) return; const p=getCanvasPos(e); brush(p.x,p.y);});
-    sandCanvas.addEventListener("pointerup",()=>{isPointerDown=false;});
-    sandCanvas.addEventListener("pointercancel",()=>{isPointerDown=false;});
-    sandCanvas.addEventListener("touchstart",(e)=>{const p=getCanvasPos(e); brush(p.x,p.y);},{passive:true});
-    sandCanvas.addEventListener("touchmove",(e)=>{if((e.touches||[]).length){const p=getCanvasPos(e); brush(p.x,p.y);}});
-  }
+    // --- キャラ設定 ---
+    const selectedChar = localStorage.getItem(LS_KEYS.character) || "pink";
+    charImg.src = `public/assets/stage1/${selectedChar}_open.png`;
 
-  const clamsEl = document.getElementById("clams");
-  function rand(min,max){ return Math.random()*(max-min)+min; }
-  function spawnClams(n=CLAM_COUNT){
-    clamsEl.innerHTML = "";
-    for(let i=0;i<n;i++){
-      // 画面中央～下寄りに配置して見つけやすく
-      const x = rand(18, 82); // vw %
-      const y = rand(40, 78); // vh %
-      const el = document.createElement("div");
-      el.className = "clam";
-      el.style.left = x + "vw";
-      el.style.top  = y + "vh";
-      const img = document.createElement("img");
-      img.alt = "clam";
-      img.src = "public/assets/stage1/clam.png";
-      el.appendChild(img);
-      el.addEventListener("click", onCollectClam, {passive:true});
-      clamsEl.appendChild(el);
+    // --- 所持数・称号読み込み ---
+    let clamCount = parseInt(localStorage.getItem(LS_KEYS.clam) || "0", 10);
+    let title = localStorage.getItem(LS_KEYS.title) || "なし";
+    let unlocks = JSON.parse(localStorage.getItem(LS_KEYS.unlocks) || "{}");
+    clamCountEl.textContent = clamCount;
+    titleEl.textContent = title;
+
+    // --- 貝を出す処理 ---
+    function spawnClam(x, y) {
+      if (Math.random() > 0.25) return; // 出現率25%くらいで「なかなか集まらない」感じに
+
+      const clam = document.createElement("div");
+      clam.classList.add("clam");
+
+      // レア貝判定（5%）
+      const isRare = Math.random() < 0.05;
+      if (isRare) clam.classList.add("rare");
+
+      clam.style.left = x - 20 + "px";
+      clam.style.top = y - 20 + "px";
+      gameArea.appendChild(clam);
+
+      clam.addEventListener("click", () => {
+        clam.remove();
+        const add = isRare ? 3 : 1;
+        clamCount += add;
+        clamCountEl.textContent = clamCount;
+        localStorage.setItem(LS_KEYS.clam, clamCount);
+        checkUnlocks();
+      });
     }
-  }
-  function revealClamsUnder(x,y,r){
-    const vw = window.innerWidth;
-    const px = x / sandCanvas.width  * vw;
-    const py = y / sandCanvas.height * window.innerHeight;
-    [...clamsEl.children].forEach(c=>{
-      const rect = c.getBoundingClientRect();
-      const cx = rect.left + rect.width/2;
-      const cy = rect.top  + rect.height/2;
-      const d = Math.hypot(cx - px, cy - py);
-      if (d < r * (vw / sandCanvas.width) * 1.2) c.classList.add("revealed");
-    });
-  }
-  function onCollectClam(e){
-    const node = e.currentTarget;
-    if (!node.classList.contains("revealed")) return;
-    node.removeEventListener("click", onCollectClam);
-    node.style.pointerEvents="none";
-    node.style.transition="transform .22s, opacity .22s";
-    node.style.transform="translate(-50%,-50%) scale(0.6)";
-    node.style.opacity="0";
-    setTimeout(()=>node.remove(), 230);
-    const t = readIntLS("who_tickets",0)+REWARD.ticket;
-    const p = readIntLS("who_accessory_points",0)+REWARD.accPoint;
-    writeIntLS("who_tickets", t);
-    writeIntLS("who_accessory_points", p);
-    updateHUD();
-    showToast(`+${REWARD.ticket} ticket / +${REWARD.accPoint}P`);
-  }
 
-  // 10秒無操作なら中央付近の1個を自動露出（保険）
-  let autoRevealTimer=null;
-  function scheduleAutoReveal(){
-    clearTimeout(autoRevealTimer);
-    autoRevealTimer = setTimeout(()=>{
-      const first = clamsEl.firstElementChild;
-      if (first) first.classList.add("revealed");
-    }, 10000);
-  }
-
-  /* ================== キャラ＆アクセ ================== */
-  const charWrap = document.getElementById("charWrap");
-  const charImg  = document.getElementById("char");
-  const accLayer = document.getElementById("accLayer");
-  let currentColor = "pink";
-  let lastCharURL = null;
-  let holdTimer = null;
-
-  async function setupCharacter(){
-    const info = readCharacter();
-    currentColor = info.color || "pink";
-    const url = await loadSpriteWithFallback(currentColor);
-    if (url){ charImg.src = url; lastCharURL = url; }
-    charWrap.classList.add("idle");
-    await drawAccessories();
-  }
-
-  async function drawAccessories(){
-    accLayer.innerHTML = "";
-    const equips = readAccessoryEquip();
-    if (!equips.length) return;
-
-    const imgRect   = charImg.getBoundingClientRect();
-    const layerRect = accLayer.getBoundingClientRect();
-    const anchor = HEAD_ANCHORS[currentColor] || HEAD_ANCHORS[COLOR_FALLBACK[currentColor]] || HEAD_ANCHORS.pink;
-
-    // 基本幅は「画面幅×baseVW」→ キャラ縮小の影響を受けない
-    const baseAccPx = window.innerWidth * anchor.baseVW;
-
-    // ページ座標のアンカー → キャラ内座標に補正
-    const ax = (imgRect.left + imgRect.width  * anchor.x) - layerRect.left;
-    const ay = (imgRect.top  + imgRect.height * anchor.y) - layerRect.top;
-
-    for (const id of equips){
-      const src = `${ACC_BASE}${id}.png`;
-      try{ await ensureImage(src); }catch(e){ continue; }
-
-      const fine = ACCESSORY_FINE_TUNE[id] || {dx:0, dy:0, scaleMul:1.0};
-      const {w:iw, h:ih} = await getImageSize(src);
-      const aspect = (iw||256)/(ih||256);
-
-      const w = baseAccPx * (fine.scaleMul||1.0);
-      const h = w / aspect;
-      const left = (ax + (fine.dx||0)) - w/2;
-      const top  = (ay + (fine.dy||0)) - h/2;
-
-      const el = document.createElement("img");
-      el.className = "acc"; el.src = src; el.alt = id;
-      el.style.width = `${w}px`; el.style.height = `${h}px`;
-      el.style.left  = `${left}px`; el.style.top = `${top}px`;
-      accLayer.appendChild(el);
+    // --- 砂をなでる ---
+    let dragging = false;
+    function handleMove(e) {
+      const x = e.touches ? e.touches[0].clientX : e.clientX;
+      const y = e.touches ? e.touches[0].clientY : e.clientY;
+      if (dragging) spawnClam(x, y);
     }
-  }
+    gameArea.addEventListener("mousedown", () => dragging = true);
+    gameArea.addEventListener("mouseup", () => dragging = false);
+    gameArea.addEventListener("mousemove", handleMove);
+    gameArea.addEventListener("touchstart", () => dragging = true);
+    gameArea.addEventListener("touchend", () => dragging = false);
+    gameArea.addEventListener("touchmove", handleMove);
 
-  async function pulseHoldOnce(){
-    if (holdTimer) clearTimeout(holdTimer);
-    const tryUrl = CHAR_BASE + `${currentColor}_closed.png`;
-    try{
-      await ensureImage(tryUrl);
-      charWrap.classList.remove("idle");
-      charImg.src = tryUrl;
-      holdTimer = setTimeout(()=>{
-        if (lastCharURL) charImg.src = lastCharURL;
-        charWrap.classList.add("idle");
-        holdTimer = null;
-      }, 900);
-    }catch(e){}
-  }
+    // --- 特典解放 ---
+    function checkUnlocks() {
+      if (clamCount >= 10 && !unlocks.accessory) {
+        unlocks.accessory = true;
+        alert("アクセサリーが解放されました！");
+      }
+      if (clamCount >= 30 && !unlocks.conversation) {
+        unlocks.conversation = true;
+        alert("夜の会話が解放されました！");
+      }
+      localStorage.setItem(LS_KEYS.unlocks, JSON.stringify(unlocks));
+    }
 
-  /* ================== HUD / トースト ================== */
-  const ticketEl = document.getElementById("ticketCount");
-  const accPntEl = document.getElementById("accPoint");
-  function updateHUD(){
-    ticketEl.textContent = readIntLS("who_tickets", 0);
-    accPntEl.textContent = readIntLS("who_accessory_points", 0);
-  }
-  const toastEl = document.getElementById("toast");
-  let toastTimer=null;
-  function showToast(msg){
-    toastEl.textContent = msg;
-    toastEl.classList.add("show");
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>toastEl.classList.remove("show"), 1200);
-  }
+    // --- 検定モード ---
+    document.getElementById("examMode").addEventListener("click", () => {
+      let examCount = 0;
+      let time = 20;
+      alert("検定モード開始！20秒以内に10個取ろう！");
+      const timer = setInterval(() => {
+        time--;
+        if (time <= 0) {
+          clearInterval(timer);
+          if (examCount >= 10) {
+            title = "アサリ取り名人１級";
+            localStorage.setItem(LS_KEYS.title, title);
+            titleEl.textContent = title;
+            alert("合格！称号「アサリ取り名人１級」獲得！");
+          } else {
+            alert("残念！もう一度挑戦してみよう。");
+          }
+        }
+      }, 1000);
 
-  /* ================== イベント ================== */
-  document.getElementById("btnBack").addEventListener("click", ()=>{
-    localStorage.setItem("who_lastPage", "asari.html");
-    location.href = "collection.html";
-  });
-  document.getElementById("btnHint").addEventListener("click", ()=>{
-    pulseHoldOnce();
-    showToast("砂の濃い所をなでてみてね");
-  });
+      // 一時的に回収数をカウント
+      const handler = () => { examCount++; };
+      gameArea.addEventListener("clamCollected", handler);
 
-  window.addEventListener("resize", ()=>{ drawAccessories(); });
-  charImg.addEventListener("load", drawAccessories);
-  ["pointerdown","pointermove","pointerup","touchstart","touchmove","touchend"].forEach(evt=>{
-    sandCanvas.addEventListener(evt, ()=>scheduleAutoReveal(), {passive:true});
-  });
+      setTimeout(() => {
+        gameArea.removeEventListener("clamCollected", handler);
+      }, 20000);
+    });
 
-  /* ================== 起動 ================== */
-  function init(){
-    resizeCanvas();
-    setupBrushEvents();
-    spawnClams(CLAM_COUNT);
-    scheduleAutoReveal();
-    setupCharacter();
-    updateHUD();
-    localStorage.setItem("who_lastPage", "asari.html");
-  }
-  init();
-})();
-</script>
+    // --- 海に返す ---
+    document.getElementById("releaseBtn").addEventListener("click", () => {
+      if (clamCount <= 0) { alert("返せるアサリがありません"); return; }
+      const release = Math.max(1, Math.floor(clamCount * 0.2)); // 2割くらい返す
+      clamCount -= release;
+      clamCountEl.textContent = clamCount;
+      localStorage.setItem(LS_KEYS.clam, clamCount);
+      alert(`${release}個のアサリを海に返しました🌊`);
+    });
+
+    // --- キャラ表示ON/OFF ---
+    const charArea = document.getElementById("charArea");
+    document.getElementById("toggleChar").addEventListener("click", () => {
+      charArea.style.display = (charArea.style.display === "none") ? "block" : "none";
+    });
+  </script>
 </body>
 </html>
