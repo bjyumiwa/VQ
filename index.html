@@ -68,29 +68,20 @@
     }
     .charStage {
       position: relative;
-      /* 以前より約半分の見た目になるように控えめサイズに */
+      /* 以前より約半分の見た目になるよう控えめサイズに */
       width: clamp(140px, 28vw, 220px);
-      aspect-ratio: 1 / 1;  /* 正方形ステージ */
+      aspect-ratio: 1 / 1;
       border-radius: 24px;
       background: rgba(0,0,0,.18);
       box-shadow: 0 10px 30px rgba(0,0,0,.25) inset, 0 12px 32px rgba(0,0,0,.18);
       overflow: visible;
     }
-    .charImg,
-    .accImg {
+    .charImg {
       position: absolute; inset: 0; margin: auto;
       display: block;
       width: 100%; height: 100%; object-fit: contain;
       image-rendering: auto;
-      pointer-events: none;
-      user-select: none;
-    }
-    /* サングラスは位置微調整（目の高さに） */
-    .accImg.sunglasses {
-      width: 78%;             /* 画像自体の横幅比率 */
-      left: 50%; transform: translateX(-50%);
-      top: 36%;               /* 目の高さ（必要ならここを微調整） */
-      height: auto;
+      pointer-events: none; user-select: none;
     }
 
     /* ====== Buttons ====== */
@@ -117,7 +108,6 @@
       grid-area: foot; text-align: center; opacity: .85; font-size: 12px;
     }
 
-    /* 小さめ端末の余白最適化 */
     @media (max-width: 360px) {
       .panel { gap: 14px; }
       .btn { padding: 12px 14px; }
@@ -134,12 +124,10 @@
         <p>スタート／続きから／研究について</p>
       </header>
 
-      <!-- キャラ＋アクセサリーのプレビュー（約半分サイズ） -->
+      <!-- キャラのプレビュー（約半分サイズ） -->
       <div class="preview">
         <div class="charStage" aria-label="選択中キャラクタープレビュー">
           <img id="charImg" class="charImg" alt="character" src="public/assets/stage1/blue_open.png">
-          <!-- サングラス：必要時のみ表示 -->
-          <img id="accGlasses" class="accImg sunglasses" alt="sunglasses" src="public/assets/accessories/sunglasses.png" style="display:none;">
         </div>
       </div>
 
@@ -163,92 +151,54 @@
       // 必要に応じて追記
     ];
 
-    // ========= 要素取得 =========
+    // ========= 要素 =========
     const btnStart = document.getElementById('btnStart');
     const btnContinue = document.getElementById('btnContinue');
     const btnAbout = document.getElementById('btnAbout');
-
     const charImg = document.getElementById('charImg');
-    const accGlasses = document.getElementById('accGlasses');
 
-    // ========= 画像パス解決（規約：必ず public/ 起点） =========
+    // ========= キャラ画像パス（public/ 起点） =========
     function charSpriteFromStorage() {
-      // 互換性：以前のキー who_character / whoai_character をどちらも見る
       const raw =
         localStorage.getItem('whoai_character') ??
         localStorage.getItem('who_character');
 
-      // 既定は blue
       let color = 'blue';
       try {
         if (raw) {
           const v = JSON.parse(raw);
-          // 文字列だった場合（例: "blue"）
           if (typeof v === 'string') color = v;
-          // オブジェクトの場合（{ color: "blue", ... }）
           else if (v && typeof v.color === 'string') color = v.color;
         }
-      } catch(e) {
-        // 文字列保存などに備え、失敗時は既定値
-      }
-      // 既存ルール：stage1/{color}_open.png
+      } catch(e) { /* 失敗時は既定色 */ }
       return `public/assets/stage1/${color}_open.png`;
-    }
-
-    function accessoriesFromStorage() {
-      // 互換性：whoai_accessories or who_accessories
-      const raw =
-        localStorage.getItem('whoai_accessories') ??
-        localStorage.getItem('who_accessories');
-      try {
-        return raw ? JSON.parse(raw) : {};
-      } catch(e) {
-        return {};
-      }
     }
 
     // ========= 続きからページ判定 =========
     function resolveContinueTarget() {
       const last = (localStorage.getItem('whoai_lastPage') || '').trim();
-      // index.html / about.html / 空は除外
       const invalid = !last ||
         last === 'index.html' ||
         last === '/index.html' ||
         /about\.html$/i.test(last);
 
       if (invalid) {
-        // 直近のゲーム系最終ページを別キーで持っていれば優先
         const lastGame = (localStorage.getItem('whoai_lastGamePage') || '').trim();
         if (ALLOWED_GAME_PAGES.includes(lastGame)) return lastGame;
         return FALLBACK_GAME_ENTRY;
       }
-      // パス断片だけが来た想定（/path/xxx.html 対応）
       const file = last.split('/').pop();
       if (ALLOWED_GAME_PAGES.includes(file)) return file;
-
-      // 許可外ならフォールバック
       return FALLBACK_GAME_ENTRY;
     }
 
-    // ========= 画面初期化 =========
+    // ========= 初期化 =========
     function initPreview() {
-      // キャラ本体
       charImg.src = charSpriteFromStorage();
-
-      // サングラス装着可否
-      const acc = accessoriesFromStorage();
-      const hasGlasses = !!(acc && (acc.sunglasses === true || acc['sunglasses'] === 'true'));
-      accGlasses.style.display = hasGlasses ? 'block' : 'none';
-
-      // （必要なら微調整フック：キャラ色によるオフセット差）
-      // 例：色ごとに目の位置が違う場合はここで top/width を上書き
-      // const color = /stage1\/(.+?)_open\.png/.exec(charImg.src)?.[1] ?? 'blue';
-      // if (color === 'pink') { accGlasses.style.top = '35%'; accGlasses.style.width = '76%'; }
     }
 
     // ========= ボタン挙動 =========
     btnStart.addEventListener('click', () => {
-      // スタートはキャラ選択へ
       location.href = 'char.html';
     });
 
@@ -261,13 +211,10 @@
       location.href = 'about.html';
     });
 
-    // indexはゲーム進行ページではないが、念のため記録を汚さないよう空書き込みはしない
-    // 各ページ側で以下を入れてください（例：asari.htmlなど）
+    // 各ゲーム系ページ側で以下を記録してください
     // localStorage.setItem('whoai_lastPage', 'asari.html');
-    // さらにゲーム系のみ、直近ゲームページも更新（about除外）
     // localStorage.setItem('whoai_lastGamePage', 'asari.html');
 
-    // 初期化
     initPreview();
   </script>
 </body>
