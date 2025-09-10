@@ -12,24 +12,42 @@
   }
   .game { position:relative; width:100%; height:100%; }
 
-  /* 砂ゾーン */
-  .sand { position:absolute; left:0; right:0; bottom:0; height:40%;
-          background: url("public/items/sand.png") center/cover no-repeat;
-          touch-action:none; pointer-events:auto; z-index:1; }
+  /* 砂ゾーン（前面・操作対象） */
+  .sand {
+    position:absolute; left:0; right:0; bottom:0; height:40%;
+    background: url("public/items/sand.png") center/cover no-repeat;
+    /* スマホでのスクロールやズームを無効化して“なで”を取りやすくする */
+    touch-action: none;
+    pointer-events: auto;
+    z-index: 1;
+    cursor: grab;
+  }
+  .sand:active { cursor: grabbing; }
 
   /* 貝 */
   .clams { position:absolute; inset:0; z-index:2; pointer-events:none; }
-  .clam  { position:absolute; width:64px; height:64px;
-           background-size:contain; background-repeat:no-repeat;
-           pointer-events:auto; transition: transform .12s ease; }
+  .clam  {
+    position:absolute; width:64px; height:64px;
+    background-size:contain; background-repeat:no-repeat;
+    pointer-events:auto; transition: transform .12s ease;
+    opacity: 0; animation: shellAppear 0.45s ease forwards;
+  }
   .clam:active { transform: scale(.9); }
+  .clam:hover  { transform: scale(1.05); cursor: pointer; }
 
-  /* キャラ */
-  .char-wrap{ position:absolute; z-index:3; height:22vh; aspect-ratio:1/1; pointer-events:none;
-              filter: drop-shadow(0 14px 12px rgba(0,0,0,.55));
-              transform-origin:50% 90%;
-              animation:sway 4.2s ease-in-out infinite, breathe 3s ease-in-out infinite;
-              transition:left 1.2s ease, top 1.2s ease; }
+  @keyframes shellAppear {
+    0% { opacity: 0; transform: translateY(16px) scale(0.92); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* キャラ（70%・影・ゆらゆら） */
+  .char-wrap{
+    position:absolute; z-index:3; height:22vh; aspect-ratio:1/1; pointer-events:none;
+    filter: drop-shadow(0 14px 12px rgba(0,0,0,.55));
+    transform-origin:50% 90%;
+    animation:sway 4.2s ease-in-out infinite, breathe 3s ease-in-out infinite;
+    transition:left 1.2s ease, top 1.2s ease;
+  }
   .char-wrap img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
   .acc{ position:absolute; display:none; }
 
@@ -50,17 +68,35 @@
   .toast{ position:absolute; left:50%; top:14%; transform:translateX(-50%); z-index:6; background:rgba(0,0,0,.65);
           color:#fff; padding:6px 10px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .25s ease; }
   .toast.show{ opacity:1; }
+
+  /* 砂をなでた波紋エフェクト */
+  .sand-effect {
+    position: absolute; width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 70%);
+    pointer-events: none; animation: ripple 0.6s ease-out forwards; z-index: 1;
+  }
+  @keyframes ripple { 0%{ transform: scale(0.5); opacity:.8;} 100%{ transform: scale(2); opacity:0;} }
+
+  /* 指示テキスト */
+  .instruction {
+    position: absolute; bottom: 50%; left: 50%; transform: translate(-50%, 50%);
+    background: rgba(0,0,0,0.6); color: white; padding: 10px 15px; border-radius: 10px;
+    font-size: 16px; z-index: 4; animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:.8;} 50%{opacity:1;} }
 </style>
 </head>
 <body>
 <div class="game" id="game">
-  <div class="sand" id="sand"></div>
+  <div class="sand" id="sand" aria-label="砂浜（なでてね）"></div>
   <div class="clams" id="clams"></div>
 
   <div class="char-wrap" id="charWrap">
     <img id="charImg" alt="キャラ">
     <img id="accImg" class="acc" alt="アクセサリー">
   </div>
+
+  <div class="instruction" id="instruction">砂をなでて貝を探してみよう！</div>
 
   <div class="hud">アサリ: <span id="cnt">0</span><br>称号: <span id="title">なし</span></div>
   <div class="controls">
@@ -72,10 +108,10 @@
 </div>
 
 <script>
-  /* LocalStorage Keys */
+  /* ===== LocalStorage Keys ===== */
   const LS = { character:"who_character", clam:"who_clam", title:"who_title", unlocks:"who_unlocks", equipped:"who_equippedAccessory" };
 
-  /* Elements */
+  /* ===== Elements ===== */
   const sand = document.getElementById('sand');
   const clamsLayer = document.getElementById('clams');
   const charWrap = document.getElementById('charWrap');
@@ -84,8 +120,9 @@
   const hudCnt = document.getElementById('cnt');
   const hudTitle = document.getElementById('title');
   const toast = document.getElementById('toast');
+  const instruction = document.getElementById('instruction');
 
-  /* キャラ */
+  /* ===== Character ===== */
   const charKey = localStorage.getItem(LS.character) || 'pink';
   charImg.src = `public/assets/stage1/${charKey}_open.png`;
   function setCharPos(px, py){ charWrap.style.left = px + 'px'; charWrap.style.top = py + 'px'; }
@@ -93,142 +130,205 @@
     setCharPos(innerWidth*0.5 - (charWrap.clientWidth||160)/2, innerHeight*0.62);
   });
 
-  /* 状態 */
+  /* ===== Counts & Unlocks (復元) ===== */
   let count   = parseInt(localStorage.getItem(LS.clam) || '0', 10);
   let title   = localStorage.getItem(LS.title) || 'なし';
   let unlocks = JSON.parse(localStorage.getItem(LS.unlocks) || '{}');
   hudCnt.textContent = count; hudTitle.textContent = title;
 
-  /* アクセ位置 */
-  const ACCESSORY_ANCHORS = {
-    pink:{ top:4, left:50, width:38 }, blue:{ top:4, left:50, width:38 },
-    green:{ top:5, left:50, width:38 }, purple:{ top:6, left:50, width:38 }
-  };
-  function renderAccessory(){
-    if(!unlocks.accessory){ accImg.style.display='none'; return; }
-    const id = localStorage.getItem(LS.equipped);
-    if(!id){ accImg.style.display='none'; return; }
-    accImg.src = `public/assets/accessories/${id}.png`;
-    const a = ACCESSORY_ANCHORS[charKey] || ACCESSORY_ANCHORS.pink;
-    accImg.style.display='block';
-    accImg.style.width = a.width + '%';
-    accImg.style.left  = (a.left - a.width/2) + '%';
-    accImg.style.top   = a.top + '%';
-  }
+  /* ===== Accessory (今回は非表示のまま) ===== */
+  function renderAccessory(){ accImg.style.display = 'none'; }
   renderAccessory();
 
-  /* シェル一覧 */
+  /* ===== Shell table (public/items/) ===== */
   const SHELLS = [
-    { src:"public/items/asari1.png", prob:0.27, value:1 },
-    { src:"public/items/asari2.png", prob:0.27, value:1 },
-    { src:"public/items/asari3.png", prob:0.26, value:1 },
-    { src:"public/items/aurora_shell.png",   prob:0.04, value:2 },
-    { src:"public/items/flame_shell.png",    prob:0.03, value:2 },
-    { src:"public/items/luminous_shell.png", prob:0.02, value:3 },
-    { src:"public/items/mystic_shell.png",   prob:0.02, value:3 },
-    { src:"public/items/night_sky_shell.png",prob:0.015,value:5 },
-    { src:"public/items/rare_pearl.png",     prob:0.01, value:5 },
-    { src:"public/items/rare_rainbow.png",   prob:0.005,value:10 }
+    { src:"public/items/asari1.png", prob:0.30, value:1, name:"アサリ" },
+    { src:"public/items/asari2.png", prob:0.25, value:1, name:"アサリ" },
+    { src:"public/items/asari3.png", prob:0.20, value:1, name:"アサリ" },
+    { src:"public/items/aurora_shell.png",   prob:0.08, value:2, name:"オーロラ貝" },
+    { src:"public/items/flame_shell.png",    prob:0.06, value:2, name:"フレーム貝" },
+    { src:"public/items/luminous_shell.png", prob:0.04, value:3, name:"光る貝" },
+    { src:"public/items/mystic_shell.png",   prob:0.03, value:3, name:"神秘の貝" },
+    { src:"public/items/night_sky_shell.png",prob:0.02, value:5, name:"夜空貝" },
+    { src:"public/items/rare_pearl.png",     prob:0.015, value:5, name:"レア真珠" },
+    { src:"public/items/rare_rainbow.png",   prob:0.005, value:10, name:"虹色貝" }
   ];
   function chooseShell(){
-    let r=Math.random(), acc=0;
-    for(let s of SHELLS){ acc+=s.prob; if(r<acc) return s; }
+    let r = Math.random(), acc = 0;
+    for (const s of SHELLS){ acc += s.prob; if(r < acc) return s; }
     return SHELLS[0];
   }
 
-  /* 砂なででシェル出現 */
-  let stroking=false, lastEmit=0;
-  const EMIT_INTERVAL=80;
-  sand.addEventListener('pointerdown', e=>{ stroking=true; lastEmit=0; sand.setPointerCapture(e.pointerId); });
-  sand.addEventListener('pointerup', ()=>stroking=false);
-  sand.addEventListener('pointercancel', ()=>stroking=false);
+  /* ===== Stroke → Spawn logic（安定版） ===== */
+  let stroking=false, lastEmit=0, strokePath=[];
+  const EMIT_INTERVAL = 110;  // 判定間隔
+  const MIN_STEP = 18;        // 1ステップの最小移動量(px)
+  const MIN_TOTAL = 60;       // ストロークの最小合計距離(px)
+
+  sand.addEventListener('pointerdown', e=>{
+    stroking = true;
+    lastEmit = 0;
+    strokePath = [{x:e.clientX, y:e.clientY, t:performance.now()}];
+    sand.setPointerCapture(e.pointerId);
+    if(instruction) instruction.style.display='none';
+    ripple(e.clientX, e.clientY);
+  }, {passive:false});
+
+  sand.addEventListener('pointerup', ()=>{
+    if(stroking){
+      // ストローク終了時の保険抽選（長くなでた場合）
+      const total = strokeDistance();
+      if(total > MIN_TOTAL && Math.random() < 0.35){
+        const p = strokePath[Math.floor(Math.random()*strokePath.length)];
+        spawnClam(p.x, p.y);
+      }
+    }
+    stroking=false; strokePath=[];
+  });
+
+  sand.addEventListener('pointercancel', ()=>{ stroking=false; strokePath=[]; });
+
   sand.addEventListener('pointermove', e=>{
     if(!stroking) return;
     e.preventDefault();
-    const now=performance.now();
-    if(now-lastEmit<EMIT_INTERVAL) return;
-    lastEmit=now;
-    spawnClam(e.clientX, e.clientY);
-  });
+    const now = performance.now();
+    const cur = {x:e.clientX, y:e.clientY, t:now};
+    const prev = strokePath[strokePath.length-1];
+    strokePath.push(cur);
 
-  function spawnClam(x,y){
-    const s=chooseShell();
-    const d=document.createElement("div");
-    d.className="clam";
-    d.style.backgroundImage=`url('${s.src}')`;
-    d.dataset.value=s.value;
-    d.style.left=(x-32)+"px"; d.style.top=(y-32)+"px";
-    clamsLayer.appendChild(d);
-    d.addEventListener("click", ()=>pickClam(d,x,y,parseInt(d.dataset.value,10)), {once:true});
+    ripple(cur.x, cur.y);
+
+    const step = Math.hypot(cur.x - prev.x, cur.y - prev.y);
+    if(now - lastEmit >= EMIT_INTERVAL && step > MIN_STEP){
+      lastEmit = now;
+
+      // 速度に応じて出現しやすく（上限0.45）
+      const speed = step / Math.max(1, (cur.t - prev.t)); // px/ms
+      const chance = Math.min(0.45, 0.08 + speed * 0.08);
+      if(Math.random() < chance) spawnClam(cur.x, cur.y);
+    }
+  }, {passive:false});
+
+  function ripple(x,y){
+    const fx = document.createElement('div');
+    fx.className='sand-effect';
+    fx.style.left = (x-15)+'px';
+    fx.style.top  = (y-15)+'px';
+    sand.appendChild(fx);
+    setTimeout(()=>fx.remove(), 600);
   }
 
-  /* キャラが拾う */
+  function strokeDistance(){
+    let d=0;
+    for(let i=1;i<strokePath.length;i++){
+      const a=strokePath[i-1], b=strokePath[i];
+      d += Math.hypot(b.x-a.x, b.y-a.y);
+    }
+    return d;
+  }
+
+  /* ===== Spawn clam（砂範囲チェック付き） ===== */
+  function spawnClam(x, y){
+    const rect = sand.getBoundingClientRect();
+    if(y < rect.top || y > rect.bottom) return; // 砂以外は無効
+
+    const s = chooseShell();
+    const el = document.createElement('div');
+    el.className = 'clam';
+    el.style.backgroundImage = `url('${s.src}')`;
+    el.dataset.value = s.value;
+    el.dataset.name  = s.name;
+
+    // ちょっとランダムに砂から出てきた感
+    const ox = (Math.random()-0.5)*36, oy = (Math.random()-0.5)*36;
+    el.style.left = (x - 32 + ox) + 'px';
+    el.style.top  = (y - 32 + oy) + 'px';
+
+    clamsLayer.appendChild(el);
+    el.addEventListener('click', ()=> pickClam(el, x, y, +el.dataset.value, el.dataset.name), {once:true});
+  }
+
+  /* ===== キャラが拾う ===== */
   function moveCharacterTo(x,y){
     return new Promise(resolve=>{
       const L = x - (charWrap.clientWidth/2 || 80);
       const T = y - (charWrap.clientHeight*0.9 || 120);
-      const onEnd=()=>{ charWrap.removeEventListener('transitionend', onEnd); resolve(); };
-      charWrap.addEventListener('transitionend', onEnd);
-      setCharPos(L,T); setTimeout(onEnd,1300);
+      const done = ()=>{ charWrap.removeEventListener('transitionend', done); resolve(); };
+      charWrap.addEventListener('transitionend', done);
+      setCharPos(L, T);
+      setTimeout(done, 1300); // 保険
     });
   }
-  function pickClam(el,x,y,value){
+  function pickClam(el, x, y, value, name){
     moveCharacterTo(x,y).then(()=>{
-      charWrap.classList.add("picking");
-      setTimeout(()=>charWrap.classList.remove("picking"),450);
+      charWrap.classList.add('picking');
+      setTimeout(()=>charWrap.classList.remove('picking'), 450);
       el.remove();
-      count+=value;
-      hudCnt.textContent=count;
-      localStorage.setItem(LS.clam,count);
-      if(value>1) showToast(`レア貝 +${value}！`);
+      count += value;
+      hudCnt.textContent = count;
+      localStorage.setItem(LS.clam, String(count));
+      showToast(value>1 ? `${name} +${value}個！` : `${name}をゲット！`);
       checkUnlocks();
     });
   }
 
-  /* 徘徊 */
+  /* ===== ふわふわ徘徊 ===== */
   function wander(){
     const mx=innerWidth*0.1, my=innerHeight*0.45;
-    const x=mx+Math.random()*(innerWidth-mx*2);
-    const y=my+Math.random()*(innerHeight-my-20);
-    setCharPos(x-(charWrap.clientWidth/2||80), y);
+    const x = mx + Math.random()*(innerWidth - mx*2);
+    const y = my + Math.random()*(innerHeight - my - 20);
+    setCharPos(x - (charWrap.clientWidth/2 || 80), y);
   }
-  setInterval(wander,5500);
+  setInterval(wander, 6000);
 
-  /* UI */
-  function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); clearTimeout(showToast._id); toast._id=setTimeout(()=>toast.classList.remove('show'),1400); }
+  /* ===== UI ===== */
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.classList.remove('show'), 2000);
+  }
   function checkUnlocks(){
-    if(count>=10 && !unlocks.accessory){ unlocks.accessory=true; showToast('アクセサリー解放！'); renderAccessory(); }
-    if(count>=30 && !unlocks.conversation){ unlocks.conversation=true; showToast('夜の会話 解放！'); }
-    localStorage.setItem(LS.unlocks, JSON.stringify(unlocks));
+    if(count>=10 && !unlocks.accessory){ unlocks.accessory=true; showToast('アクセサリー解放！'); localStorage.setItem(LS.unlocks, JSON.stringify(unlocks)); }
+    if(count>=30 && !unlocks.conversation){ unlocks.conversation=true; showToast('夜の会話 解放！'); localStorage.setItem(LS.unlocks, JSON.stringify(unlocks)); }
   }
 
+  // 検定モード
   document.getElementById('exam').addEventListener('click', ()=>{
-    let got=0; const h=(e)=>{ if(e.target.classList && e.target.classList.contains('clam')) got++; };
-    clamsLayer.addEventListener('click', h);
-    showToast('検定開始：20秒で10個！');
-    const start=performance.now(); const timer=setInterval(()=>{
-      if(performance.now()-start>=20000){
-        clearInterval(timer); clamsLayer.removeEventListener('click',h);
-        if(got>=10){ localStorage.setItem(LS.title,'アサリ取り名人１級'); hudTitle.textContent='アサリ取り名人１級'; showToast('合格！称号ゲット'); }
-        else { showToast('惜しい！もう一度挑戦してね'); }
+    let got=0; const handler=e=>{ if(e.target.classList && e.target.classList.contains('clam')) got++; };
+    clamsLayer.addEventListener('click', handler);
+    showToast('検定開始：20秒で10個の貝を取ろう！');
+    const start=performance.now();
+    const timer=setInterval(()=>{
+      if(performance.now()-start >= 20000){
+        clearInterval(timer); clamsLayer.removeEventListener('click', handler);
+        if(got>=10){ title='アサリ取り名人１級'; hudTitle.textContent=title; localStorage.setItem(LS.title, title); showToast('合格！称号を獲得'); }
+        else { showToast(`惜しい！${got}/10個でした`); }
       }
     },1000);
   });
 
+  // 海に返す
   document.getElementById('release').addEventListener('click', ()=>{
-    if(count<=0){ showToast('返せるアサリがありません'); return; }
-    const r=Math.max(1,Math.floor(count*0.2));
-    count-=r; hudCnt.textContent=count; localStorage.setItem(LS.clam,count);
-    showToast(`${r}個のアサリを海に返しました`);
+    if(count<=0){ showToast('返せる貝がありません'); return; }
+    const r=Math.max(1, Math.floor(count*0.2));
+    count -= r; hudCnt.textContent = count;
+    localStorage.setItem(LS.clam, String(count));
+    showToast(`${r}個の貝を海に返しました`);
   });
 
+  // キャラ表示切替
   document.getElementById('toggleChar').addEventListener('click', ()=>{
-    charWrap.style.display=(charWrap.style.display==='none')?'block':'none';
+    charWrap.style.display = (charWrap.style.display==='none') ? 'block' : 'none';
   });
 
+  // リサイズ補正
   window.addEventListener('resize', ()=>{
     setCharPos(innerWidth*0.5 - (charWrap.clientWidth||160)/2, innerHeight*0.62);
   });
+
+  // 初回メッセージ
+  setTimeout(()=>showToast('砂をなでて貝を探してみよう！'), 800);
 </script>
 </body>
 </html>
