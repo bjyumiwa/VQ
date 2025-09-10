@@ -1,92 +1,195 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — ゲーム説明</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: "Hiragino Sans","Meiryo",sans-serif;
-      background: linear-gradient(180deg,#001,#013 60%,#000 100%);
-      color: #eee;
-      line-height: 1.8;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-    h1 {
-      font-size: 2rem;
-      font-weight: 600;
-      margin-bottom: 1.5em;
-      text-align: center;
-      color: #fff;
-      letter-spacing: 0.08em;
-    }
-    h2 {
-      font-size: 1.4rem;
-      margin-top: 2em;
-      color: #ffda88;
-      border-left: 4px solid #ffda88;
-      padding-left: 8px;
-    }
-    p {
-      margin-bottom: 1.5em;
-      font-size: 1rem;
-      color: #ddd;
-    }
-    ul {
-      margin: 1em 0 2em 1.5em;
-    }
-    li {
-      margin-bottom: .5em;
-    }
-    a.back {
-      display: block;
-      text-align: center;
-      margin-top: 3em;
-      color: #6cf;
-      text-decoration: none;
-    }
-    a.back:hover { text-decoration: underline; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no" />
+<title>WHO VQ — ゲームについて</title>
+<style>
+  :root{
+    --fg:#fff; --muted:#cfe3f7; --glass:rgba(0,0,0,.38);
+    --accent:#ffd27a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+    background:#000;color:var(--fg);overflow:hidden;
+  }
+  .bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(1200px 600px at 50% 8%, rgba(255,210,150,.45), transparent 55%),
+      linear-gradient(180deg,#09131c 0%,#0f2740 35%,#1b4b6b 60%,#1e3040 100%);
+  }
+  .wrap{position:relative;z-index:1; height:100%; display:flex; align-items:center; justify-content:center; padding:18px}
+  .card{
+    width:min(900px, 94vw); max-height: 88vh; overflow:auto;
+    background:var(--glass); backdrop-filter: blur(6px);
+    border-radius:18px; padding:18px 20px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  h1{font-size:clamp(20px,3.8vw,30px); margin-bottom:8px}
+  h2{font-size:clamp(16px,3vw,22px); margin:18px 0 8px}
+  p,li{line-height:1.7}
+  .btns{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px}
+  .btn{
+    appearance:none; border:none; border-radius:12px; padding:10px 14px; cursor:pointer;
+    background:linear-gradient(180deg,#ffde8a,#ffbf6b); color:#2b1b07; font-weight:700;
+  }
+  .ghost{background:rgba(255,255,255,.10); color:var(--fg); font-weight:500; border:1px solid rgba(255,255,255,.25)}
+  .note{font-size:12px; color:var(--muted); margin-top:6px}
+  ul{padding-left:1.2em}
+  .kvs{display:grid; grid-template-columns: 1fr 1fr; gap:12px}
+  .kv{background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.18); border-radius:12px; padding:10px}
+  .kv b{display:block; font-size:14px; margin-bottom:4px; color:var(--accent)}
+  @media (max-width:640px){ .kvs{grid-template-columns: 1fr} }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>ゲーム説明</h1>
+<div class="bg"></div>
+<div class="wrap">
+  <article class="card" id="content">
+    <h1 id="h1">ゲームについて</h1>
+    <p id="intro">このゲームは、砂浜の“盛り上がり”をタップして貝を見つけ、集めた貝をアクセサリーへ交換していくミニゲームです。</p>
 
-    <h2 id="asari">潮干狩り体験</h2>
-    <p>
-      浜辺の砂を指でなでると、隠れているアサリが現れます。<br>
-      アサリをタップすると回収でき、コレクションに加わります。
-    </p>
-    <ul>
-      <li>アサリを集めると、アクセサリーや会話イベントが解放されます。</li>
-      <li>「アサリ検定モード」では 20秒で10個取ると「アサリ取り名人１級」に！</li>
-      <li>アサリはなかなか出ないため、時間をかけて少しずつ集めていきましょう。</li>
+    <h2 id="howto">基本操作</h2>
+    <ul id="howtoList">
+      <li>砂の盛り上がりをタップすると、貝が出ることがあります。</li>
+      <li>キャラは近くに寄ったり、小さくジャンプします。</li>
+      <li>右上のバッジに所持数が表示されます。</li>
     </ul>
 
-    <h2>コレクション</h2>
-    <p>
-      集めたアサリやアクセサリーは「コレクション画面」で確認できます。<br>
-      好きなアクセサリーをキャラクターに装着して楽しむことができます。
-    </p>
+    <h2 id="rules">ルール</h2>
+    <div class="kvs" id="rulesBox">
+      <div class="kv"><b>出現保証</b><span>各ラウンドで最低6個は貝が出現します（偏り対策）</span></div>
+      <div class="kv"><b>交換条件</b><span>貝が<strong>10個以上</strong>あるとアクセサリーと交換できます</span></div>
+      <div class="kv"><b>累計カウント</b><span>貝は<strong>累計</strong>で管理（交換時に消費）</span></div>
+      <div class="kv"><b>端末最適化</b><span>スマホでもキャラが切れないよう自動縮小＆位置調整</span></div>
+    </div>
 
-    <h2>夜の会話</h2>
-    <p>
-      夜のシーンではキャラクターと会話ができます。<br>
-      会話はAPIとつながり、毎回少しずつ異なる返答を楽しめます。
-    </p>
+    <h2 id="tipsTitle">ヒント</h2>
+    <ul id="tips">
+      <li>盛り上がりはランダム配置。外れもあるけど、最低保証で“出ない”事態は回避。</li>
+      <li>交換条件は厳しめ（10個〜）。集める楽しさを重視。</li>
+      <li>アクセサリーは今後、見た目や性能に反映予定。</li>
+    </ul>
 
-    <h2>進行と保存</h2>
-    <p>
-      あなたの進行状況（キャラ選択やアサリ数）は端末に保存されます。<br>
-      次回は「続きから」ボタンで再開できます。
-    </p>
+    <div class="btns">
+      <button class="btn" id="toGame">潮干狩りを始める</button>
+      <button class="btn ghost" id="back">戻る</button>
+    </div>
+    <div class="note">言語設定は index.html のトグルでいつでも変更できます。</div>
+  </article>
+</div>
 
-    <a href="index.html" class="back">← ホームへ戻る</a>
-  </div>
+<script>
+(function(){
+  const LS_LAST = 'who_last_page';
+  const LS_LANG = 'who_lang';
+
+  function t(lang){
+    if(lang==='en') return {
+      title:'About the Game',
+      intro:'Tap sand mounds to discover clams. Trade clams for accessories and progress.',
+      howto:'How to Play',
+      howtoList:[
+        'Tap the mounds—sometimes a clam appears.',
+        'Your character moves closer and does a tiny hop.',
+        'The badge at top-right shows your clam count.'
+      ],
+      rules:'Rules',
+      rulesKVs:[
+        ['Guaranteed Spawns','At least 6 clams appear per round (prevents unlucky streaks).'],
+        ['Exchange Requirement','You can exchange when you have 10+ clams.'],
+        ['Cumulative Count','Clams are counted cumulatively (consumed on exchange).'],
+        ['Mobile Fit','Character is auto-resized/positioned to avoid clipping on phones.']
+      ],
+      tipsTitle:'Tips',
+      tips:[
+        'Mounds are random; misses happen, but guarantees avoid “none found.”',
+        'Exchange is intentionally strict (10+), emphasizing collection.',
+        'Accessories will affect look and/or stats later.'
+      ],
+      start:'Start Shell Gathering',
+      back:'Back'
+    };
+    return {
+      title:'ゲームについて',
+      intro:'砂の盛り上がりをタップして貝を見つけ、集めた貝をアクセサリーへ交換していくミニゲームです。',
+      howto:'基本操作',
+      howtoList:[
+        '砂の盛り上がりをタップすると、貝が出ることがあります。',
+        'キャラは近くに寄ったり、小さくジャンプします。',
+        '右上のバッジに所持数が表示されます。'
+      ],
+      rules:'ルール',
+      rulesKVs:[
+        ['出現保証','各ラウンドで最低6個は貝が出現します（偏り対策）'],
+        ['交換条件','貝が<strong>10個以上</strong>あるとアクセサリーと交換できます'],
+        ['累計カウント','貝は<strong>累計</strong>で管理（交換時に消費）'],
+        ['端末最適化','スマホでもキャラが切れないよう自動縮小＆位置調整']
+      ],
+      tipsTitle:'ヒント',
+      tips:[
+        '盛り上がりはランダム配置。外れもあるけど、最低保証で“出ない”事態は回避。',
+        '交換条件は厳しめ（10個〜）。集める楽しさを重視。',
+        'アクセサリーは今後、見た目や性能に反映予定。'
+      ],
+      start:'潮干狩りを始める',
+      back:'戻る'
+    };
+  }
+
+  function setLangTexts(lang){
+    const dict = t(lang);
+    document.title = (lang==='en'?'WHO VQ — About the Game':'WHO VQ — ゲームについて');
+    document.documentElement.lang = lang;
+    document.getElementById('h1').textContent = dict.title;
+    document.getElementById('intro').textContent = dict.intro;
+    document.getElementById('howto').textContent = dict.howto;
+
+    const hl = document.getElementById('howtoList');
+    hl.innerHTML = '';
+    dict.howtoList.forEach(s=>{
+      const li = document.createElement('li'); li.textContent = s; hl.appendChild(li);
+    });
+
+    document.getElementById('rules').textContent = dict.rules;
+    const rb = document.getElementById('rulesBox');
+    rb.innerHTML = '';
+    dict.rulesKVs.forEach(([k,v])=>{
+      const div = document.createElement('div'); div.className = 'kv';
+      const b = document.createElement('b'); b.innerHTML = k;
+      const span = document.createElement('span'); span.innerHTML = v;
+      div.appendChild(b); div.appendChild(span);
+      rb.appendChild(div);
+    });
+
+    document.getElementById('tipsTitle').textContent = dict.tipsTitle;
+    const tips = document.getElementById('tips');
+    tips.innerHTML = '';
+    dict.tips.forEach(s=>{
+      const li = document.createElement('li'); li.textContent = s; tips.appendChild(li);
+    });
+
+    document.getElementById('toGame').textContent = dict.start;
+    document.getElementById('back').textContent = dict.back;
+  }
+
+  const lang = localStorage.getItem(LS_LANG) || ((navigator.language||'ja').toLowerCase().startsWith('en')?'en':'ja');
+  setLangTexts(lang);
+
+  // ナビ
+  document.getElementById('toGame').addEventListener('click', ()=>{
+    localStorage.setItem(LS_LAST, 'asari.html');
+    location.href = 'asari.html';
+  });
+  document.getElementById('back').addEventListener('click', ()=>{
+    localStorage.setItem(LS_LAST, 'game.html');
+    history.length>1 ? history.back() : location.href='index.html';
+  });
+
+  // 最終ページ保存
+  try{ localStorage.setItem(LS_LAST, 'game.html'); }catch(e){}
+})();
+</script>
 </body>
 </html>
