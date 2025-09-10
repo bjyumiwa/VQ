@@ -27,21 +27,26 @@
       pointer-events: none;
     }
     .character-area img {
-      height: 40vh;
+      height: 32vh; /* サイズ縮小 */
       width: auto;
-      animation: sway 3s ease-in-out infinite;
-      filter: drop-shadow(0 8px 6px rgba(0,0,0,0.4));
+      animation: sway 4s ease-in-out infinite, bob 3s ease-in-out infinite;
+      filter: drop-shadow(0 10px 8px rgba(0,0,0,0.5));
+      transform-origin: center bottom;
     }
     @keyframes sway {
-      0%,100% { transform: translateX(-50%) rotate(-2deg); }
-      50%     { transform: translateX(-50%) rotate(2deg); }
+      0%,100% { transform: scale3d(1,1,1) rotate(-2deg); }
+      50%     { transform: scale3d(1,1,1) rotate(2deg); }
+    }
+    @keyframes bob {
+      0%,100% { margin-bottom: 0; }
+      50%     { margin-bottom: 6px; }
     }
 
     /* 貝 */
     .clam {
       position: absolute;
-      width: 40px;
-      height: 40px;
+      width: 36px;
+      height: 36px;
       background: url("public/assets/items/clam.png") no-repeat center/contain;
     }
     .clam.rare {
@@ -83,8 +88,7 @@
   <div class="game-container" id="gameArea">
     <!-- HUD -->
     <div class="hud">
-      アサリ: <span id="clamCount">0</span>
-      <br>
+      アサリ: <span id="clamCount">0</span><br>
       称号: <span id="title">なし</span>
     </div>
 
@@ -127,7 +131,7 @@
 
     // --- 貝を出す処理 ---
     function spawnClam(x, y) {
-      if (Math.random() > 0.25) return; // 出現率25%くらいで「なかなか集まらない」感じに
+      if (Math.random() > 0.2) return; // 出現率20%
 
       const clam = document.createElement("div");
       clam.classList.add("clam");
@@ -136,8 +140,8 @@
       const isRare = Math.random() < 0.05;
       if (isRare) clam.classList.add("rare");
 
-      clam.style.left = x - 20 + "px";
-      clam.style.top = y - 20 + "px";
+      clam.style.left = x - 18 + "px";
+      clam.style.top = y - 18 + "px";
       gameArea.appendChild(clam);
 
       clam.addEventListener("click", () => {
@@ -150,17 +154,25 @@
       });
     }
 
-    // --- 砂をなでる ---
+    // --- 砂をなでる（ドラッグ距離ごとに出現判定） ---
     let dragging = false;
+    let lastX = 0, lastY = 0;
     function handleMove(e) {
       const x = e.touches ? e.touches[0].clientX : e.clientX;
       const y = e.touches ? e.touches[0].clientY : e.clientY;
-      if (dragging) spawnClam(x, y);
+      if (dragging) {
+        const dx = x - lastX, dy = y - lastY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > 30) { // 30px移動ごとに出現判定
+          spawnClam(x, y);
+          lastX = x; lastY = y;
+        }
+      }
     }
-    gameArea.addEventListener("mousedown", () => dragging = true);
+    gameArea.addEventListener("mousedown", e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
     gameArea.addEventListener("mouseup", () => dragging = false);
     gameArea.addEventListener("mousemove", handleMove);
-    gameArea.addEventListener("touchstart", () => dragging = true);
+    gameArea.addEventListener("touchstart", e => { dragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; });
     gameArea.addEventListener("touchend", () => dragging = false);
     gameArea.addEventListener("touchmove", handleMove);
 
@@ -182,10 +194,19 @@
       let examCount = 0;
       let time = 20;
       alert("検定モード開始！20秒以内に10個取ろう！");
+      const startTime = Date.now();
+
+      const examHandler = (e) => {
+        if (e.target.classList.contains("clam")) {
+          examCount++;
+        }
+      };
+      gameArea.addEventListener("click", examHandler);
+
       const timer = setInterval(() => {
-        time--;
-        if (time <= 0) {
+        if (Date.now() - startTime >= 20000) {
           clearInterval(timer);
+          gameArea.removeEventListener("click", examHandler);
           if (examCount >= 10) {
             title = "アサリ取り名人１級";
             localStorage.setItem(LS_KEYS.title, title);
@@ -196,14 +217,6 @@
           }
         }
       }, 1000);
-
-      // 一時的に回収数をカウント
-      const handler = () => { examCount++; };
-      gameArea.addEventListener("clamCollected", handler);
-
-      setTimeout(() => {
-        gameArea.removeEventListener("clamCollected", handler);
-      }, 20000);
     });
 
     // --- 海に返す ---
