@@ -3,245 +3,272 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — Start</title>
-
-  <!-- 背景画像を先読み（パスは public/items/bg/*.jpg で統一） -->
-  <link rel="preload" as="image" href="public/items/bg/sunrise.jpg" />
-  <link rel="preload" as="image" href="public/items/bg/beach_day.jpg" />
-  <link rel="preload" as="image" href="public/items/bg/night_beach.jpg" />
-
+  <title>WHO VQ — スタート</title>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic", Meiryo, sans-serif;
-      color:#fff; background:#000; overflow:hidden;
-    }
-    .bg{
-      position:fixed; inset:0; background-size:cover; background-position:center;
-      opacity:0; transition:opacity .8s ease; z-index:-1;
-    }
-    .bg.show{opacity:1}
+    /* ====== Reset & Base ====== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #000; color: #fff; font-family: system-ui, "Noto Sans JP", sans-serif; }
 
-    #topbar{
-      position:fixed; left:0; right:0; top:0; display:flex; gap:12px; align-items:center; justify-content:space-between;
-      padding:10px 14px; background:linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,0));
-      z-index:10;
-    }
-    #langWrap{display:flex; align-items:center; gap:8px}
-    #lang{appearance:none; padding:6px 10px; border-radius:10px; border:none; background:rgba(0,0,0,.5); color:#fff}
-
-    #phaseBadge{
-      padding:6px 10px; border-radius:999px; background:rgba(0,0,0,.45); backdrop-filter: blur(4px);
-      border:1px solid rgba(255,255,255,.25); font-size:12px;
+    /* ====== Background (朝日〜柔らかいグラデ) ====== */
+    .bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(1200px 600px at 50% 10%, rgba(255,220,160,0.45), transparent 55%),
+        linear-gradient(180deg, #87ceeb 0%, #c0e4f4 40%, #e7d7b3 60%, #f0e1c6 70%, #a7895f 100%);
+      filter: saturate(1.05);
     }
 
-    #center{
-      position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
-      text-align:center; padding:16px;
-      background: radial-gradient(ellipse at center, rgba(0,0,0,.0), rgba(0,0,0,.25) 60%, rgba(0,0,0,.55));
+    /* ====== Layout ====== */
+    .wrap {
+      position: relative; z-index: 1;
+      min-height: 100dvh; display: grid; place-items: center;
+      padding: 24px;
     }
-    h1{font-size:clamp(26px, 4.2vw, 48px); text-shadow:0 2px 8px rgba(0,0,0,.6)}
-    p.lead{opacity:.95}
-
-    .btns{display:flex; flex-direction:column; gap:12px; width:min(90vw, 420px); margin-top:6px}
-    button, .btn{
-      width:100%; padding:14px 16px; border:none; border-radius:14px;
-      background:rgba(255,255,255,.1); color:#fff; font-size:16px; cursor:pointer;
-      backdrop-filter: blur(4px);
-      border:1px solid rgba(255,255,255,.25);
-      transition: transform .06s ease, background .2s ease;
+    .panel {
+      width: min(960px, 92vw);
+      display: grid; gap: 20px;
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "logo"
+        "preview"
+        "buttons"
+        "foot";
     }
-    button:hover,.btn:hover{background:rgba(255,255,255,.18)}
-    button:active,.btn:active{transform:scale(.99)}
-    button[disabled]{opacity:.5; cursor:not-allowed}
-
-    #resumeNote{font-size:12px; opacity:.85}
-    #foot{
-      position:fixed; left:0; right:0; bottom:8px; text-align:center; font-size:12px; opacity:.8
-    }
-    /* 画面読み上げ/キーボード利用向けフォーカス */
-    :focus-visible{outline:2px solid #fff; outline-offset:2px}
-  </style>
-</head>
-<body>
-  <div id="bg" class="bg" aria-hidden="true"></div>
-
-  <div id="topbar" role="banner">
-    <div id="langWrap">
-      <label for="lang" id="langLabel">Language</label>
-      <select id="lang" aria-label="language">
-        <option value="ja">日本語</option>
-        <option value="en">English</option>
-        <option value="zh">中文</option>
-        <option value="ko">한국어</option>
-      </select>
-    </div>
-    <div id="phaseBadge" aria-live="polite"></div>
-  </div>
-
-  <main id="center">
-    <h1 id="title">WHO VQ</h1>
-    <p class="lead" id="subtitle"></p>
-
-    <div class="btns" role="group" aria-label="main actions">
-      <button id="btnStart"></button>
-      <button id="btnResume"></button>
-      <button id="btnAbout"></button>
-    </div>
-    <div id="resumeNote"></div>
-  </main>
-
-  <div id="foot">© WHO VQ Project</div>
-
-  <script>
-    /***** 設定・定数 *****/
-    const BG_MAP = {
-      sunrise: "public/items/bg/sunrise.jpg",
-      day:     "public/items/bg/beach_day.jpg",
-      night:   "public/items/bg/night_beach.jpg",
-    };
-
-    const I18N = {
-      ja: {
-        htmlLang: "ja",
-        title: "WHO VQ",
-        subtitle: "海辺からはじまる、あなたとAIの小さな物語",
-        start: "スタート",
-        resume: "続きから",
-        about: "研究について",
-        noResume: "前回の続きはありません。",
-        resumeTo: (p)=> `前回は「${p}」まで進みました。`,
-        phase: { sunrise:"朝日", day:"昼", night:"夜" },
-        langLabel: "言語",
-      },
-      en: {
-        htmlLang: "en",
-        title: "WHO VQ",
-        subtitle: "A small story of you and AI, starting by the sea",
-        start: "Start",
-        resume: "Continue",
-        about: "About the Research",
-        noResume: "No previous progress found.",
-        resumeTo: (p)=> `Last time you reached “${p}”.`,
-        phase: { sunrise:"Sunrise", day:"Day", night:"Night" },
-        langLabel: "Language",
-      },
-      zh: {
-        htmlLang: "zh",
-        title: "WHO VQ",
-        subtitle: "与你与AI的海边小故事，从此开始",
-        start: "开始",
-        resume: "继续",
-        about: "关于研究",
-        noResume: "未找到上次进度。",
-        resumeTo: (p)=> `上次进行到 “${p}”。`,
-        phase: { sunrise:"日出", day:"白天", night:"夜晚" },
-        langLabel: "语言",
-      },
-      ko: {
-        htmlLang: "ko",
-        title: "WHO VQ",
-        subtitle: "바닷가에서 시작하는 당신과 AI의 작은 이야기",
-        start: "시작",
-        resume: "이어하기",
-        about: "연구 소개",
-        noResume: "이전 진행 기록이 없습니다.",
-        resumeTo: (p)=> `지난번에는 “${p}” 까지 진행했어요.`,
-        phase: { sunrise:"새벽", day:"낮", night:"밤" },
-        langLabel: "언어",
-      },
-    };
-
-    const LS = {
-      lang: "who_vq_lang",
-      lastPage: "who_vq_last_page",
-      phase: "who_vq_phase" // 任意：保存されていれば優先
-    };
-
-    /***** 背景フェーズ推定 *****/
-    function guessPhase(){
-      const saved = localStorage.getItem(LS.phase);
-      if (saved && BG_MAP[saved]) return saved;
-
-      const h = new Date().getHours();
-      // 朝日 4-9 / 昼 10-17 / 夜 他
-      if (h >= 4 && h <= 9) return "sunrise";
-      if (h >= 10 && h <= 17) return "day";
-      return "night";
-    }
-
-    function setBackground(phase){
-      const url = BG_MAP[phase] || BG_MAP.night;
-      const el = document.getElementById("bg");
-      el.style.backgroundImage = `url("${url}")`;
-      requestAnimationFrame(()=> el.classList.add("show"));
-    }
-
-    /***** 言語適用 *****/
-    function applyLang(lang){
-      const dict = I18N[lang] || I18N.ja;
-      document.documentElement.lang = dict.htmlLang;
-      document.getElementById("title").textContent = dict.title;
-      document.getElementById("subtitle").textContent = dict.subtitle;
-      document.getElementById("btnStart").textContent = dict.start;
-      document.getElementById("btnResume").textContent = dict.resume;
-      document.getElementById("btnAbout").textContent = dict.about;
-      document.getElementById("langLabel").textContent = dict.langLabel;
-
-      const phase = currentPhase;
-      document.getElementById("phaseBadge").textContent = dict.phase[phase] || "";
-
-      const last = localStorage.getItem(LS.lastPage);
-      const resumeBtn = document.getElementById("btnResume");
-      const note = document.getElementById("resumeNote");
-      if (last){
-        resumeBtn.disabled = false;
-        note.textContent = dict.resumeTo(last);
-      } else {
-        resumeBtn.disabled = true;
-        note.textContent = dict.noResume;
+    @media (min-width: 860px) {
+      .panel {
+        grid-template-columns: 1.2fr 1fr;
+        grid-template-areas:
+          "logo logo"
+          "preview buttons"
+          "foot foot";
+        align-items: center;
       }
     }
 
-    /***** ナビゲーション *****/
-    function go(href){
-      // ここでは index 自身は保存しない。遷移先で保存する。
-      location.href = href;
+    /* ====== Title ====== */
+    .logo {
+      grid-area: logo;
+      text-align: center;
+      text-shadow: 0 2px 18px rgba(0,0,0,.35);
+    }
+    .logo h1 {
+      font-size: clamp(22px, 4.2vw, 44px);
+      letter-spacing: .06em;
+      font-weight: 800;
+    }
+    .logo p {
+      margin-top: 6px; opacity: .85; font-size: clamp(12px, 2.4vw, 14px);
     }
 
-    /***** 初期化 *****/
-    const currentPhase = guessPhase();
-    setBackground(currentPhase);
+    /* ====== Character Preview ====== */
+    .preview {
+      grid-area: preview;
+      display: grid; place-items: center;
+      padding: 10px;
+    }
+    .charStage {
+      position: relative;
+      /* 以前より約半分の見た目になるように控えめサイズに */
+      width: clamp(140px, 28vw, 220px);
+      aspect-ratio: 1 / 1;  /* 正方形ステージ */
+      border-radius: 24px;
+      background: rgba(0,0,0,.18);
+      box-shadow: 0 10px 30px rgba(0,0,0,.25) inset, 0 12px 32px rgba(0,0,0,.18);
+      overflow: visible;
+    }
+    .charImg,
+    .accImg {
+      position: absolute; inset: 0; margin: auto;
+      display: block;
+      width: 100%; height: 100%; object-fit: contain;
+      image-rendering: auto;
+      pointer-events: none;
+      user-select: none;
+    }
+    /* サングラスは位置微調整（目の高さに） */
+    .accImg.sunglasses {
+      width: 78%;             /* 画像自体の横幅比率 */
+      left: 50%; transform: translateX(-50%);
+      top: 36%;               /* 目の高さ（必要ならここを微調整） */
+      height: auto;
+    }
 
-    const langSel = document.getElementById("lang");
-    // 既定は LS.lang またはブラウザ言語（ja/en/zh/ko）
-    const browser = (navigator.language || "ja").slice(0,2);
-    const initialLang = localStorage.getItem(LS.lang) || (["ja","en","zh","ko"].includes(browser) ? browser : "ja");
-    langSel.value = initialLang;
-    applyLang(initialLang);
+    /* ====== Buttons ====== */
+    .buttons {
+      grid-area: buttons;
+      display: grid; gap: 12px;
+      align-content: center;
+    }
+    .btn {
+      appearance: none; border: none; cursor: pointer;
+      padding: 14px 16px; border-radius: 14px;
+      font-size: clamp(14px, 2.6vw, 18px); font-weight: 700;
+      transition: transform .06s ease, box-shadow .2s ease, opacity .2s ease;
+      color: #101010;
+      background: linear-gradient(180deg, #fff, #e9eef6);
+      box-shadow: 0 4px 12px rgba(0,0,0,.24);
+    }
+    .btn:active { transform: translateY(2px) scale(.99); }
+    .btn.secondary { background: linear-gradient(180deg, #e6f6ff, #d7ecff); }
+    .btn.ghost {
+      color: #fff; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.2);
+    }
+    .hint {
+      grid-area: foot; text-align: center; opacity: .85; font-size: 12px;
+    }
 
-    langSel.addEventListener("change", ()=>{
-      const v = langSel.value;
-      localStorage.setItem(LS.lang, v);
-      applyLang(v);
+    /* 小さめ端末の余白最適化 */
+    @media (max-width: 360px) {
+      .panel { gap: 14px; }
+      .btn { padding: 12px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"></div>
+
+  <main class="wrap">
+    <section class="panel">
+      <header class="logo">
+        <h1>WHO VQ</h1>
+        <p>スタート／続きから／研究について</p>
+      </header>
+
+      <!-- キャラ＋アクセサリーのプレビュー（約半分サイズ） -->
+      <div class="preview">
+        <div class="charStage" aria-label="選択中キャラクタープレビュー">
+          <img id="charImg" class="charImg" alt="character" src="public/assets/stage1/blue_open.png">
+          <!-- サングラス：必要時のみ表示 -->
+          <img id="accGlasses" class="accImg sunglasses" alt="sunglasses" src="public/assets/accessories/sunglasses.png" style="display:none;">
+        </div>
+      </div>
+
+      <!-- 操作ボタン -->
+      <div class="buttons">
+        <button id="btnStart" class="btn">スタート</button>
+        <button id="btnContinue" class="btn secondary">続きから</button>
+        <button id="btnAbout" class="btn ghost">研究について</button>
+      </div>
+
+      <p class="hint">※「続きから」は直前のゲーム画面へ遷移します（about は対象外）。</p>
+    </section>
+  </main>
+
+  <script>
+    // ========= 設定 =========
+    const FALLBACK_GAME_ENTRY = 'char.html'; // 続きからの最終フォールバック
+    const ALLOWED_GAME_PAGES = [
+      'char.html', 'asari.html', 'collection.html', 'accessory.html',
+      'whoai_talk.html', 'macaron_select.html', 'appearance.html'
+      // 必要に応じて追記
+    ];
+
+    // ========= 要素取得 =========
+    const btnStart = document.getElementById('btnStart');
+    const btnContinue = document.getElementById('btnContinue');
+    const btnAbout = document.getElementById('btnAbout');
+
+    const charImg = document.getElementById('charImg');
+    const accGlasses = document.getElementById('accGlasses');
+
+    // ========= 画像パス解決（規約：必ず public/ 起点） =========
+    function charSpriteFromStorage() {
+      // 互換性：以前のキー who_character / whoai_character をどちらも見る
+      const raw =
+        localStorage.getItem('whoai_character') ??
+        localStorage.getItem('who_character');
+
+      // 既定は blue
+      let color = 'blue';
+      try {
+        if (raw) {
+          const v = JSON.parse(raw);
+          // 文字列だった場合（例: "blue"）
+          if (typeof v === 'string') color = v;
+          // オブジェクトの場合（{ color: "blue", ... }）
+          else if (v && typeof v.color === 'string') color = v.color;
+        }
+      } catch(e) {
+        // 文字列保存などに備え、失敗時は既定値
+      }
+      // 既存ルール：stage1/{color}_open.png
+      return `public/assets/stage1/${color}_open.png`;
+    }
+
+    function accessoriesFromStorage() {
+      // 互換性：whoai_accessories or who_accessories
+      const raw =
+        localStorage.getItem('whoai_accessories') ??
+        localStorage.getItem('who_accessories');
+      try {
+        return raw ? JSON.parse(raw) : {};
+      } catch(e) {
+        return {};
+      }
+    }
+
+    // ========= 続きからページ判定 =========
+    function resolveContinueTarget() {
+      const last = (localStorage.getItem('whoai_lastPage') || '').trim();
+      // index.html / about.html / 空は除外
+      const invalid = !last ||
+        last === 'index.html' ||
+        last === '/index.html' ||
+        /about\.html$/i.test(last);
+
+      if (invalid) {
+        // 直近のゲーム系最終ページを別キーで持っていれば優先
+        const lastGame = (localStorage.getItem('whoai_lastGamePage') || '').trim();
+        if (ALLOWED_GAME_PAGES.includes(lastGame)) return lastGame;
+        return FALLBACK_GAME_ENTRY;
+      }
+      // パス断片だけが来た想定（/path/xxx.html 対応）
+      const file = last.split('/').pop();
+      if (ALLOWED_GAME_PAGES.includes(file)) return file;
+
+      // 許可外ならフォールバック
+      return FALLBACK_GAME_ENTRY;
+    }
+
+    // ========= 画面初期化 =========
+    function initPreview() {
+      // キャラ本体
+      charImg.src = charSpriteFromStorage();
+
+      // サングラス装着可否
+      const acc = accessoriesFromStorage();
+      const hasGlasses = !!(acc && (acc.sunglasses === true || acc['sunglasses'] === 'true'));
+      accGlasses.style.display = hasGlasses ? 'block' : 'none';
+
+      // （必要なら微調整フック：キャラ色によるオフセット差）
+      // 例：色ごとに目の位置が違う場合はここで top/width を上書き
+      // const color = /stage1\/(.+?)_open\.png/.exec(charImg.src)?.[1] ?? 'blue';
+      // if (color === 'pink') { accGlasses.style.top = '35%'; accGlasses.style.width = '76%'; }
+    }
+
+    // ========= ボタン挙動 =========
+    btnStart.addEventListener('click', () => {
+      // スタートはキャラ選択へ
+      location.href = 'char.html';
     });
 
-    // ボタン
-    document.getElementById("btnStart").addEventListener("click", ()=> go("char.html"));
-    document.getElementById("btnAbout").addEventListener("click", ()=> {
-      localStorage.setItem(LS.lastPage, "about.html");
-      go("about.html");
-    });
-    document.getElementById("btnResume").addEventListener("click", ()=>{
-      const last = localStorage.getItem(LS.lastPage);
-      if (last) go(last);
+    btnContinue.addEventListener('click', () => {
+      const target = resolveContinueTarget();
+      location.href = target;
     });
 
-    // Enter キーでスタート
-    window.addEventListener("keydown", (e)=>{
-      if (e.key === "Enter") document.getElementById("btnStart").click();
+    btnAbout.addEventListener('click', () => {
+      location.href = 'about.html';
     });
+
+    // indexはゲーム進行ページではないが、念のため記録を汚さないよう空書き込みはしない
+    // 各ページ側で以下を入れてください（例：asari.htmlなど）
+    // localStorage.setItem('whoai_lastPage', 'asari.html');
+    // さらにゲーム系のみ、直近ゲームページも更新（about除外）
+    // localStorage.setItem('whoai_lastGamePage', 'asari.html');
+
+    // 初期化
+    initPreview();
   </script>
 </body>
 </html>
