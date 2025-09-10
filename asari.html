@@ -51,7 +51,7 @@
 
     /* キャンバス */
     canvas#scene{position:absolute;inset:0;z-index:50;touch-action:none}
-    canvas#char{position:absolute;inset:0;z-index:55;pointer-events:none} /* キャラ */
+    canvas#char {position:absolute;inset:0;z-index:55;pointer-events:none;opacity:0;transition:opacity .3s ease} /* 画像ロードまで非表示 */
     canvas#sand{position:absolute;inset:0;z-index:60;touch-action:none;cursor:grab}
     canvas#sand.brushing{cursor:grabbing}
 
@@ -115,7 +115,7 @@
 
     <!-- 下部パネル -->
     <div class="panel" id="panel">
-      <div class="row" id="hint">砂をなでて貝を見つけよう。十分に出てきたらタップ/クリックで回収！</div>
+      <div class="row" id="hint">砂を前面に敷いてあります。なでて砂を削ると、下の貝が露出します。十分に見えたらタップ/クリックで回収！</div>
       <div class="collections" id="collections"></div>
       <div class="exam" id="examInfo" style="display:none;">
         <span class="badge">検定モード中</span>
@@ -140,7 +140,7 @@
     const timeDisplay = document.getElementById('timeDisplay');
     let timePhase = localStorage.getItem('who_timePhase') || inferPhaseByClock();
 
-    // シェル（数は“少なめ”）
+    // シェル（“少なめ”）
     const shellSprites = {
       asari1:{ name:'アサリ(白)', src:'public/items/asari1.png', rarity:0.28, points:1, exam:true },
       asari2:{ name:'アサリ(黄)', src:'public/items/asari2.png', rarity:0.22, points:1, exam:true },
@@ -181,22 +181,32 @@
     const examBestEl  = document.getElementById('examBest');
     const hintEl = document.getElementById('hint');
 
-    /********** キャンバス準備 **********/
+    /********** キャンバス準備（DPR対応でにじみ軽減） **********/
     const scene = document.getElementById('scene');
     const charC = document.getElementById('char');
     const sand  = document.getElementById('sand');
     const sctx = scene.getContext('2d');
     const cctx = charC.getContext('2d');
     const mctx = sand.getContext('2d');
-    sctx.imageSmoothingEnabled = cctx.imageSmoothingEnabled = true;
-
+    function fitCanvasToDPR(cv){
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const w = Math.floor(cv.clientWidth * dpr);
+      const h = Math.floor(cv.clientHeight * dpr);
+      if(cv.width!==w || cv.height!==h){
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+      }
+    }
     function resize(){
-      const W=innerWidth,H=innerHeight;
-      scene.width = charC.width = sand.width = W;
-      scene.height = charC.height = sand.height = H;
+      // set size by CSS first
+      scene.style.width = charC.style.width = sand.style.width = '100%';
+      scene.style.height = charC.style.height = sand.style.height = '100%';
+      fitCanvasToDPR(scene); fitCanvasToDPR(charC); fitCanvasToDPR(sand);
       drawAll();
-      // キャラ位置の初期化
-      if(!CHAR.initialized){ initChar(); }
+      if(!CHAR.initialized) initChar();
     }
     addEventListener('resize', resize);
 
@@ -205,32 +215,36 @@
     let brushing=false, lastX=0, lastY=0, lastBrushAt=null;
 
     function resetSand(){
-      mctx.globalCompositeOperation='source-over';
-      // 砂は画面下40%のみ覆う
-      const hTop = sand.height*0.55;
-      mctx.clearRect(0,0,sand.width,sand.height);
-      const g=mctx.createLinearGradient(0,hTop,0,sand.height);
+      mctx.setTransform(1,0,0,1,0,0); // safety
+      const W = sand.clientWidth, H = sand.clientHeight;
+      mctx.clearRect(0,0,W,H);
+      // 砂は画面下40〜45%を覆う
+      const hTop = H*0.55;
+      const g=mctx.createLinearGradient(0,hTop,0,H);
       g.addColorStop(0,'rgba(220,190,120,0.92)');
       g.addColorStop(1,'rgba(210,180,110,0.97)');
-      mctx.fillStyle=g; mctx.fillRect(0,hTop,sand.width,sand.height-hTop);
-      // ノイズ（固定パターンでチカチカしない）
+      mctx.globalCompositeOperation='source-over';
+      mctx.fillStyle=g; mctx.fillRect(0,hTop,W,H-hTop);
+      // 固定ノイズ（フレーム毎に変えない）
       mctx.save(); mctx.globalAlpha=.08;
       const step=6;
-      for(let y=hTop; y<sand.height; y+=step){
-        for(let x= (y|0)%12; x<sand.width; x+=12){
-          mctx.fillStyle = 'rgba(255,255,255,0.6)';
+      for(let y=hTop; y<H; y+=step){
+        for(let x=(y|0)%12; x<W; x+=12){
+          mctx.fillStyle='rgba(255,255,255,0.6)';
           mctx.fillRect(x,y,1,1);
         }
       }
       mctx.restore();
     }
     function eraseAt(x,y){
-      const hTop = sand.height*0.55;
+      const H = sand.clientHeight;
+      const hTop = H*0.55;
       if(y < hTop) return; // 海側は削れない
-      mctx.save(); mctx.globalCompositeOperation='destination-out';
-      mctx.beginPath(); mctx.arc(x,y,BRUSH.size/2,0,Math.PI*2); mctx.fill(); mctx.restore();
+      mctx.save();
+      mctx.globalCompositeOperation='destination-out';
+      mctx.beginPath(); mctx.arc(x,y,BRUSH.size/2,0,Math.PI*2); mctx.fill();
+      mctx.restore();
       lastBrushAt = {x,y, t: performance.now()};
-      // 近くの貝の露出度を上げる
       for(const sh of shells){
         const d=Math.hypot(x-sh.x,y-sh.y);
         if(d < sh.r + BRUSH.size*0.65){ sh.reveal++; if(sh.reveal>12) sh.revealed=true; }
@@ -244,6 +258,7 @@
     });
     sand.addEventListener('pointermove',e=>{
       if(!brushing) return; const p=pos(e);
+      e.preventDefault();
       const steps=Math.max(1,Math.floor(Math.hypot(p.x-lastX,p.y-lastY)/8));
       for(let i=1;i<=steps;i++){
         const ix=lastX+(p.x-lastX)*i/steps, iy=lastY+(p.y-lastY)*i/steps;
@@ -254,7 +269,7 @@
     sand.addEventListener('pointerup',()=>{brushing=false;sand.classList.remove('brushing')});
     sand.addEventListener('pointercancel',()=>{brushing=false;sand.classList.remove('brushing')});
 
-    // 砂上でのクリック回収（十分露出したら）
+    // クリックで回収（十分露出したら）
     sand.addEventListener('click', e=>{
       const p=pos(e);
       for(const sh of shells){
@@ -270,9 +285,9 @@
 
     /********** シェル配置（少なめ） **********/
     let shells=[];
-    function spawnShells(n=10){ // ★ 少なめ
+    function spawnShells(n=10){
       shells.length=0;
-      const W=scene.width,H=scene.height;
+      const W=scene.clientWidth,H=scene.clientHeight;
       const bottom = H*0.58, top = H*0.75; // 砂帯
       for(let i=0;i<n;i++){
         const type = pickShellType();
@@ -296,7 +311,6 @@
     function collectShell(sh){
       sh.collected=true; sh.pulse=1;
       counts[sh.type] = (counts[sh.type]||0)+1;
-
       const spec = shellSprites[sh.type];
       if(spec.reward==='talk'){ talkTickets += 1; localStorage.setItem('who_talk_tickets', talkTickets); flashHint(`会話チケット +1（${spec.name}）`); }
       if(spec.reward==='accessory'){ accPoints += spec.points; localStorage.setItem('who_accessory_points', accPoints); flashHint(`${spec.name} アクセP +${spec.points}`); }
@@ -316,49 +330,62 @@
       localStorage.setItem('who_shells_total', total);
     }
 
-    /********** キャラクター（画像だけ／チカチカ防止） **********/
+    /********** キャラクター（画像オンリー・ロード済みだけ描画） **********/
     const CHAR = {
       color: (localStorage.getItem('who_char_color')||'pink').toLowerCase().replace(/[^a-z]/g,'') || 'pink',
       x: 0, y: 0, scale: 1, facing: 1,
       bobT: 0, targetX: null, targetY: null,
-      img: new Image(), visible: false, initialized:false
+      img: new Image(), ready:false, initialized:false
     };
     function initChar(){
-      CHAR.img.onload = ()=>{ CHAR.visible = true; };
-      CHAR.img.onerror = ()=>{ CHAR.visible = false; }; // フォールバック描画なし
-      CHAR.img.src = `public/assets/stage1/${CHAR.color}_open.png`;
-      const W=charC.width,H=charC.height;
+      const src = `public/assets/stage1/${CHAR.color}_open.png`;
+      CHAR.img.onload = ()=>{
+        CHAR.ready = true;
+        charC.style.opacity = '1';      // ロード完了で表示
+      };
+      CHAR.img.onerror = ()=>{
+        CHAR.ready = false;
+        charC.style.opacity = '0';      // ロード失敗なら非表示のまま
+      };
+      CHAR.img.src = src;
+
+      const W=charC.clientWidth,H=charC.clientHeight;
       CHAR.x = W*0.5;
       CHAR.y = H*0.82;
-      CHAR.scale = Math.min(1, Math.max(0.7, W/1280)); // 70%付近
+      CHAR.scale = Math.min(1, Math.max(0.7, W/1280)); // ≒70%〜100%
       CHAR.initialized = true;
     }
+    // 掘り地点へ寄る・ボブ・回収ジャンプのみ（チカチカするランダム演出は排除）
     function updateChar(dt){
-      // 直近のブラシ地点があれば寄ってくる
+      if(!CHAR.ready) return; // ロード済みでなければ何もしない
+
       if(lastBrushAt && performance.now()-lastBrushAt.t < 1800){
         CHAR.targetX = lastBrushAt.x;
-        CHAR.targetY = Math.max(charC.height*0.58, Math.min(charC.height*0.86, lastBrushAt.y+30));
+        CHAR.targetY = Math.max(charC.clientHeight*0.58, Math.min(charC.clientHeight*0.86, lastBrushAt.y+30));
       }else{
         CHAR.targetX = null;
       }
-      // 移動
+
       const speed = 300*CHAR.scale;
       if(CHAR.targetX!=null){
         const dx = CHAR.targetX-CHAR.x, dy = CHAR.targetY-CHAR.y;
         const d = Math.hypot(dx,dy);
-        if(d>1){
+        if(d>0.5){
           const step = Math.min(d, speed*dt);
           CHAR.x += dx/d*step; CHAR.y += dy/d*step;
           CHAR.facing = dx>=0 ? 1 : -1;
         }
       }
-      CHAR.bobT += dt*2.2;
+      CHAR.bobT += dt*2.2; // ふわふわ
     }
     function drawChar(){
-      cctx.clearRect(0,0,charC.width,charC.height);
-      if(!CHAR.visible) return;
+      // 毎フレーム消す（ゴースト残り防止）
+      cctx.clearRect(0,0,charC.clientWidth,charC.clientHeight);
+      if(!CHAR.ready) return;
+
       const bob = Math.sin(CHAR.bobT)*3*CHAR.scale;
-      // 影（固定：チラつき防止）
+
+      // 安定した影（固定値でチラつき無し）
       const shadowW = 84*CHAR.scale, shadowH = 18*CHAR.scale;
       cctx.save();
       cctx.globalAlpha=0.26;
@@ -376,7 +403,8 @@
       cctx.restore();
     }
     function triggerHold(px,py){
-      // さりげない喜びジャンプ
+      if(!CHAR.ready) return;
+      // さりげないジャンプ（画像のみ）
       const startY = CHAR.y;
       let t=0; const dur=500;
       const anim = ()=>{
@@ -413,21 +441,21 @@
     const examBtn = document.getElementById('examBtn');
     examBtn.addEventListener('click', ()=>{ if(!examActive) startExam(); else endExam(true); });
 
-    const examTimeEl = document.getElementById('examTime');
-    const examScoreEl = document.getElementById('examScore');
-    const examBestEl  = document.getElementById('examBest');
-
     function startExam(){
       examActive = true; examLeft = EXAM_DURATION; examScore = 0;
       examBtn.textContent = '検定 終了';
       examInfo.style.display = '';
-      examTimeEl.textContent = examLeft;
-      examScoreEl.textContent = '0';
-      examBestEl.textContent = String(examBest);
-      spawnShells(14); // 検定でも少なめ
+      document.getElementById('examTime').textContent = examLeft;
+      document.getElementById('examScore').textContent = '0';
+      document.getElementById('examBest').textContent = String(examBest);
+      spawnShells(14); // 検定でも“少なめ”
       resetSand();
       flashHint('検定スタート：アサリ系でスコアUP！');
-      examTimer = setInterval(()=>{ examLeft--; examTimeEl.textContent = examLeft; if(examLeft<=0) endExam(false); },1000);
+      examTimer = setInterval(()=>{
+        examLeft--;
+        document.getElementById('examTime').textContent = examLeft;
+        if(examLeft<=0) endExam(false);
+      },1000);
     }
     function endExam(manual){
       if(!examActive) return;
@@ -462,12 +490,11 @@
 
     /********** 描画 **********/
     function drawAll(){
-      sctx.clearRect(0,0,scene.width,scene.height);
+      sctx.clearRect(0,0,scene.clientWidth,scene.clientHeight);
       for(const sh of shells){ if(!sh.collected) drawShell(sh); }
     }
     function drawShell(sh){
       sctx.save();
-      // 露出した貝はほんのり発光（固定値でチラつきなし）
       if(sh.revealed){ sctx.shadowColor='rgba(255,240,180,.35)'; sctx.shadowBlur=16; }
       const img=shellImages[sh.type];
       if(img && img.complete && img.naturalWidth){
@@ -481,6 +508,7 @@
     function loop(ts){
       requestAnimationFrame(loop);
       drawAll();
+
       // 回収パルス
       for(const sh of shells){
         if(sh.pulse>0){
@@ -493,6 +521,7 @@
           if(sh.pulse>2) sh.pulse=0;
         }
       }
+
       // キャラ
       const now = performance.now();
       if(!loop.last) loop.last = now;
