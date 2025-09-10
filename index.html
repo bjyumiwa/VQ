@@ -9,6 +9,7 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; margin: 0; background: #000; color: #fff; font-family: system-ui, "Noto Sans JP", "Segoe UI", Arial, sans-serif; }
 
+    /* 背景 */
     .bg {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       background-size: cover; background-position: center; opacity: 0; transition: opacity 900ms ease;
@@ -22,6 +23,7 @@
         linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.55) 100%);
     }
 
+    /* 上部バー */
     #topbar {
       position: fixed; top: 0; left: 0; right: 0; z-index: 2;
       display: flex; align-items: center; justify-content: space-between;
@@ -30,14 +32,13 @@
     }
     #brand { font-weight: 700; letter-spacing: .03em; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
     .right { display: flex; gap: 8px; align-items: center; }
-    select, button.icon {
+    select {
       height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
       background: rgba(0,0,0,.35); color: #fff; padding: 0 10px; font-size: 14px;
       backdrop-filter: blur(6px);
     }
-    button.icon { width: 36px; display: grid; place-items: center; padding: 0; }
 
-    /* ===== Main area ===== */
+    /* メイン */
     main.center {
       position: relative; z-index: 2; height: 100%;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -46,7 +47,7 @@
     main.center h1 { font-size: clamp(26px, 6vw, 42px); margin: 0 0 8px; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
     main.center .subtitle { font-size: clamp(14px, 4vw, 18px); margin-bottom: 28px; color: rgba(255,255,255,.9); }
 
-    .buttons { display: flex; flex-direction: column; gap: 14px; width: min(320px, 80vw); }
+    .buttons { display: flex; flex-direction: column; gap: 14px; width: min(340px, 82vw); }
     .btn {
       padding: 14px; border: none; border-radius: 14px;
       font-size: clamp(16px, 4vw, 18px); font-weight: 700;
@@ -68,13 +69,13 @@
   </style>
 </head>
 <body>
-  <!-- Backgrounds -->
+  <!-- 背景 -->
   <div id="bg-sunrise" class="bg" style="background-image:url('public/items/bg/sunrise.jpg');"></div>
   <div id="bg-day" class="bg" style="background-image:url('public/items/bg/beach_day.jpg');"></div>
   <div id="bg-night" class="bg" style="background-image:url('public/items/bg/night_beach.jpg');"></div>
   <div class="vignette"></div>
 
-  <!-- Topbar -->
+  <!-- トップバー -->
   <header id="topbar">
     <div id="brand">WHO VQ</div>
     <div class="right">
@@ -87,29 +88,30 @@
     </div>
   </header>
 
-  <!-- Main -->
+  <!-- メイン（ご指定の構成） -->
   <main class="center">
     <h1 data-i18n="title">WHO VQ</h1>
     <p class="subtitle" data-i18n="subtitle">あなたのお世話が、誰かの世界に</p>
     <div class="buttons">
-      <button class="btn primary" id="btnStart" data-i18n="start">スタート</button>
-      <button class="btn secondary" id="btnContinue" data-i18n="continue">続きから</button>
-      <button class="btn special" id="btnAsari" data-i18n="asari">潮干狩り体験</button>
-      <button class="btn ghost" id="btnAbout" data-i18n="about">研究について</button>
+      <button class="btn primary"   id="btnStart"     data-i18n="start">スタート</button>
+      <button class="btn secondary" id="btnContinue"  data-i18n="continue">続きから</button>
+      <button class="btn special"   id="btnAsariInfo" data-i18n="asariInfo">潮干狩り体験説明</button>
+      <button class="btn ghost"     id="btnAbout"     data-i18n="about">研究・ゲーム説明</button>
     </div>
   </main>
 
   <footer><div id="foot" data-i18n="footer">© WHO VQ Project</div></footer>
 
   <script>
+    /* 多言語 */
     const I18N = {
       ja: {
         title: "WHO VQ",
         subtitle: "あなたのお世話が、誰かの世界に",
         start: "スタート",
         continue: "続きから",
-        asari: "潮干狩り体験",
-        about: "研究について",
+        asariInfo: "潮干狩り体験説明",
+        about: "研究・ゲーム説明",
         footer: "© WHO VQ プロジェクト"
       },
       zh: {
@@ -117,8 +119,8 @@
         subtitle: "你的照顾，会成为别人的世界",
         start: "开始",
         continue: "继续",
-        asari: "挖贝体验",
-        about: "关于研究",
+        asariInfo: "挖贝体验说明",
+        about: "研究与游戏说明",
         footer: "© WHO VQ 项目"
       },
       en: {
@@ -126,8 +128,8 @@
         subtitle: "Your care becomes someone’s world",
         start: "Start",
         continue: "Continue",
-        asari: "Clam Digging",
-        about: "About Research",
+        asariInfo: "Clam-digging Guide",
+        about: "Research & Game Guide",
         footer: "© WHO VQ Project"
       },
       ko: {
@@ -135,14 +137,15 @@
         subtitle: "당신의 돌봄이 누군가의 세상이 됩니다",
         start: "시작",
         continue: "이어하기",
-        asari: "조개잡이 체험",
-        about: "연구에 대하여",
+        asariInfo: "조개잡이 체험 안내",
+        about: "연구·게임 설명",
         footer: "© WHO VQ 프로젝트"
       }
     };
 
     const LS_KEYS = { lang: "who_lang", last: "who_lastPage" };
 
+    /* 背景制御 */
     const bg = {
       sunrise: document.getElementById('bg-sunrise'),
       day: document.getElementById('bg-day'),
@@ -160,6 +163,7 @@
       return 'night';
     }
 
+    /* 言語適用 */
     const langSel = document.getElementById('lang');
     function applyLang(lang) {
       const dict = I18N[lang] || I18N.ja;
@@ -171,29 +175,36 @@
       localStorage.setItem(LS_KEYS.lang, lang);
     }
 
-    const btnStart = document.getElementById('btnStart');
-    const btnContinue = document.getElementById('btnContinue');
-    const btnAsari = document.getElementById('btnAsari');
-    const btnAbout = document.getElementById('btnAbout');
+    /* ボタン遷移 */
+    const btnStart     = document.getElementById('btnStart');
+    const btnContinue  = document.getElementById('btnContinue');
+    const btnAsariInfo = document.getElementById('btnAsariInfo');
+    const btnAbout     = document.getElementById('btnAbout');
 
     btnStart.addEventListener('click', () => {
-      const next = 'char.html';
+      const next = 'char.html';              // まずはキャラ選択へ
       localStorage.setItem(LS_KEYS.last, next);
       location.href = next;
     });
+
     btnContinue.addEventListener('click', () => {
       const last = localStorage.getItem(LS_KEYS.last);
       location.href = last || 'char.html';
     });
-    btnAsari.addEventListener('click', () => {
-      localStorage.setItem(LS_KEYS.last, 'asari.html');
-      location.href = 'asari.html';
+
+    // 潮干狩り体験「説明」→ ゲーム説明ページのアサリ節へジャンプ
+    btnAsariInfo.addEventListener('click', () => {
+      localStorage.setItem(LS_KEYS.last, 'about.html'); // 最終ページ記録
+      location.href = 'about.html#asari';
     });
+
+    // 研究・ゲーム説明（全体）
     btnAbout.addEventListener('click', () => {
       localStorage.setItem(LS_KEYS.last, 'about.html');
       location.href = 'about.html';
     });
 
+    /* 初期化 */
     (function boot(){
       const savedBG = localStorage.getItem('who_bg') || decideBGByTime();
       showBG(savedBG);
@@ -208,7 +219,7 @@
       langSel.addEventListener('change', e => applyLang(e.target.value));
 
       const last = localStorage.getItem(LS_KEYS.last);
-      if (!last) btnContinue.classList.add('disabled');
+      if (!last) document.getElementById('btnContinue').classList.add('disabled');
     })();
   </script>
 </body>
