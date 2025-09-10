@@ -1,227 +1,246 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — 潮干狩り</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: "Hiragino Sans","Meiryo",sans-serif;
-      background: url("public/items/bg/beach_day.jpg") no-repeat center/cover;
-      height: 100vh;
-      overflow: hidden;
-    }
-    .game-container {
-      position: relative;
-      width: 100%;
-      height: 100%;
-    }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHO VQ — 潮干狩り</title>
+<style>
+  html, body { height: 100%; margin: 0; font-family: "Hiragino Sans","Meiryo",sans-serif; }
+  body {
+    background: url("public/items/bg/beach_day.jpg") center/cover no-repeat fixed;
+    overflow: hidden;
+  }
+  .game { position: relative; width: 100%; height: 100%; }
 
-    /* キャラ表示 */
-    .character-area {
-      position: absolute;
-      bottom: 10%;
-      left: 50%;
-      transform: translateX(-50%);
-      pointer-events: none;
-    }
-    .character-area img {
-      height: 22vh; /* 70%くらいに縮小 */
-      width: auto;
-      filter: drop-shadow(0 10px 8px rgba(0,0,0,0.5));
-      transition: all 4s ease-in-out;
-    }
+  /* 砂レイヤ（操作を受け付ける） */
+  .sand { position: absolute; inset: 0; touch-action: none; pointer-events: auto; z-index: 1; }
 
-    /* 貝 */
-    .clam {
-      position: absolute;
-      width: 36px;
-      height: 36px;
-      background: url("public/assets/items/clam.png") no-repeat center/contain;
-    }
-    .clam.rare {
-      background: url("public/assets/items/clam_gold.png") no-repeat center/contain;
-    }
+  /* 貝レイヤ */
+  .clams { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+  .clam {
+    position: absolute; width: 38px; height: 38px;
+    background: url("public/assets/items/clam.png") center/contain no-repeat;
+    pointer-events: auto; transition: transform .12s ease;
+  }
+  .clam:active { transform: scale(.95); }
+  .clam.rare { background-image: url("public/assets/items/clam_gold.png"); }
 
-    /* HUD */
-    .hud {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.5);
-      color: #fff;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 14px;
-    }
+  /* キャラコンテナ（この中でアクセを相対配置） */
+  .char-wrap {
+    position: absolute; z-index: 3; pointer-events: none;
+    height: 22vh; /* 70%縮小相当 */ aspect-ratio: 1 / 1; /* だいたい正方形想定 */
+    filter: drop-shadow(0 14px 12px rgba(0,0,0,.55));
+    transform-origin: 50% 90%;
+    animation: sway 4.2s ease-in-out infinite, breathe 3s ease-in-out infinite;
+    transition: left 1.2s ease, top 1.2s ease;
+  }
+  .char-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  /* アクセ（位置・サイズはJSで％指定） */
+  .acc { position: absolute; display: none; }
 
-    /* 操作用ボタン */
-    .controls {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .controls button {
-      padding: 6px 10px;
-      border: none;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.8);
-    }
-  </style>
+  @keyframes sway { 0%,100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+  @keyframes breathe {
+    0%,100% { filter: drop-shadow(0 14px 12px rgba(0,0,0,.55)) brightness(1); }
+    50%     { filter: drop-shadow(0 18px 14px rgba(0,0,0,.50)) brightness(1.03); }
+  }
+
+  /* 拾う演出 */
+  .picking { animation: pick .45s ease forwards; }
+  @keyframes pick { 0%{ transform: rotate(0) scale(1); } 50%{ transform: rotate(-6deg) scale(.94) translateY(3px);} 100%{ transform: rotate(0) scale(1);} }
+
+  /* HUD / Controls */
+  .hud {
+    position: absolute; top: 10px; left: 10px; z-index: 5;
+    background: rgba(0,0,0,.55); color: #fff; padding: 8px 10px;
+    border-radius: 8px; font-size: 14px; user-select: none;
+  }
+  .controls { position: absolute; top: 10px; right: 10px; z-index: 5; display: flex; flex-direction: column; gap: 8px; }
+  .controls button { padding: 8px 10px; border: none; border-radius: 8px; background: rgba(255,255,255,.9); font-size: 13px; cursor: pointer; }
+
+  .toast {
+    position: absolute; left: 50%; top: 14%; transform: translateX(-50%);
+    z-index: 6; background: rgba(0,0,0,.65); color:#fff; padding: 6px 10px;
+    border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .25s ease;
+  }
+  .toast.show{ opacity: 1; }
+</style>
 </head>
 <body>
-  <div class="game-container" id="gameArea">
-    <!-- HUD -->
-    <div class="hud">
-      アサリ: <span id="clamCount">0</span><br>
-      称号: <span id="title">なし</span>
-    </div>
+<div class="game" id="game">
+  <div class="sand" id="sand" aria-label="砂浜（スワイプしてね）"></div>
+  <div class="clams" id="clams"></div>
 
-    <!-- 操作ボタン -->
-    <div class="controls">
-      <button id="toggleChar">キャラ表示ON/OFF</button>
-      <button id="examMode">検定モード</button>
-      <button id="releaseBtn">海に返す</button>
-    </div>
-
-    <!-- キャラ -->
-    <div class="character-area" id="charArea">
-      <img id="charImg" src="" alt="キャラ">
-    </div>
+  <!-- キャラ＋アクセ -->
+  <div class="char-wrap" id="charWrap">
+    <img id="charImg" alt="キャラ">
+    <img id="accImg" class="acc" alt="アクセサリー">
   </div>
 
-  <script>
-    const LS_KEYS = {
-      character: "who_character",
-      clam: "who_clam",
-      title: "who_title",
-      unlocks: "who_unlocks"
-    };
+  <div class="hud">アサリ: <span id="cnt">0</span><br>称号: <span id="title">なし</span></div>
+  <div class="controls">
+    <button id="toggleChar">キャラ表示ON/OFF</button>
+    <button id="exam">検定モード</button>
+    <button id="release">海に返す</button>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
 
-    const gameArea = document.getElementById("gameArea");
-    const charImg = document.getElementById("charImg");
-    const clamCountEl = document.getElementById("clamCount");
-    const titleEl = document.getElementById("title");
+<script>
+  /* Keys */
+  const LS = { character:"who_character", clam:"who_clam", title:"who_title", unlocks:"who_unlocks", equipped:"who_equippedAccessory" };
 
-    // --- キャラ設定 ---
-    const selectedChar = localStorage.getItem(LS_KEYS.character) || "pink";
-    charImg.src = `public/assets/stage1/${selectedChar}_open.png`;
+  /* Elements */
+  const sand = document.getElementById('sand');
+  const clamsLayer = document.getElementById('clams');
+  const charWrap = document.getElementById('charWrap');
+  const charImg  = document.getElementById('charImg');
+  const accImg   = document.getElementById('accImg');
+  const hudCnt = document.getElementById('cnt');
+  const hudTitle = document.getElementById('title');
+  const toast = document.getElementById('toast');
 
-    // --- 所持数・称号読み込み ---
-    let clamCount = parseInt(localStorage.getItem(LS_KEYS.clam) || "0", 10);
-    let title = localStorage.getItem(LS_KEYS.title) || "なし";
-    let unlocks = JSON.parse(localStorage.getItem(LS_KEYS.unlocks) || "{}");
-    clamCountEl.textContent = clamCount;
-    titleEl.textContent = title;
+  /* Character & initial position */
+  const charKey = localStorage.getItem(LS.character) || 'pink';
+  charImg.src = `public/assets/stage1/${charKey}_open.png`;
+  function setCharPos(px, py){ charWrap.style.left = px + 'px'; charWrap.style.top = py + 'px'; }
+  // 初期位置：中央下
+  setTimeout(()=>setCharPos(innerWidth*0.5 - (charWrap.clientWidth||160)/2, innerHeight*0.7), 0);
 
-    // --- 貝を出す処理 ---
-    function spawnClam(x, y) {
-      if (Math.random() > 0.25) return; // 出現率25%
+  /* Counts & unlocks */
+  let count = parseInt(localStorage.getItem(LS.clam) || '0', 10);
+  let title = localStorage.getItem(LS.title) || 'なし';
+  let unlocks = JSON.parse(localStorage.getItem(LS.unlocks) || '{}');
+  hudCnt.textContent = count; hudTitle.textContent = title;
 
-      const clam = document.createElement("div");
-      clam.classList.add("clam");
+  /* Toast */
+  let toastTimer=null;
+  function showToast(msg){ toast.textContent = msg; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1400); }
 
-      // レア貝判定（5%）
-      const isRare = Math.random() < 0.05;
-      if (isRare) clam.classList.add("rare");
+  /* ===== アクセサリー表示 =====
+     - who_equippedAccessory に ID が入っていれば表示
+     - who_unlocks.accessory が true のときのみ表示
+     - キャラごとの基準位置を調整（％指定でレスポンシブ対応）
+  */
+  const ACCESSORY_ANCHORS = {
+    // top/left/width は charWrap に対する％
+    pink:   { top: 4, left: 50, width: 38, anchor:"center" },
+    blue:   { top: 4, left: 50, width: 38, anchor:"center" },
+    green:  { top: 5, left: 50, width: 38, anchor:"center" },
+    purple: { top: 6, left: 50, width: 38, anchor:"center" }
+  };
 
-      clam.style.left = x - 18 + "px";
-      clam.style.top = y - 18 + "px";
-      gameArea.appendChild(clam);
+  function renderAccessory(){
+    if(!unlocks.accessory){ accImg.style.display='none'; return; }
+    const accId = localStorage.getItem(LS.equipped);
+    if(!accId){ accImg.style.display='none'; return; }
+    accImg.src = `public/assets/accessories/${accId}.png`;
+    const a = ACCESSORY_ANCHORS[charKey] || ACCESSORY_ANCHORS.pink;
+    accImg.style.display = 'block';
+    accImg.style.width = a.width + '%';
+    accImg.style.left  = (a.left - a.width/2) + '%'; // center anchor
+    accImg.style.top   = a.top + '%';
+  }
+  renderAccessory();
 
-      clam.addEventListener("click", () => {
-        clam.remove();
-        const add = isRare ? 3 : 1;
-        clamCount += add;
-        clamCountEl.textContent = clamCount;
-        localStorage.setItem(LS_KEYS.clam, clamCount);
-        checkUnlocks();
-      });
+  /* ===== Clam spawn while stroking ===== */
+  let stroking = false, lastEmit=0;
+  const EMIT_INTERVAL = 80;     // ms ごとに判定
+  const SPAWN_PROB = 0.23;      // 出現確率
+  const RARE_PROB  = 0.05;      // レア貝確率
+
+  sand.addEventListener('pointerdown', e=>{ stroking=true; sand.setPointerCapture(e.pointerId); lastEmit=0; e.preventDefault(); });
+  sand.addEventListener('pointerup',   ()=>{ stroking=false; });
+  sand.addEventListener('pointercancel',()=>{ stroking=false; });
+
+  sand.addEventListener('pointermove', (e)=>{
+    if(!stroking) return;
+    e.preventDefault();
+    const now = performance.now();
+    if(now - lastEmit < EMIT_INTERVAL) return;
+    lastEmit = now;
+    if(Math.random() < SPAWN_PROB){
+      spawnClam(e.clientX, e.clientY);
     }
+  });
 
-    // --- 砂をなでる（mousemove/touchmoveで発火） ---
-    function handleMove(e) {
-      const x = e.touches ? e.touches[0].clientX : e.clientX;
-      const y = e.touches ? e.touches[0].clientY : e.clientY;
-      spawnClam(x, y);
-    }
-    gameArea.addEventListener("mousemove", handleMove);
-    gameArea.addEventListener("touchmove", handleMove);
+  function spawnClam(x,y){
+    const d = document.createElement('div');
+    d.className = 'clam';
+    if(Math.random() < RARE_PROB) d.classList.add('rare');
+    const pad=24, px=Math.min(innerWidth-pad,Math.max(pad,x)), py=Math.min(innerHeight-pad,Math.max(pad,y));
+    d.style.left = (px-19)+'px'; d.style.top = (py-19)+'px';
+    clamsLayer.appendChild(d);
+    d.addEventListener('click', ()=> pickClam(d, px, py), {once:true});
+  }
 
-    // --- 特典解放 ---
-    function checkUnlocks() {
-      if (clamCount >= 10 && !unlocks.accessory) {
-        unlocks.accessory = true;
-        alert("アクセサリーが解放されました！");
+  /* ===== Character pick motion ===== */
+  function moveCharacterTo(x, y){
+    return new Promise(resolve=>{
+      const targetLeft = x - (charWrap.clientWidth/2 || 80);
+      const targetTop  = y - (charWrap.clientHeight*0.9 || 120);
+      const onEnd = ()=>{ charWrap.removeEventListener('transitionend', onEnd); resolve(); };
+      charWrap.addEventListener('transitionend', onEnd);
+      setCharPos(targetLeft, targetTop);
+      setTimeout(onEnd, 1300); // 保険
+    });
+  }
+
+  function pickClam(el, x, y){
+    moveCharacterTo(x, y).then(()=>{
+      charWrap.classList.add('picking');
+      setTimeout(()=>charWrap.classList.remove('picking'), 450);
+      const rare = el.classList.contains('rare'); el.remove();
+      const add = rare ? 3 : 1;
+      count += add; hudCnt.textContent = count; localStorage.setItem(LS.clam, count);
+      if(rare) showToast('レア貝 +3！');
+      checkUnlocks(); 
+    });
+  }
+
+  /* ===== Wandering ===== */
+  function wander(){
+    const marginX = innerWidth*0.1, marginY = innerHeight*0.45;
+    const x = marginX + Math.random()*(innerWidth - marginX*2);
+    const y = marginY + Math.random()*(innerHeight - marginY - 20);
+    setCharPos(x - (charWrap.clientWidth/2 || 80), y);
+  }
+  setInterval(wander, 5500);
+
+  /* ===== Unlocks / Exam / Release ===== */
+  function checkUnlocks(){
+    if (count >= 10 && !unlocks.accessory) { unlocks.accessory = true; showToast('アクセサリー解放！'); renderAccessory(); }
+    if (count >= 30 && !unlocks.conversation) { unlocks.conversation = true; showToast('夜の会話 解放！'); }
+    localStorage.setItem(LS.unlocks, JSON.stringify(unlocks));
+  }
+
+  document.getElementById('exam').addEventListener('click', ()=>{
+    let got=0; const handler=(e)=>{ if(e.target.classList && e.target.classList.contains('clam')) got++; };
+    clamsLayer.addEventListener('click', handler);
+    showToast('検定開始：20秒で10個！');
+    const start = performance.now();
+    const timer = setInterval(()=>{
+      if(performance.now()-start >= 20000){
+        clearInterval(timer); clamsLayer.removeEventListener('click', handler);
+        if(got>=10){ localStorage.setItem(LS.title,'アサリ取り名人１級'); hudTitle.textContent='アサリ取り名人１級'; showToast('合格！称号ゲット'); }
+        else { showToast('惜しい！もう一度挑戦してね'); }
       }
-      if (clamCount >= 30 && !unlocks.conversation) {
-        unlocks.conversation = true;
-        alert("夜の会話が解放されました！");
-      }
-      localStorage.setItem(LS_KEYS.unlocks, JSON.stringify(unlocks));
-    }
+    }, 1000);
+  });
 
-    // --- 検定モード ---
-    document.getElementById("examMode").addEventListener("click", () => {
-      let examCount = 0;
-      let time = 20;
-      alert("検定モード開始！20秒以内に10個取ろう！");
-      const startTime = Date.now();
+  document.getElementById('release').addEventListener('click', ()=>{
+    if(count<=0){ showToast('返せるアサリがありません'); return; }
+    const release=Math.max(1,Math.floor(count*0.2));
+    count -= release; hudCnt.textContent = count; localStorage.setItem(LS.clam, count);
+    showToast(`${release}個のアサリを海に返しました`);
+  });
 
-      const examHandler = (e) => {
-        if (e.target.classList.contains("clam")) {
-          examCount++;
-        }
-      };
-      gameArea.addEventListener("click", examHandler);
+  document.getElementById('toggleChar').addEventListener('click', ()=>{
+    charWrap.style.display = (charWrap.style.display==='none') ? 'block' : 'none';
+  });
 
-      const timer = setInterval(() => {
-        if (Date.now() - startTime >= 20000) {
-          clearInterval(timer);
-          gameArea.removeEventListener("click", examHandler);
-          if (examCount >= 10) {
-            title = "アサリ取り名人１級";
-            localStorage.setItem(LS_KEYS.title, title);
-            titleEl.textContent = title;
-            alert("合格！称号「アサリ取り名人１級」獲得！");
-          } else {
-            alert("残念！もう一度挑戦してみよう。");
-          }
-        }
-      }, 1000);
-    });
-
-    // --- 海に返す ---
-    document.getElementById("releaseBtn").addEventListener("click", () => {
-      if (clamCount <= 0) { alert("返せるアサリがありません"); return; }
-      const release = Math.max(1, Math.floor(clamCount * 0.2)); // 2割くらい返す
-      clamCount -= release;
-      clamCountEl.textContent = clamCount;
-      localStorage.setItem(LS_KEYS.clam, clamCount);
-      alert(`${release}個のアサリを海に返しました🌊`);
-    });
-
-    // --- キャラ表示ON/OFF ---
-    const charArea = document.getElementById("charArea");
-    document.getElementById("toggleChar").addEventListener("click", () => {
-      charArea.style.display = (charArea.style.display === "none") ? "block" : "none";
-    });
-
-    // --- キャラを画面内でふわふわ動かす ---
-    function moveCharacter() {
-      const maxX = window.innerWidth * 0.7;
-      const maxY = window.innerHeight * 0.4;
-      const randX = Math.random() * maxX + window.innerWidth * 0.15;
-      const randY = Math.random() * maxY + window.innerHeight * 0.4;
-      charImg.style.transform = `translate(${randX}px, ${randY}px) scale(1)`;
-    }
-    setInterval(moveCharacter, 5000); // 5秒ごとに移動
-  </script>
+  /* 初期チェック */
+  checkUnlocks();
+  window.addEventListener('resize', ()=> setCharPos(innerWidth*0.5 - (charWrap.clientWidth||160)/2, innerHeight*0.7));
+</script>
 </body>
 </html>
