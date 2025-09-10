@@ -1,218 +1,149 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1,user-scalable=no" />
-  <title>WHO VQ — スタート</title>
-  <meta name="color-scheme" content="light dark" />
-  <style>
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; margin: 0; background: #000; color: #fff; font-family: system-ui,"Noto Sans JP","Segoe UI",Arial,sans-serif; }
-
-    /* 背景 */
-    .bg {
-      position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background-size: cover; background-position: center; opacity: 0; transition: opacity 900ms ease;
-      filter: saturate(1.02) contrast(1.02);
-    }
-    .bg.show { opacity: 1; }
-    .vignette {
-      position: fixed; inset: 0; z-index: 1; pointer-events: none;
-      background:
-        radial-gradient(1200px 500px at 50% 0%, rgba(0,0,0,.1), transparent 50%),
-        linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.55) 100%);
-    }
-
-    /* 上部バー */
-    #topbar {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 2;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 12px;
-      background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,0));
-    }
-    #brand { font-weight: 700; letter-spacing: .03em; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
-    .right { display: flex; gap: 8px; align-items: center; }
-    select {
-      height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
-      background: rgba(0,0,0,.35); color: #fff; padding: 0 10px; font-size: 14px;
-      backdrop-filter: blur(6px);
-    }
-
-    /* メイン */
-    main.center {
-      position: relative; z-index: 2; height: 100%;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; padding: 16px;
-    }
-    main.center h1 { font-size: clamp(26px, 6vw, 42px); margin: 0 0 8px; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
-    main.center .subtitle { font-size: clamp(14px, 4vw, 18px); margin-bottom: 28px; color: rgba(255,255,255,.9); }
-
-    .buttons { display: flex; flex-direction: column; gap: 14px; width: min(340px, 82vw); }
-    .btn {
-      padding: 14px; border: none; border-radius: 14px;
-      font-size: clamp(16px, 4vw, 18px); font-weight: 700;
-      color: #fff; cursor: pointer; transition: transform .06s ease, opacity .2s ease;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 8px 20px rgba(0,0,0,.35);
-    }
-    .btn:active { transform: translateY(1px) scale(.98); }
-    .btn.primary { background: linear-gradient(180deg, rgba(255,255,255,.25), rgba(255,255,255,.08)); }
-    .btn.secondary { background: rgba(255,255,255,.15); font-weight: 600; }
-    .btn.ghost { background: rgba(255,255,255,.08); font-weight: 500; }
-    .btn.disabled { opacity: .6; pointer-events: none; }
-
-    footer {
-      position: fixed; bottom: 6px; left: 0; right: 0; z-index: 2;
-      display: grid; place-items: center; font-size: 11px; color: rgba(255,255,255,.8);
-      text-shadow: 0 1px 6px rgba(0,0,0,.6);
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHO VQ — スタート</title>
+<style>
+  :root{
+    --fg:#fff; --muted:#bcd; --accent:#ffbf6b;
+    --glass:rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:system-ui,"Noto Sans JP","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+    background:#000;color:var(--fg);overflow:hidden;
+  }
+  .bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(1200px 600px at 50% 8%, rgba(255,210,150,.45), transparent 55%),
+      linear-gradient(180deg,#09131c 0%,#0f2740 35%,#1b4b6b 60%,#1e3040 100%);
+  }
+  #wrap{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;gap:28px;align-items:center;justify-content:center;padding:24px}
+  .title{font-size:clamp(24px,4.6vw,44px);letter-spacing:.08em;text-shadow:0 2px 12px rgba(0,0,0,.35)}
+  .panel{
+    width:min(760px,94vw); padding:18px; border-radius:16px; backdrop-filter: blur(6px);
+    background:var(--glass); box-shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center}
+  .btn{
+    appearance:none;border:none;border-radius:14px;padding:12px 18px;cursor:pointer;
+    background:rgba(255,255,255,.1); color:var(--fg); font-size:16px; transition:.2s;
+  }
+  .btn:hover{transform:translateY(-1px); background:rgba(255,255,255,.18)}
+  .btn:active{transform:translateY(0)}
+  .primary{background:linear-gradient(180deg,#ffde8a,#ffbf6b); color:#2b1b07; font-weight:700}
+  .ghost{border:1px solid rgba(255,255,255,.25)}
+  .lang-wrap{display:flex; gap:8px; justify-content:center; margin-top:6px}
+  .lang{padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.08); cursor:pointer; border:1px solid transparent}
+  .lang.active{border-color:var(--accent); background:rgba(255,191,107,.18)}
+  .note{opacity:.8; font-size:12px; text-align:center; margin-top:8px}
+  .footer{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:var(--muted)}
+</style>
 </head>
 <body>
-  <!-- 背景 -->
-  <div id="bg-sunrise" class="bg" style="background-image:url('public/items/bg/sunrise.jpg');"></div>
-  <div id="bg-day" class="bg" style="background-image:url('public/items/bg/beach_day.jpg');"></div>
-  <div id="bg-night" class="bg" style="background-image:url('public/items/bg/night_beach.jpg');"></div>
-  <div class="vignette"></div>
+<div class="bg"></div>
+<div id="wrap">
+  <div class="title" id="title">WHO VQ</div>
 
-  <!-- トップバー -->
-  <header id="topbar">
-    <div id="brand">WHO VQ</div>
-    <div class="right">
-      <select id="lang" aria-label="Language">
-        <option value="ja">日本語</option>
-        <option value="zh">中文</option>
-        <option value="en">English</option>
-        <option value="ko">한국어</option>
-      </select>
+  <div class="panel">
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn primary" id="startBtn">スタート</button>
+      <button class="btn ghost" id="contBtn">続きから</button>
+      <button class="btn ghost" id="aboutBtn">研究について</button>
+      <button class="btn ghost" id="gameAboutBtn">ゲームについて</button>
     </div>
-  </header>
-
-  <!-- メイン -->
-  <main class="center">
-    <h1 data-i18n="title">WHO VQ</h1>
-    <p class="subtitle" data-i18n="subtitle">あなたのお世話が、誰かの世界に</p>
-    <div class="buttons">
-      <button class="btn primary"   id="btnStart"    data-i18n="start">スタート</button>
-      <button class="btn secondary" id="btnContinue" data-i18n="continue">続きから</button>
-      <button class="btn ghost"     id="btnAbout"    data-i18n="about">研究について</button>
-      <button class="btn ghost"     id="btnGame"     data-i18n="game">ゲーム説明</button>
+    <div class="lang-wrap" aria-label="language toggle">
+      <button class="lang" data-lang="ja" id="langJa">日本語</button>
+      <button class="lang" data-lang="en" id="langEn">English</button>
     </div>
-  </main>
+    <div class="note" id="note">言語は保存され、次回も適用されます。</div>
+  </div>
+</div>
+<div class="footer">© WHO VQ</div>
 
-  <footer><div id="foot" data-i18n="footer">© WHO VQ Project</div></footer>
+<script>
+(function(){
+  const LS_LANG = 'who_lang';
+  const LS_LAST = 'who_last_page';
 
-  <script>
-    const I18N = {
-      ja: {
-        title: "WHO VQ",
-        subtitle: "あなたのお世話が、誰かの世界に",
-        start: "スタート",
-        continue: "続きから",
-        about: "研究について",
-        game: "ゲーム説明",
-        footer: "© WHO VQ プロジェクト"
-      },
-      zh: {
-        title: "WHO VQ",
-        subtitle: "你的照顾，会成为别人的世界",
-        start: "开始",
-        continue: "继续",
-        about: "关于研究",
-        game: "游戏说明",
-        footer: "© WHO VQ 项目"
-      },
-      en: {
-        title: "WHO VQ",
-        subtitle: "Your care becomes someone’s world",
-        start: "Start",
-        continue: "Continue",
-        about: "About Research",
-        game: "Game Guide",
-        footer: "© WHO VQ Project"
-      },
-      ko: {
-        title: "WHO VQ",
-        subtitle: "당신의 돌봄이 누군가의 세상이 됩니다",
-        start: "시작",
-        continue: "이어하기",
-        about: "연구에 대하여",
-        game: "게임 설명",
-        footer: "© WHO VQ 프로젝트"
-      }
-    };
-
-    const LS_KEYS = { lang: "who_lang", last: "who_lastPage" };
-
-    const bg = {
-      sunrise: document.getElementById('bg-sunrise'),
-      day: document.getElementById('bg-day'),
-      night: document.getElementById('bg-night'),
-    };
-    function showBG(name) {
-      Object.values(bg).forEach(el => el.classList.remove('show'));
-      (bg[name] || bg.day).classList.add('show');
-      localStorage.setItem('who_bg', name);
+  const i18n = {
+    ja: {
+      title:'WHO VQ',
+      start:'スタート',
+      cont:'続きから',
+      about:'研究について',
+      gameAbout:'ゲームについて',
+      note:'言語は保存され、次回も適用されます。'
+    },
+    en: {
+      title:'WHO VQ',
+      start:'Start',
+      cont:'Continue',
+      about:'About Research',
+      gameAbout:'About the Game',
+      note:'Your language is saved for next time.'
     }
-    function decideBGByTime() {
-      const hour = new Date().getHours();
-      if (hour >= 5 && hour < 9) return 'sunrise';
-      if (hour >= 9 && hour < 18) return 'day';
-      return 'night';
-    }
+  };
 
-    const langSel = document.getElementById('lang');
-    function applyLang(lang) {
-      const dict = I18N[lang] || I18N.ja;
-      document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        if (dict[key]) el.textContent = dict[key];
-      });
-      document.documentElement.lang = lang;
-      localStorage.setItem(LS_KEYS.lang, lang);
-    }
+  const $ = (id)=>document.getElementById(id);
+  const startBtn = $('startBtn'), contBtn=$('contBtn'), aboutBtn=$('aboutBtn'), gameAboutBtn=$('gameAboutBtn');
+  const title=$('title'), note=$('note'), langJa=$('langJa'), langEn=$('langEn');
 
-    const btnStart    = document.getElementById('btnStart');
-    const btnContinue = document.getElementById('btnContinue');
-    const btnAbout    = document.getElementById('btnAbout');
-    const btnGame     = document.getElementById('btnGame');
+  function getLang(){
+    const saved = localStorage.getItem(LS_LANG);
+    if(saved) return saved;
+    const nav = (navigator.language || 'ja').toLowerCase();
+    return nav.startsWith('en') ? 'en' : 'ja';
+  }
 
-    btnStart.addEventListener('click', () => {
-      const next = 'char.html';
-      localStorage.setItem(LS_KEYS.last, next);
-      location.href = next;
-    });
+  function setLang(lang, persist=true){
+    const dict = i18n[lang] || i18n.ja;
+    title.textContent = dict.title;
+    startBtn.textContent = dict.start;
+    contBtn.textContent = dict.cont;
+    aboutBtn.textContent = dict.about;
+    gameAboutBtn.textContent = dict.gameAbout;
+    note.textContent = dict.note;
+    langJa.classList.toggle('active', lang==='ja');
+    langEn.classList.toggle('active', lang==='en');
+    if(persist) localStorage.setItem(LS_LANG, lang);
+    document.documentElement.lang = lang;
+  }
 
-    btnContinue.addEventListener('click', () => {
-      const last = localStorage.getItem(LS_KEYS.last);
-      location.href = last || 'char.html';
-    });
+  setLang(getLang(), false);
 
-    btnAbout.addEventListener('click', () => {
-      localStorage.setItem(LS_KEYS.last, 'about.html');
-      location.href = 'about.html';
-    });
+  [langJa, langEn].forEach(el=>{
+    el.addEventListener('click', ()=>{
+      setLang(el.dataset.lang, true);
+    }, {passive:true});
+  });
 
-    btnGame.addEventListener('click', () => {
-      localStorage.setItem(LS_KEYS.last, 'game.html');
-      location.href = 'game.html';
-    });
+  startBtn.addEventListener('click', ()=>{
+    localStorage.setItem(LS_LAST, 'char.html');
+    location.href = 'char.html';
+  });
 
-    (function boot(){
-      const savedBG = localStorage.getItem('who_bg') || decideBGByTime();
-      showBG(savedBG);
+  contBtn.addEventListener('click', ()=>{
+    const last = localStorage.getItem(LS_LAST) || 'char.html';
+    location.href = last;
+  });
 
-      const savedLang = localStorage.getItem(LS_KEYS.lang);
-      const guess = (navigator.language || 'ja').toLowerCase();
-      const fromBrowser = guess.startsWith('ja') ? 'ja' :
-                          guess.startsWith('zh') ? 'zh' :
-                          guess.startsWith('ko') ? 'ko' : 'en';
-      const lang = savedLang || fromBrowser;
-      langSel.value = lang; applyLang(lang);
-      langSel.addEventListener('change', e => applyLang(e.target.value));
+  aboutBtn.addEventListener('click', ()=>{
+    localStorage.setItem(LS_LAST, 'about.html');
+    location.href = 'about.html';
+  });
 
-      const last = localStorage.getItem(LS_KEYS.last);
-      if (!last) btnContinue.classList.add('disabled');
-    })();
-  </script>
+  gameAboutBtn.addEventListener('click', ()=>{
+    localStorage.setItem(LS_LAST, 'game.html');
+    location.href = 'game.html';
+  });
+
+  window.updateLastPage = function(path){
+    try{ localStorage.setItem(LS_LAST, path); }catch(e){}
+  }
+})();
+</script>
 </body>
 </html>
