@@ -5,42 +5,49 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
 <title>WHO VQ — 潮干狩り</title>
 <style>
-  html, body { height: 100%; margin: 0; font-family: "Hiragino Sans","Meiryo",sans-serif; }
-  body { background: #8fd0e7; overflow: hidden; }
-  .game { position: relative; width: 100%; height: 100%; }
+  html, body { height:100%; margin:0; font-family:"Hiragino Sans","Meiryo",sans-serif; }
+  /* 画面全体の海背景：配布済み beach_day.jpg を使用（404にならない既存パス） */
+  body {
+    background: url("public/items/bg/beach_day.jpg") center/cover no-repeat fixed;
+    overflow: hidden;
+  }
+  .game { position:relative; width:100%; height:100%; }
 
-  /* 海（上60%）+ 砂（下40%） */
-  .sea { position:absolute; top:0; left:0; right:0; height:60%;
-         background:url("public/items/bg/beach_day.jpg") center/cover no-repeat; z-index:0; }
+  /* 下40%を砂ゾーンにして、ここだけ「なで」操作を受け付ける */
   .sand { position:absolute; left:0; right:0; bottom:0; height:40%;
           background: linear-gradient(#f7dca1 0%, #e7c474 55%, #d1ad57 100%);
           box-shadow: inset 0 40px 60px rgba(0,0,0,.15);
           touch-action:none; pointer-events:auto; z-index:1; }
 
+  /* 出現した貝はこのレイヤに追加 */
   .clams { position:absolute; inset:0; z-index:2; pointer-events:none; }
-  .clam { position:absolute; width:38px; height:38px; background-size:contain; background-repeat:no-repeat; pointer-events:auto; }
+  .clam  { position:absolute; width:38px; height:38px; background-size:contain; background-repeat:no-repeat;
+           pointer-events:auto; transition: transform .12s ease; }
   .clam:active { transform: scale(.95); }
 
-  /* キャラ＋アクセ */
-  .char-wrap { position:absolute; z-index:3; height:22vh; aspect-ratio:1/1; pointer-events:none;
-               filter: drop-shadow(0 14px 12px rgba(0,0,0,.55));
-               transform-origin: 50% 90%;
-               animation: sway 4.2s ease-in-out infinite, breathe 3s ease-in-out infinite;
-               transition: left 1.2s ease, top 1.2s ease; }
-  .char-wrap img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
-  .acc { position:absolute; display:none; }
+  /* キャラ（70%相当）＋影＋ゆらゆら。ここにアクセも重ねる */
+  .char-wrap{ position:absolute; z-index:3; height:22vh; aspect-ratio:1/1; pointer-events:none;
+              filter: drop-shadow(0 14px 12px rgba(0,0,0,.55));
+              transform-origin:50% 90%;
+              animation:sway 4.2s ease-in-out infinite, breathe 3s ease-in-out infinite;
+              transition:left 1.2s ease, top 1.2s ease; }
+  .char-wrap img{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  .acc{ position:absolute; display:none; }
 
   @keyframes sway { 0%,100%{transform:rotate(-2deg);} 50%{transform:rotate(2deg);} }
-  @keyframes breathe{ 0%,100%{filter: drop-shadow(0 14px 12px rgba(0,0,0,.55)) brightness(1);}
-                      50%{filter: drop-shadow(0 18px 14px rgba(0,0,0,.50)) brightness(1.03);} }
-  .picking { animation: pick .45s ease forwards; }
-  @keyframes pick { 0%{transform:rotate(0) scale(1);} 50%{transform:rotate(-6deg) scale(.94) translateY(3px);} 100%{transform:rotate(0) scale(1);} }
+  @keyframes breathe{
+    0%,100%{ filter: drop-shadow(0 14px 12px rgba(0,0,0,.55)) brightness(1); }
+    50%    { filter: drop-shadow(0 18px 14px rgba(0,0,0,.50)) brightness(1.03); }
+  }
+  .picking{ animation: pick .45s ease forwards; }
+  @keyframes pick{ 0%{transform:rotate(0) scale(1);} 50%{transform:rotate(-6deg) scale(.94) translateY(3px);} 100%{transform:rotate(0) scale(1);} }
 
-  /* HUD / Controls */
+  /* HUD / 操作 */
   .hud{ position:absolute; top:10px; left:10px; z-index:5; background:rgba(0,0,0,.55); color:#fff;
         padding:8px 10px; border-radius:8px; font-size:14px; user-select:none; }
   .controls{ position:absolute; top:10px; right:10px; z-index:5; display:flex; flex-direction:column; gap:8px; }
   .controls button{ padding:8px 10px; border:none; border-radius:8px; background:rgba(255,255,255,.9); font-size:13px; cursor:pointer; }
+
   .toast{ position:absolute; left:50%; top:14%; transform:translateX(-50%); z-index:6; background:rgba(0,0,0,.65);
           color:#fff; padding:6px 10px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .25s ease; }
   .toast.show{ opacity:1; }
@@ -48,9 +55,10 @@
 </head>
 <body>
 <div class="game" id="game">
-  <div class="sea"></div>
+  <!-- 砂ゾーン（ここをなでる） -->
   <div class="sand" id="sand" aria-label="砂浜（スワイプしてね）"></div>
 
+  <!-- 貝レイヤ -->
   <div class="clams" id="clams"></div>
 
   <!-- キャラ＋アクセ -->
@@ -59,6 +67,7 @@
     <img id="accImg" class="acc" alt="アクセサリー">
   </div>
 
+  <!-- UI -->
   <div class="hud">アサリ: <span id="cnt">0</span><br>称号: <span id="title">なし</span></div>
   <div class="controls">
     <button id="toggleChar">キャラ表示ON/OFF</button>
@@ -69,12 +78,11 @@
 </div>
 
 <script>
-  /* === 画像がなくても動くように内蔵SVGを使う（必要があればここを実ファイルURLに置換） === */
+  /* ===== 画像に依存しない内蔵SVG（404回避用） ===== */
   const CLAM_URL = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
       <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0" stop-color="#f6e2b3"/><stop offset="1" stop-color="#e3c67a"/>
-      </linearGradient></defs>
+        <stop offset="0" stop-color="#f6e2b3"/><stop offset="1" stop-color="#e3c67a"/></linearGradient></defs>
       <ellipse cx="32" cy="36" rx="26" ry="20" fill="url(#g)" stroke="#d0b066" stroke-width="2"/>
       <path d="M8 36h48" stroke="#d7b96e" stroke-width="2" opacity=".7"/>
       <path d="M14 30c6 4 30 4 36 0" stroke="#e7cc8d" stroke-width="2" opacity=".7" fill="none"/>
@@ -82,40 +90,47 @@
   const CLAM_GOLD_URL = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
       <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#f2b84a"/>
-      </linearGradient></defs>
+        <stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#f2b84a"/></linearGradient></defs>
       <ellipse cx="32" cy="36" rx="26" ry="20" fill="url(#g)" stroke="#c28a1b" stroke-width="2"/>
-      <star></star>
-      <path d="M8 36h48" stroke="#ffd76e" stroke-width="2" opacity=".8"/>
-      <path d="M14 30c6 4 30 4 36 0" stroke="#ffeaa2" stroke-width="2" opacity=".9" fill="none"/>
+      <path d="M8 36h48" stroke="#ffd76e" stroke-width="2" opacity=".9"/>
+      <path d="M14 30c6 4 30 4 36 0" stroke="#ffeaa2" stroke-width="2" opacity=".95" fill="none"/>
     </svg>`);
 
-  /* === LocalStorage keys === */
-  const LS = { character:"who_character", clam:"who_clam", title:"who_title", unlocks:"who_unlocks", equipped:"who_equippedAccessory" };
+  /* ===== LocalStorage Keys ===== */
+  const LS = {
+    character: "who_character",
+    clam: "who_clam",
+    title: "who_title",
+    unlocks: "who_unlocks",
+    equipped: "who_equippedAccessory"
+  };
 
-  /* === Elements === */
+  /* ===== 要素参照 ===== */
   const sand = document.getElementById('sand');
   const clamsLayer = document.getElementById('clams');
   const charWrap = document.getElementById('charWrap');
-  const charImg  = document.getElementById('charImg');
-  const accImg   = document.getElementById('accImg');
+  const charImg = document.getElementById('charImg');
+  const accImg = document.getElementById('accImg');
   const hudCnt = document.getElementById('cnt');
   const hudTitle = document.getElementById('title');
   const toast = document.getElementById('toast');
 
-  /* === キャラ === */
+  /* ===== キャラ反映（70%サイズ） ===== */
   const charKey = localStorage.getItem(LS.character) || 'pink';
   charImg.src = `public/assets/stage1/${charKey}_open.png`;
   function setCharPos(px, py){ charWrap.style.left = px + 'px'; charWrap.style.top = py + 'px'; }
-  setTimeout(()=>setCharPos(innerWidth*0.5 - (charWrap.clientWidth||160)/2, innerHeight*0.65), 0);
+  // 初期は画面下より（砂ゾーン上あたり）
+  window.addEventListener('load', ()=>{
+    setCharPos(innerWidth*0.5 - (charWrap.clientWidth||160)/2, innerHeight*0.62);
+  });
 
-  /* === 所持・称号 === */
-  let count = parseInt(localStorage.getItem(LS.clam) || '0', 10);
-  let title = localStorage.getItem(LS.title) || 'なし';
+  /* ===== 所持・称号・解放 ===== */
+  let count   = parseInt(localStorage.getItem(LS.clam) || '0', 10);
+  let title   = localStorage.getItem(LS.title) || 'なし';
   let unlocks = JSON.parse(localStorage.getItem(LS.unlocks) || '{}');
   hudCnt.textContent = count; hudTitle.textContent = title;
 
-  /* === アクセ位置（%） === */
+  /* ===== アクセ表示（解放済みのみ） ===== */
   const ACCESSORY_ANCHORS = {
     pink:{ top:4, left:50, width:38 }, blue:{ top:4, left:50, width:38 },
     green:{ top:5, left:50, width:38 }, purple:{ top:6, left:50, width:38 }
@@ -126,27 +141,34 @@
     if(!id){ accImg.style.display='none'; return; }
     accImg.src = `public/assets/accessories/${id}.png`;
     const a = ACCESSORY_ANCHORS[charKey] || ACCESSORY_ANCHORS.pink;
-    accImg.style.display='block';
+    accImg.style.display = 'block';
     accImg.style.width = a.width + '%';
     accImg.style.left  = (a.left - a.width/2) + '%';
     accImg.style.top   = a.top + '%';
   }
   renderAccessory();
 
-  /* === 砂をなでる → 貝出現（内蔵SVG） === */
+  /* ===== 砂をなでる → 貝出現（内蔵SVG） ===== */
   let stroking=false, lastEmit=0;
-  const EMIT_INTERVAL=80, SPAWN_PROB=0.23, RARE_PROB=0.05;
+  const EMIT_INTERVAL=80;   // 何msごとに判定
+  const SPAWN_PROB=0.23;    // 出現確率（集めにくめ）
+  const RARE_PROB=0.05;     // レア貝確率
 
-  sand.addEventListener('pointerdown', e=>{ stroking=true; sand.setPointerCapture(e.pointerId); lastEmit=0; });
-  sand.addEventListener('pointerup',   ()=>{ stroking=false; });
-  sand.addEventListener('pointercancel',()=>{ stroking=false; });
+  sand.addEventListener('pointerdown', e=>{
+    stroking = true; lastEmit = 0;
+    sand.setPointerCapture(e.pointerId);
+  });
+  sand.addEventListener('pointerup', ()=>{ stroking=false; });
+  sand.addEventListener('pointercancel', ()=>{ stroking=false; });
   sand.addEventListener('pointermove', e=>{
     if(!stroking) return;
-    e.preventDefault();
+    e.preventDefault(); // モバイルのスクロール無効化
     const now = performance.now();
     if(now - lastEmit < EMIT_INTERVAL) return;
     lastEmit = now;
-    if(Math.random() < SPAWN_PROB) spawnClam(e.clientX, e.clientY);
+    if(Math.random() < SPAWN_PROB){
+      spawnClam(e.clientX, e.clientY);
+    }
   });
 
   function spawnClam(x,y){
@@ -160,14 +182,15 @@
     d.addEventListener('click', ()=> pickClam(d, px, py, rare), {once:true});
   }
 
-  /* === キャラが拾いに行く === */
+  /* ===== キャラが拾いに行く＋演出 ===== */
   function moveCharacterTo(x,y){
     return new Promise(resolve=>{
       const L = x - (charWrap.clientWidth/2 || 80);
       const T = y - (charWrap.clientHeight*0.9 || 120);
-      const onEnd=()=>{charWrap.removeEventListener('transitionend', onEnd); resolve();};
+      const onEnd=()=>{ charWrap.removeEventListener('transitionend', onEnd); resolve(); };
       charWrap.addEventListener('transitionend', onEnd);
-      setCharPos(L,T); setTimeout(onEnd, 1300);
+      setCharPos(L,T);
+      setTimeout(onEnd, 1300); // 念のため
     });
   }
   function pickClam(el,x,y,rare){
@@ -183,17 +206,17 @@
     });
   }
 
-  /* === 徘徊 === */
+  /* ===== キャラの徘徊（ふわふわ移動） ===== */
   function wander(){
-    const mx=innerWidth*0.1, my=innerHeight*0.45;
+    const mx=innerWidth*0.1, my=innerHeight*0.45; // 砂〜波打ち際をうろうろ
     const x = mx + Math.random()*(innerWidth - mx*2);
     const y = my + Math.random()*(innerHeight - my - 20);
     setCharPos(x - (charWrap.clientWidth/2 || 80), y);
   }
   setInterval(wander, 5500);
 
-  /* === 解放/検定/返却 === */
-  function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(showToast._id); showToast._id=setTimeout(()=>t.classList.remove('show'),1400); }
+  /* ===== 解放/検定/返却 ===== */
+  function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); clearTimeout(showToast._id); showToast._id=setTimeout(()=>toast.classList.remove('show'),1400); }
   function checkUnlocks(){
     if (count >= 10 && !unlocks.accessory){ unlocks.accessory=true; showToast('アクセサリー解放！'); renderAccessory(); }
     if (count >= 30 && !unlocks.conversation){ unlocks.conversation=true; showToast('夜の会話 解放！'); }
@@ -205,16 +228,18 @@
     clamsLayer.addEventListener('click', h);
     showToast('検定開始：20秒で10個！');
     const start=performance.now(); const timer=setInterval(()=>{
-      if(performance.now()-start>=20000){ clearInterval(timer); clamsLayer.removeEventListener('click',h);
+      if(performance.now()-start>=20000){
+        clearInterval(timer); clamsLayer.removeEventListener('click', h);
         if(got>=10){ localStorage.setItem(LS.title,'アサリ取り名人１級'); hudTitle.textContent='アサリ取り名人１級'; showToast('合格！称号ゲット'); }
         else { showToast('惜しい！もう一度挑戦してね'); }
       }
-    },1000);
+    }, 1000);
   });
 
   document.getElementById('release').addEventListener('click', ()=>{
     if(count<=0){ showToast('返せるアサリがありません'); return; }
-    const r=Math.max(1,Math.floor(count*0.2)); count-=r; hudCnt.textContent=count; localStorage.setItem(LS.clam,count);
+    const r=Math.max(1,Math.floor(count*0.2));
+    count -= r; hudCnt.textContent = count; localStorage.setItem(LS.clam, count);
     showToast(`${r}個のアサリを海に返しました`);
   });
 
@@ -222,7 +247,10 @@
     charWrap.style.display = (charWrap.style.display==='none') ? 'block' : 'none';
   });
 
-  window.addEventListener('resize', ()=> setCharPos(innerWidth*0.5 - (charWrap.clientWidth||160)/2, innerHeight*0.65));
+  /* リサイズ時の位置補正 */
+  window.addEventListener('resize', ()=>{
+    setCharPos(innerWidth*0.5 - (charWrap.clientWidth||160)/2, innerHeight*0.62);
+  });
 </script>
 </body>
 </html>
