@@ -6,18 +6,15 @@
   <title>WHO VQ — スタート</title>
   <meta name="color-scheme" content="light dark" />
   <style>
-    /* ===== Reset & Base ===== */
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; margin: 0; background: #000; color: #fff; font-family: system-ui, "Noto Sans JP", "Segoe UI", Arial, sans-serif; }
 
-    /* ===== Backgrounds (3 scenes) ===== */
     .bg {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       background-size: cover; background-position: center; opacity: 0; transition: opacity 900ms ease;
       filter: saturate(1.02) contrast(1.02);
     }
     .bg.show { opacity: 1; }
-    /* 柔らかいグラデで読みやすさ確保 */
     .vignette {
       position: fixed; inset: 0; z-index: 1; pointer-events: none;
       background:
@@ -25,7 +22,6 @@
         linear-gradient(180deg, rgba(0,0,0,.25) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.55) 100%);
     }
 
-    /* ===== Top bar (lang + theme) ===== */
     #topbar {
       position: fixed; top: 0; left: 0; right: 0; z-index: 2;
       display: flex; align-items: center; justify-content: space-between;
@@ -41,178 +37,122 @@
     }
     button.icon { width: 36px; display: grid; place-items: center; padding: 0; }
 
-    /* ===== Main CTA buttons ===== */
-    #main {
+    /* ===== Main area ===== */
+    main.center {
       position: relative; z-index: 2; height: 100%;
-      display: grid; place-items: center; padding: 18vh 16px 14vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 16px;
     }
+    main.center h1 { font-size: clamp(26px, 6vw, 42px); margin: 0 0 8px; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+    main.center .subtitle { font-size: clamp(14px, 4vw, 18px); margin-bottom: 28px; color: rgba(255,255,255,.9); }
 
-    .panel {
-      width: min(640px, 92vw);
-      background: rgba(0,0,0,.35);
-      border: 1px solid rgba(255,255,255,.25);
-      border-radius: 18px;
-      box-shadow: 0 10px 40px rgba(0,0,0,.45);
-      backdrop-filter: blur(8px);
-      padding: clamp(16px, 4vw, 24px);
+    .buttons { display: flex; flex-direction: column; gap: 14px; width: min(320px, 80vw); }
+    .btn {
+      padding: 14px; border: none; border-radius: 14px;
+      font-size: clamp(16px, 4vw, 18px); font-weight: 700;
+      color: #fff; cursor: pointer; transition: transform .06s ease, opacity .2s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 8px 20px rgba(0,0,0,.35);
     }
+    .btn:active { transform: translateY(1px) scale(.98); }
+    .btn.primary { background: linear-gradient(180deg, rgba(255,255,255,.25), rgba(255,255,255,.08)); }
+    .btn.secondary { background: rgba(255,255,255,.15); font-weight: 600; }
+    .btn.special { background: linear-gradient(90deg, #ff7f50, #ffb347); color: #fff; }
+    .btn.ghost { background: rgba(255,255,255,.08); font-weight: 500; }
+    .btn.disabled { opacity: .6; pointer-events: none; }
 
-    .title {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      margin-bottom: 12px;
-    }
-    .title h1 {
-      margin: 0; font-size: clamp(18px, 4.6vw, 24px); font-weight: 800; letter-spacing: .02em;
-      text-shadow: 0 2px 12px rgba(0,0,0,.5);
-    }
-    .bg-switch { display: flex; gap: 6px; }
-    .bg-switch button {
-      font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25);
-      background: rgba(0,0,0,.35); color: #fff; cursor: pointer;
-    }
-
-    .cta {
-      display: grid; gap: 12px; margin-top: 8px;
-      grid-template-columns: 1fr;  /* 縦並び（スマホ親和） */
-    }
-    .cta button {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      width: 100%; padding: 16px 14px; border-radius: 14px; border: 0; cursor: pointer;
-      background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.08));
-      color: #fff; font-size: clamp(16px, 4.3vw, 18px); font-weight: 700;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 24px rgba(0,0,0,.35);
-      transition: transform .06s ease, filter .2s ease, background .2s ease;
-    }
-    .cta button:active { transform: translateY(1px) scale(.995); }
-    .cta button.secondary { background: rgba(255,255,255,.10); font-weight: 600; }
-    .cta button.disabled { opacity: .6; pointer-events: none; }
-
-    .note {
-      margin-top: 10px; font-size: 12px; color: rgba(255,255,255,.85);
-      line-height: 1.5; text-align: center;
-    }
-
-    /* ===== Footer ===== */
     footer {
       position: fixed; bottom: 6px; left: 0; right: 0; z-index: 2;
       display: grid; place-items: center; font-size: 11px; color: rgba(255,255,255,.8);
       text-shadow: 0 1px 6px rgba(0,0,0,.6);
     }
-
-    /* ===== Accessibility ===== */
-    :focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: 10px; }
   </style>
 </head>
 <body>
-  <!-- ===== Background Layers ===== -->
+  <!-- Backgrounds -->
   <div id="bg-sunrise" class="bg" style="background-image:url('public/items/bg/sunrise.jpg');"></div>
   <div id="bg-day" class="bg" style="background-image:url('public/items/bg/beach_day.jpg');"></div>
   <div id="bg-night" class="bg" style="background-image:url('public/items/bg/night_beach.jpg');"></div>
-  <div class="vignette" aria-hidden="true"></div>
+  <div class="vignette"></div>
 
-  <!-- ===== Topbar ===== -->
-  <header id="topbar" role="banner">
+  <!-- Topbar -->
+  <header id="topbar">
     <div id="brand">WHO VQ</div>
     <div class="right">
-      <label for="lang" class="sr-only" aria-hidden="true" style="position:absolute;left:-9999px;">Language</label>
       <select id="lang" aria-label="Language">
         <option value="ja">日本語</option>
         <option value="zh">中文</option>
         <option value="en">English</option>
         <option value="ko">한국어</option>
       </select>
-      <!-- 背景切替（任意で手動も可能） -->
-      <div class="bg-switch" aria-label="Background">
-        <button type="button" data-bg="sunrise">🌅</button>
-        <button type="button" data-bg="day">🌤️</button>
-        <button type="button" data-bg="night">🌙</button>
-      </div>
     </div>
   </header>
 
-  <!-- ===== Main Panel ===== -->
-  <main id="main" role="main">
-    <section class="panel" aria-labelledby="ttl">
-      <div class="title">
-        <h1 id="ttl" data-i18n="title">海辺で始めよう</h1>
-      </div>
-      <div class="cta">
-        <button id="btnStart" class="primary" data-i18n="start">スタート</button>
-        <button id="btnContinue" class="secondary" data-i18n="continue">続きから</button>
-        <button id="btnAbout" class="secondary" data-i18n="about">研究・ゲーム説明</button>
-      </div>
-      <p class="note" data-i18n="hint">※ 言語設定と進行状況は端末に保存されます。</p>
-    </section>
+  <!-- Main -->
+  <main class="center">
+    <h1 data-i18n="title">WHO VQ</h1>
+    <p class="subtitle" data-i18n="subtitle">あなたのお世話が、誰かの世界に</p>
+    <div class="buttons">
+      <button class="btn primary" id="btnStart" data-i18n="start">スタート</button>
+      <button class="btn secondary" id="btnContinue" data-i18n="continue">続きから</button>
+      <button class="btn special" id="btnAsari" data-i18n="asari">潮干狩り体験</button>
+      <button class="btn ghost" id="btnAbout" data-i18n="about">研究について</button>
+    </div>
   </main>
 
-  <footer>
-    <div id="foot" data-i18n="footer">© WHO VQ Project</div>
-  </footer>
+  <footer><div id="foot" data-i18n="footer">© WHO VQ Project</div></footer>
 
   <script>
-    /***********************
-     * i18n dictionary
-     ***********************/
     const I18N = {
       ja: {
-        title: "海辺で始めよう",
+        title: "WHO VQ",
+        subtitle: "あなたのお世話が、誰かの世界に",
         start: "スタート",
         continue: "続きから",
-        about: "研究・ゲーム説明",
-        hint: "※ 言語設定と進行状況は端末に保存されます。",
+        asari: "潮干狩り体験",
+        about: "研究について",
         footer: "© WHO VQ プロジェクト"
       },
       zh: {
-        title: "从海边开始",
+        title: "WHO VQ",
+        subtitle: "你的照顾，会成为别人的世界",
         start: "开始",
         continue: "继续",
-        about: "研究与游戏说明",
-        hint: "※ 语言设置与进度会保存在本机。",
+        asari: "挖贝体验",
+        about: "关于研究",
         footer: "© WHO VQ 项目"
       },
       en: {
-        title: "Begin by the Sea",
+        title: "WHO VQ",
+        subtitle: "Your care becomes someone’s world",
         start: "Start",
         continue: "Continue",
-        about: "Research & Game Guide",
-        hint: "※ Language and progress are stored on this device.",
+        asari: "Clam Digging",
+        about: "About Research",
         footer: "© WHO VQ Project"
       },
       ko: {
-        title: "바닷가에서 시작",
+        title: "WHO VQ",
+        subtitle: "당신의 돌봄이 누군가의 세상이 됩니다",
         start: "시작",
         continue: "이어하기",
-        about: "연구·게임 설명",
-        hint: "※ 언어 설정과 진행 상황은 기기에 저장됩니다.",
+        asari: "조개잡이 체험",
+        about: "연구에 대하여",
         footer: "© WHO VQ 프로젝트"
       }
     };
 
-    const LS_KEYS = {
-      lang: "who_lang",
-      last: "who_lastPage"
-    };
+    const LS_KEYS = { lang: "who_lang", last: "who_lastPage" };
 
-    /***********************
-     * Background handling
-     ***********************/
     const bg = {
       sunrise: document.getElementById('bg-sunrise'),
       day: document.getElementById('bg-day'),
       night: document.getElementById('bg-night'),
     };
-
-    // 画像の事前読み込み（初期表示のチラつき軽減）
-    ["public/items/bg/sunrise.jpg","public/items/bg/beach_day.jpg","public/items/bg/night_beach.jpg"].forEach(src=>{
-      const img = new Image(); img.src = src;
-    });
-
     function showBG(name) {
       Object.values(bg).forEach(el => el.classList.remove('show'));
       (bg[name] || bg.day).classList.add('show');
       localStorage.setItem('who_bg', name);
     }
-
     function decideBGByTime() {
       const hour = new Date().getHours();
       if (hour >= 5 && hour < 9) return 'sunrise';
@@ -220,9 +160,6 @@
       return 'night';
     }
 
-    /***********************
-     * Language handling
-     ***********************/
     const langSel = document.getElementById('lang');
     function applyLang(lang) {
       const dict = I18N[lang] || I18N.ja;
@@ -234,60 +171,44 @@
       localStorage.setItem(LS_KEYS.lang, lang);
     }
 
-    /***********************
-     * Buttons
-     ***********************/
     const btnStart = document.getElementById('btnStart');
     const btnContinue = document.getElementById('btnContinue');
+    const btnAsari = document.getElementById('btnAsari');
     const btnAbout = document.getElementById('btnAbout');
 
     btnStart.addEventListener('click', () => {
-      // 新規スタートで最初の画面へ
       const next = 'char.html';
       localStorage.setItem(LS_KEYS.last, next);
       location.href = next;
     });
-
     btnContinue.addEventListener('click', () => {
       const last = localStorage.getItem(LS_KEYS.last);
       location.href = last || 'char.html';
     });
-
+    btnAsari.addEventListener('click', () => {
+      localStorage.setItem(LS_KEYS.last, 'asari.html');
+      location.href = 'asari.html';
+    });
     btnAbout.addEventListener('click', () => {
       localStorage.setItem(LS_KEYS.last, 'about.html');
       location.href = 'about.html';
     });
 
-    /***********************
-     * Boot
-     ***********************/
     (function boot(){
-      // 背景：前回の選択 or 時刻で自動決定
       const savedBG = localStorage.getItem('who_bg') || decideBGByTime();
       showBG(savedBG);
 
-      // 背景切替ボタン
-      document.querySelectorAll('.bg-switch button').forEach(b=>{
-        b.addEventListener('click', ()=> showBG(b.dataset.bg));
-      });
-
-      // 言語：前回保存 or ブラウザ言語から推測
       const savedLang = localStorage.getItem(LS_KEYS.lang);
       const guess = (navigator.language || 'ja').toLowerCase();
-      const fromBrowser =
-        guess.startsWith('ja') ? 'ja' :
-        guess.startsWith('zh') ? 'zh' :
-        guess.startsWith('ko') ? 'ko' : 'en';
+      const fromBrowser = guess.startsWith('ja') ? 'ja' :
+                          guess.startsWith('zh') ? 'zh' :
+                          guess.startsWith('ko') ? 'ko' : 'en';
       const lang = savedLang || fromBrowser;
       langSel.value = lang; applyLang(lang);
       langSel.addEventListener('change', e => applyLang(e.target.value));
 
-      // 続きから：前回ページがない場合は無効化
       const last = localStorage.getItem(LS_KEYS.last);
       if (!last) btnContinue.classList.add('disabled');
-
-      // 物理戻る誤タップ対策（iOS PWAなどでのスクロール跳ね返り時）
-      window.addEventListener('touchmove', ()=>{}, {passive:true});
     })();
   </script>
 </body>
