@@ -21,25 +21,16 @@
     /* キャラ表示 */
     .character-area {
       position: absolute;
-      bottom: 10px;
+      bottom: 10%;
       left: 50%;
       transform: translateX(-50%);
       pointer-events: none;
     }
     .character-area img {
-      height: 32vh; /* サイズ縮小 */
+      height: 22vh; /* 70%くらいに縮小 */
       width: auto;
-      animation: sway 4s ease-in-out infinite, bob 3s ease-in-out infinite;
       filter: drop-shadow(0 10px 8px rgba(0,0,0,0.5));
-      transform-origin: center bottom;
-    }
-    @keyframes sway {
-      0%,100% { transform: scale3d(1,1,1) rotate(-2deg); }
-      50%     { transform: scale3d(1,1,1) rotate(2deg); }
-    }
-    @keyframes bob {
-      0%,100% { margin-bottom: 0; }
-      50%     { margin-bottom: 6px; }
+      transition: all 4s ease-in-out;
     }
 
     /* 貝 */
@@ -131,7 +122,7 @@
 
     // --- 貝を出す処理 ---
     function spawnClam(x, y) {
-      if (Math.random() > 0.2) return; // 出現率20%
+      if (Math.random() > 0.25) return; // 出現率25%
 
       const clam = document.createElement("div");
       clam.classList.add("clam");
@@ -154,26 +145,13 @@
       });
     }
 
-    // --- 砂をなでる（ドラッグ距離ごとに出現判定） ---
-    let dragging = false;
-    let lastX = 0, lastY = 0;
+    // --- 砂をなでる（mousemove/touchmoveで発火） ---
     function handleMove(e) {
       const x = e.touches ? e.touches[0].clientX : e.clientX;
       const y = e.touches ? e.touches[0].clientY : e.clientY;
-      if (dragging) {
-        const dx = x - lastX, dy = y - lastY;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist > 30) { // 30px移動ごとに出現判定
-          spawnClam(x, y);
-          lastX = x; lastY = y;
-        }
-      }
+      spawnClam(x, y);
     }
-    gameArea.addEventListener("mousedown", e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
-    gameArea.addEventListener("mouseup", () => dragging = false);
     gameArea.addEventListener("mousemove", handleMove);
-    gameArea.addEventListener("touchstart", e => { dragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; });
-    gameArea.addEventListener("touchend", () => dragging = false);
     gameArea.addEventListener("touchmove", handleMove);
 
     // --- 特典解放 ---
@@ -234,6 +212,16 @@
     document.getElementById("toggleChar").addEventListener("click", () => {
       charArea.style.display = (charArea.style.display === "none") ? "block" : "none";
     });
+
+    // --- キャラを画面内でふわふわ動かす ---
+    function moveCharacter() {
+      const maxX = window.innerWidth * 0.7;
+      const maxY = window.innerHeight * 0.4;
+      const randX = Math.random() * maxX + window.innerWidth * 0.15;
+      const randY = Math.random() * maxY + window.innerHeight * 0.4;
+      charImg.style.transform = `translate(${randX}px, ${randY}px) scale(1)`;
+    }
+    setInterval(moveCharacter, 5000); // 5秒ごとに移動
   </script>
 </body>
 </html>
