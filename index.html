@@ -3,19 +3,55 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — スタート</title>
+  <title>WHO VQ — Start</title>
   <style>
     /* ====== Reset & Base ====== */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #000; color: #fff; font-family: system-ui, "Noto Sans JP", sans-serif; }
 
-    /* ====== Background (朝日〜柔らかいグラデ) ====== */
+    /* ====== Time-based Background ====== */
     .bg {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      transition: background 1s ease, filter .6s ease, opacity .6s ease;
+      filter: saturate(1.05);
+    }
+    /* 夜 */
+    .bg.night {
+      background:
+        radial-gradient(1200px 600px at 70% 15%, rgba(180,210,255,0.18), transparent 55%),
+        linear-gradient(180deg, #0b132b 0%, #1c2541 40%, #1b1b2f 70%, #0d0d18 100%);
+    }
+    /* 明け方 */
+    .bg.dawn {
       background:
         radial-gradient(1200px 600px at 50% 10%, rgba(255,220,160,0.45), transparent 55%),
         linear-gradient(180deg, #87ceeb 0%, #c0e4f4 40%, #e7d7b3 60%, #f0e1c6 70%, #a7895f 100%);
-      filter: saturate(1.05);
+    }
+    /* 昼 */
+    .bg.day {
+      background:
+        radial-gradient(1000px 500px at 50% 0%, rgba(255,255,255,0.35), transparent 60%),
+        linear-gradient(180deg, #7ec9ff 0%, #9fd9ff 45%, #b6ecff 75%, #eaf7ff 100%);
+    }
+    /* 夕方 */
+    .bg.dusk {
+      background:
+        radial-gradient(1100px 520px at 60% 5%, rgba(255,180,120,0.35), transparent 60%),
+        linear-gradient(180deg, #ff9f7b 0%, #f57a7a 35%, #7a66aa 70%, #2c2a54 100%);
+    }
+
+    /* ====== Topbar (Language Switch) ====== */
+    #topbar {
+      position: fixed; left: 0; right: 0; top: 0; z-index: 2;
+      display: flex; justify-content: flex-end; align-items: center;
+      padding: 8px 10px;
+      background: linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,0));
+      gap: 8px;
+    }
+    #langSel {
+      appearance: none; border: 1px solid rgba(255,255,255,.25);
+      background: rgba(0,0,0,.35); color: #fff; border-radius: 10px;
+      padding: 6px 10px; font-size: 13px;
     }
 
     /* ====== Layout ====== */
@@ -30,83 +66,37 @@
       grid-template-columns: 1fr;
       grid-template-areas:
         "logo"
-        "preview"
         "buttons"
         "foot";
-    }
-    @media (min-width: 860px) {
-      .panel {
-        grid-template-columns: 1.2fr 1fr;
-        grid-template-areas:
-          "logo logo"
-          "preview buttons"
-          "foot foot";
-        align-items: center;
-      }
+      align-items: center;
     }
 
     /* ====== Title ====== */
     .logo {
-      grid-area: logo;
-      text-align: center;
+      grid-area: logo; text-align: center;
       text-shadow: 0 2px 18px rgba(0,0,0,.35);
     }
     .logo h1 {
       font-size: clamp(22px, 4.2vw, 44px);
-      letter-spacing: .06em;
-      font-weight: 800;
+      letter-spacing: .06em; font-weight: 800;
     }
-    .logo p {
-      margin-top: 6px; opacity: .85; font-size: clamp(12px, 2.4vw, 14px);
-    }
-
-    /* ====== Character Preview ====== */
-    .preview {
-      grid-area: preview;
-      display: grid; place-items: center;
-      padding: 10px;
-    }
-    .charStage {
-      position: relative;
-      /* 以前より約半分の見た目になるよう控えめサイズに */
-      width: clamp(140px, 28vw, 220px);
-      aspect-ratio: 1 / 1;
-      border-radius: 24px;
-      background: rgba(0,0,0,.18);
-      box-shadow: 0 10px 30px rgba(0,0,0,.25) inset, 0 12px 32px rgba(0,0,0,.18);
-      overflow: visible;
-    }
-    .charImg {
-      position: absolute; inset: 0; margin: auto;
-      display: block;
-      width: 100%; height: 100%; object-fit: contain;
-      image-rendering: auto;
-      pointer-events: none; user-select: none;
-    }
+    .logo p { margin-top: 6px; opacity: .9; font-size: clamp(12px, 2.4vw, 14px); }
 
     /* ====== Buttons ====== */
-    .buttons {
-      grid-area: buttons;
-      display: grid; gap: 12px;
-      align-content: center;
-    }
+    .buttons { grid-area: buttons; display: grid; gap: 12px; }
     .btn {
       appearance: none; border: none; cursor: pointer;
       padding: 14px 16px; border-radius: 14px;
       font-size: clamp(14px, 2.6vw, 18px); font-weight: 700;
       transition: transform .06s ease, box-shadow .2s ease, opacity .2s ease;
-      color: #101010;
-      background: linear-gradient(180deg, #fff, #e9eef6);
+      color: #101010; background: linear-gradient(180deg, #fff, #e9eef6);
       box-shadow: 0 4px 12px rgba(0,0,0,.24);
     }
     .btn:active { transform: translateY(2px) scale(.99); }
     .btn.secondary { background: linear-gradient(180deg, #e6f6ff, #d7ecff); }
-    .btn.ghost {
-      color: #fff; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.2);
-    }
-    .hint {
-      grid-area: foot; text-align: center; opacity: .85; font-size: 12px;
-    }
+    .btn.ghost { color: #fff; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.2); }
+
+    .hint { grid-area: foot; text-align: center; opacity: .9; font-size: 12px; }
 
     @media (max-width: 360px) {
       .panel { gap: 14px; }
@@ -115,71 +105,93 @@
   </style>
 </head>
 <body>
-  <div class="bg" aria-hidden="true"></div>
+  <div id="topbar">
+    <select id="langSel" aria-label="Language">
+      <option value="ja">日本語</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+
+  <div id="bg" class="bg" aria-hidden="true"></div>
 
   <main class="wrap">
     <section class="panel">
       <header class="logo">
-        <h1>WHO VQ</h1>
-        <p>スタート／続きから／研究について</p>
+        <h1 id="t-title">WHO VQ</h1>
+        <p id="t-desc">スタート／続きから／研究について</p>
       </header>
 
-      <!-- キャラのプレビュー（約半分サイズ） -->
-      <div class="preview">
-        <div class="charStage" aria-label="選択中キャラクタープレビュー">
-          <img id="charImg" class="charImg" alt="character" src="public/assets/stage1/blue_open.png">
-        </div>
-      </div>
-
-      <!-- 操作ボタン -->
       <div class="buttons">
-        <button id="btnStart" class="btn">スタート</button>
-        <button id="btnContinue" class="btn secondary">続きから</button>
-        <button id="btnAbout" class="btn ghost">研究について</button>
+        <button id="btnStart" class="btn"><span id="t-start">スタート</span></button>
+        <button id="btnContinue" class="btn secondary"><span id="t-continue">続きから</span></button>
+        <button id="btnAbout" class="btn ghost"><span id="t-about">研究について</span></button>
       </div>
 
-      <p class="hint">※「続きから」は直前のゲーム画面へ遷移します（about は対象外）。</p>
+      <p class="hint" id="t-hint">※「続きから」は直前のゲーム画面へ遷移します（about は対象外）。</p>
     </section>
   </main>
 
   <script>
-    // ========= 設定 =========
-    const FALLBACK_GAME_ENTRY = 'char.html'; // 続きからの最終フォールバック
+    /* =========================
+       i18n
+    ========================== */
+    const I18N = {
+      ja: {
+        title: "WHO VQ",
+        desc: "スタート／続きから／研究について",
+        start: "スタート",
+        cont: "続きから",
+        about: "研究について",
+        hint: "※「続きから」は直前のゲーム画面へ遷移します（about は対象外）。"
+      },
+      en: {
+        title: "WHO VQ",
+        desc: "Start / Continue / About Research",
+        start: "Start",
+        cont: "Continue",
+        about: "About",
+        hint: "* “Continue” returns to your last game screen (excluding About)."
+      }
+    };
+
+    function detectInitialLang() {
+      const saved = localStorage.getItem('whoai_lang');
+      if (saved && I18N[saved]) return saved;
+      const n = (navigator.language || "ja").toLowerCase();
+      return n.startsWith("en") ? "en" : "ja";
+    }
+
+    function applyLang(lang) {
+      const t = I18N[lang] || I18N.ja;
+      document.documentElement.lang = lang;
+      document.getElementById('t-title').textContent = t.title;
+      document.getElementById('t-desc').textContent = t.desc;
+      document.getElementById('t-start').textContent = t.start;
+      document.getElementById('t-continue').textContent = t.cont;
+      document.getElementById('t-about').textContent = t.about;
+      document.getElementById('t-hint').textContent = t.hint;
+      localStorage.setItem('whoai_lang', lang);
+    }
+
+    const langSel = document.getElementById('langSel');
+    const initLang = detectInitialLang();
+    langSel.value = initLang;
+    applyLang(initLang);
+    langSel.addEventListener('change', (e) => applyLang(e.target.value));
+
+    /* =========================
+       Continue routing
+    ========================== */
+    const FALLBACK_GAME_ENTRY = 'char.html';
     const ALLOWED_GAME_PAGES = [
       'char.html', 'asari.html', 'collection.html', 'accessory.html',
       'whoai_talk.html', 'macaron_select.html', 'appearance.html'
-      // 必要に応じて追記
     ];
 
-    // ========= 要素 =========
-    const btnStart = document.getElementById('btnStart');
-    const btnContinue = document.getElementById('btnContinue');
-    const btnAbout = document.getElementById('btnAbout');
-    const charImg = document.getElementById('charImg');
-
-    // ========= キャラ画像パス（public/ 起点） =========
-    function charSpriteFromStorage() {
-      const raw =
-        localStorage.getItem('whoai_character') ??
-        localStorage.getItem('who_character');
-
-      let color = 'blue';
-      try {
-        if (raw) {
-          const v = JSON.parse(raw);
-          if (typeof v === 'string') color = v;
-          else if (v && typeof v.color === 'string') color = v.color;
-        }
-      } catch(e) { /* 失敗時は既定色 */ }
-      return `public/assets/stage1/${color}_open.png`;
-    }
-
-    // ========= 続きからページ判定 =========
     function resolveContinueTarget() {
       const last = (localStorage.getItem('whoai_lastPage') || '').trim();
       const invalid = !last ||
-        last === 'index.html' ||
-        last === '/index.html' ||
+        last === 'index.html' || last === '/index.html' ||
         /about\.html$/i.test(last);
 
       if (invalid) {
@@ -192,30 +204,42 @@
       return FALLBACK_GAME_ENTRY;
     }
 
-    // ========= 初期化 =========
-    function initPreview() {
-      charImg.src = charSpriteFromStorage();
-    }
-
-    // ========= ボタン挙動 =========
-    btnStart.addEventListener('click', () => {
+    document.getElementById('btnStart').addEventListener('click', () => {
       location.href = 'char.html';
     });
-
-    btnContinue.addEventListener('click', () => {
-      const target = resolveContinueTarget();
-      location.href = target;
+    document.getElementById('btnContinue').addEventListener('click', () => {
+      location.href = resolveContinueTarget();
     });
-
-    btnAbout.addEventListener('click', () => {
+    document.getElementById('btnAbout').addEventListener('click', () => {
       location.href = 'about.html';
     });
 
-    // 各ゲーム系ページ側で以下を記録してください
+    // 各ゲーム系ページ側で以下を記録してください（about は除外）
     // localStorage.setItem('whoai_lastPage', 'asari.html');
     // localStorage.setItem('whoai_lastGamePage', 'asari.html');
 
-    initPreview();
+    /* =========================
+       Time-based background
+       04-08: dawn / 08-16: day / 16-19: dusk / 19-04: night
+    ========================== */
+    const bgEl = document.getElementById('bg');
+
+    function bgClassForHour(h) {
+      if (h >= 4 && h < 8)  return 'dawn';
+      if (h >= 8 && h < 16) return 'day';
+      if (h >= 16 && h < 19) return 'dusk';
+      return 'night';
+    }
+
+    function applyTimeBackground() {
+      const now = new Date();
+      const cls = bgClassForHour(now.getHours());
+      bgEl.className = 'bg ' + cls;
+    }
+
+    applyTimeBackground();
+    // 10分ごとに再評価（必要に応じて調整）
+    setInterval(applyTimeBackground, 10 * 60 * 1000);
   </script>
 </body>
 </html>
