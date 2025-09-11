@@ -224,4 +224,183 @@
         if (!raw) continue;
         try { data = JSON.parse(raw); break; } catch { /* ignore */ }
       }
-      // 許容フォーマット: {id: count, ...} または { items: {id:
+      // 許容フォーマット: {id: count, ...} または { items: {id: count}, meta: ... }
+      let obj = {};
+      if (data && typeof data === 'object') {
+        obj = data.items && typeof data.items === 'object' ? data.items : data;
+      }
+      // 既知IDのみ吸い上げ
+      const out = { ...inventory };
+      for (const s of SHELLS) {
+        const n = Number(obj[s.id] || 0);
+        out[s.id] = Number.isFinite(n) ? clamp(n, 0, 9999) : 0;
+      }
+      return out;
+    }
+
+    function saveInventory(inv) {
+      const payload = { items: inv, updatedAt: new Date().toISOString(), schema: 'who_shells/v1' };
+      localStorage.setItem('who_shells', JSON.stringify(payload));
+    }
+
+    function parseAddParam() {
+      const u = new URL(location.href);
+      const add = u.searchParams.get('add');
+      if (!add) return null;
+      // 形式: add=asari1:3,aurora_shell:1
+      const list = add.split(',').map(x => x.trim()).filter(Boolean);
+      const delta = {};
+      for (const item of list) {
+        const [id, n] = item.split(':');
+        if (!id) continue;
+        const num = Number(n || 1);
+        if (SHELLS.some(s => s.id === id) && Number.isFinite(num)) {
+          delta[id] = (delta[id] || 0) + clamp(num, 0, 9999);
+        }
+      }
+      return Object.keys(delta).length ? delta : null;
+    }
+
+    function mergeDelta(inv, delta) {
+      const out = { ...inv };
+      for (const [id, n] of Object.entries(delta)) {
+        out[id] = clamp((out[id] || 0) + n, 0, 9999);
+      }
+      return out;
+    }
+
+    function fmtCount(n) { return `${n} 個`; }
+
+    // ===== Render =====
+    function renderGrid(filter = 'all', sort = 'rarity') {
+      const grid = qs('#grid');
+      grid.innerHTML = '';
+      const items = SHELLS.map(s => ({ ...s, count: inventory[s.id] || 0 }))
+        .filter(it => filter === 'all' ? true : it.rarity === filter);
+
+      // sort
+      items.sort((a,b) => {
+        if (sort === 'count') return (b.count - a.count) || (RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity]) || a.name.localeCompare(b.name, 'ja');
+        if (sort === 'name') return a.name.localeCompare(b.name, 'ja');
+        // default rarity
+        const r = (RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity]);
+        if (r !== 0) return r;
+        return a.name.localeCompare(b.name, 'ja');
+      });
+
+      if (!items.length) {
+        grid.innerHTML = `<div class="empty">該当する貝がありません</div>`;
+        return;
+      }
+
+      for (const it of items) {
+        const card = document.createElement('button');
+        card.className = `card r${it.rarity}`;
+        card.setAttribute('role', 'listitem');
+        card.innerHTML = `
+          <span class="rarity">${RARITY_LABEL[it.rarity] || it.rarity}</span>
+          <span class="badge">${fmtCount(it.count)}</span>
+          <img src="${it.img}" alt="${it.name}" onerror="this.style.opacity=.3;this.alt='no image'" />
+          <div class="nm">${it.name}</div>
+        `;
+        card.addEventListener('click', () => openDetail(it));
+        grid.appendChild(card);
+      }
+
+      // progress
+      const totalKinds = SHELLS.length;
+      const foundKinds = SHELLS.reduce((a,s) => a + ((inventory[s.id]||0)>0?1:0), 0);
+      qs('#total').textContent = String(totalKinds);
+      qs('#found').textContent = String(foundKinds);
+      qs('#bar').style.width = `${Math.round(foundKinds/totalKinds*100)}%`;
+    }
+
+    function openDetail(it) {
+      const dlg = qs('#dlg');
+      qs('#dlgImg').src = it.img;
+      qs('#dlgImg').alt = it.name;
+      qs('#dlgName').textContent = it.name;
+      const stars = {N:'★', M:'★★', H:'★★★', U:'★★★★'}[it.rarity] || '';
+      qs('#dlgMeta').textContent = `${RARITY_LABEL[it.rarity]} ${stars}・所持 ${fmtCount(inventory[it.id] || 0)}`;
+      qs('#dlgDesc').textContent = it.desc;
+      qs('#dlgToExchange').onclick = () => {
+        // 交換所へ遷移（希望アイテムをクエリに乗せる）
+        location.href = `exchange.html?want=${encodeURIComponent(it.id)}`;
+      };
+      dlg.showModal();
+    }
+
+    function renderCharacter() {
+      const color = (localStorage.getItem(CHARACTER_KEY) || '').replace(/[^a-z]/g,'') || 'pink';
+      const url = `${IMG_BASE}/stage1/${color}_open.png`;
+      const img = qs('#charImg');
+      img.src = url;
+      img.alt = `character ${color}`;
+    }
+
+    // ===== Wire Up =====
+    function init() {
+      // asari 完成版のバージョン表示（保存されていれば）
+      const ver = loadVersion();
+      if (ver) qs('#ver').textContent = `（${ver}）`;
+
+      inventory = loadInventory();
+
+      // もし URL に add= があればマージして保存
+      const delta = parseAddParam();
+      if (delta) {
+        inventory = mergeDelta(inventory, delta);
+        saveInventory(inventory);
+      }
+
+      renderCharacter();
+      renderGrid('all', 'rarity');
+
+      // filter chips
+      qsa('.chip').forEach(btn => btn.addEventListener('click', () => {
+        qsa('.chip').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        btn.setAttribute('aria-pressed', 'true');
+        const filter = btn.dataset.filter || 'all';
+        const sort = qs('#sort').value;
+        renderGrid(filter, sort);
+      }));
+
+      qs('#sort').addEventListener('change', (e) => {
+        const filter = qsa('.chip').find(b => b.getAttribute('aria-pressed') === 'true')?.dataset.filter || 'all';
+        renderGrid(filter, e.target.value);
+      });
+
+      // buttons
+      qs('#btnBack').addEventListener('click', () => location.href = 'asari.html');
+      qs('#btnNext').addEventListener('click', () => location.href = 'exchange.html');
+      qs('#btnHow').addEventListener('click', () => qs('#how').showModal());
+      qs('#howOk').addEventListener('click', () => qs('#how').close());
+      qs('#dlgClose').addEventListener('click', () => qs('#dlg').close());
+
+      qs('#btnReset').addEventListener('click', () => {
+        if (!confirm('貝のコレクションを全削除します。よろしいですか？')) return;
+        inventory = Object.fromEntries(SHELLS.map(s => [s.id, 0]));
+        saveInventory(inventory);
+        renderGrid();
+      });
+
+      qs('#btnExport').addEventListener('click', () => exportCSV());
+    }
+
+    function exportCSV() {
+      const headers = ['id','name','rarity','count'];
+      const rows = SHELLS.map(s => [s.id, s.name, RARITY_LABEL[s.rarity], inventory[s.id] || 0]);
+      const csv = [headers.join(','), ...rows.map(r => r.map(v => String(v).replaceAll('"','\"')).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'shell_collection.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // kick
+    document.addEventListener('DOMContentLoaded', init);
+  })();
+  </script>
+</body>
+</html>
