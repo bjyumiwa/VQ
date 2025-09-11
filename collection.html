@@ -7,70 +7,70 @@
   <style>
     /* ===== Base ===== */
     *, *::before, *::after { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; background: #0b0f14; color: #e8f0f7; font-family: system-ui, "Noto Sans JP", sans-serif; }
+    html, body { height: 100%; margin: 0; background: #0b0f14; color: #fff; font-family: system-ui, "Noto Sans JP", sans-serif; }
     a { color: inherit; text-decoration: none; }
 
     /* ===== App Layout ===== */
     .app { position: relative; min-height: 100vh; padding: 72px 16px 88px; }
 
     /* Top Bar */
-    .topbar { position: fixed; inset: 0 0 auto 0; height: 56px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,0)); z-index: 10; }
-    .topbar .btn { padding: 8px 12px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.05); border-radius: 12px; backdrop-filter: blur(6px); cursor: pointer; }
+    .topbar { position: fixed; inset: 0 0 auto 0; height: 56px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,0)); z-index: 10; color:#fff; }
+    .topbar .btn { padding: 8px 12px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.05); border-radius: 12px; backdrop-filter: blur(6px); cursor: pointer; color:#fff; }
     .spacer { flex: 1; }
 
     /* Header */
-    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; color:#fff; }
     .title { font-size: 20px; font-weight: 700; letter-spacing: .02em; }
-    .subtitle { opacity: .85; font-size: 12px; }
+    .subtitle { opacity: .95; font-size: 12px; color:#fff; }
 
     /* Character Preview */
     .char-box { position: fixed; right: 12px; bottom: 100px; width: 140px; height: 140px; display: grid; place-items: center; background: radial-gradient(120px 60px at 50% 30%, rgba(255,255,255,.12), rgba(255,255,255,0)); border: 1px solid rgba(255,255,255,.08); border-radius: 16px; }
     .char-box img { max-width: 80%; height: auto; image-rendering: auto; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
 
     /* Filters */
-    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 16px; }
-    .chip { padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); cursor: pointer; font-size: 12px; }
-    .chip[aria-pressed="true"] { background: rgba(255,255,255,.2); }
-    select { padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #e8f0f7; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 16px; color:#fff; }
+    .chip { padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); cursor: pointer; font-size: 12px; color:#fff; }
+    .chip[aria-pressed="true"] { background: rgba(255,255,255,.22); color:#fff; }
+    select { padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #fff; }
 
     /* Progress */
-    .progress { display: flex; align-items: center; gap: 10px; margin: 8px 0 12px; }
+    .progress { display: flex; align-items: center; gap: 10px; margin: 8px 0 12px; color:#fff; }
     .bar { flex: 1; height: 8px; background: rgba(255,255,255,.08); border-radius: 8px; overflow: hidden; }
     .bar > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #8ee8ff, #7cf3c9); }
-    .progress .label { font-size: 12px; opacity: .9; }
+    .progress .label { font-size: 12px; opacity: 1; color:#fff; }
 
     /* Grid */
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
 
-    .card { position: relative; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); border-radius: 14px; padding: 10px; display: grid; justify-items: center; gap: 8px; cursor: pointer; transition: transform .1s ease; }
+    .card { position: relative; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); border-radius: 14px; padding: 10px; display: grid; justify-items: center; gap: 8px; cursor: pointer; transition: transform .1s ease; color:#fff; }
     .card:hover { transform: translateY(-2px); }
     .card img { width: 72px; height: 72px; object-fit: contain; image-rendering: auto; filter: drop-shadow(0 4px 8px rgba(0,0,0,.35)); }
-    .card .nm { font-size: 12px; text-align: center; line-height: 1.25; }
-    .badge { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.18); }
-    .rarity { position: absolute; left: 6px; top: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); }
+    .card .nm { font-size: 12px; text-align: center; line-height: 1.25; color:#fff; }
+    .badge { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.18); color:#fff; }
+    .rarity { position: absolute; left: 6px; top: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); color:#fff; }
 
-    /* Rarity Colors */
+    /* Rarity Colors (背景のみ変える) */
     .rN { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); }
     .rM { background: linear-gradient(180deg, rgba(140,200,255,.25), rgba(255,255,255,.02)); }
     .rH { background: linear-gradient(180deg, rgba(255,170,90,.25), rgba(255,255,255,.02)); }
     .rU { background: linear-gradient(180deg, rgba(255,120,180,.28), rgba(255,255,255,.02)); }
 
     /* Empty State */
-    .empty { text-align: center; padding: 40px 12px; opacity: .85; }
+    .empty { text-align: center; padding: 40px 12px; opacity: 1; color:#fff; }
 
     /* Bottom Bar */
-    .bottombar { position: fixed; inset: auto 0 0 0; height: 72px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; background: linear-gradient(0deg, rgba(0,0,0,.75), rgba(0,0,0,0)); z-index: 10; }
+    .bottombar { position: fixed; inset: auto 0 0 0; height: 72px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; background: linear-gradient(0deg, rgba(0,0,0,.75), rgba(0,0,0,0)); z-index: 10; color:#fff; }
     .cta { flex: 1; padding: 10px 14px; border: 0; border-radius: 12px; font-weight: 700; cursor: pointer; color: #06251a; background: linear-gradient(90deg, #7cf3c9, #8ee8ff); box-shadow: 0 8px 24px rgba(124,243,201,.25); }
-    .ghost { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #e8f0f7; cursor: pointer; }
+    .ghost { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #fff; cursor: pointer; }
 
     /* Modal */
-    dialog { width: min(520px, 96vw); border: 1px solid rgba(255,255,255,.18); background: rgba(22,30,39,.95); color: inherit; border-radius: 16px; padding: 16px; }
+    dialog { width: min(520px, 96vw); border: 1px solid rgba(255,255,255,.18); background: rgba(22,30,39,.95); color: #fff; border-radius: 16px; padding: 16px; }
     dialog::backdrop { background: rgba(0,0,0,.6); }
     .modal-hd { display: flex; align-items: center; gap: 12px; }
     .modal-hd img { width: 72px; height: 72px; object-fit: contain; }
-    .modal-ttl { font-size: 18px; font-weight: 700; }
-    .modal-sub { font-size: 12px; opacity: .85; }
-    .modal-main { margin: 12px 0; line-height: 1.6; font-size: 14px; }
+    .modal-ttl { font-size: 18px; font-weight: 700; color:#fff; }
+    .modal-sub { font-size: 12px; opacity: 1; color:#fff; }
+    .modal-main { margin: 12px 0; line-height: 1.6; font-size: 14px; color:#fff; }
     .modal-act { display: flex; gap: 8px; justify-content: flex-end; }
 
     /* Background decoration */
@@ -168,26 +168,20 @@
     const VERSION_KEY = 'who_stage_asari_version';
     const INVENTORY_KEYS = ['who_shells', 'who_shell_inventory', 'shells'];
     const CHARACTER_KEY = 'who_character';
-
-    // 画像ベース候補（相対/ルートゆれ対応）
     const IMG_BASES = ['public/items', './public/items', '/public/items'];
 
-    // マスタ（画像パスは id のみ。実際の src は動的フォールバックで設定）
     const SHELLS = [
       { id: 'asari1', name: 'アサリ（小）', rarity: 'N', desc: '小粒のアサリ。集めやすく、基本通貨として使えます。' },
       { id: 'asari2', name: 'アサリ（中）', rarity: 'N', desc: '標準サイズのアサリ。10個集めるとアクセサリー交換に一歩前進。' },
       { id: 'asari3', name: 'アサリ（大）', rarity: 'N', desc: '大きめのアサリ。見つかるとちょっと嬉しい。' },
-
-      { id: 'aurora_shell',   name: 'オーロラ貝', rarity: 'M', desc: '淡い光を放つ貝。会話チケットと交換可能。' },
-      { id: 'luminous_shell', name: 'ルミナス貝', rarity: 'M', desc: '夜でも輝く貝。会話チケットの材料。' },
+      { id: 'aurora_shell',   name: 'オーロラ貝',   rarity: 'M', desc: '淡い光を放つ貝。会話チケットと交換可能。' },
+      { id: 'luminous_shell', name: 'ルミナス貝',   rarity: 'M', desc: '夜でも輝く貝。会話チケットの材料。' },
       { id: 'mystic_shell',   name: 'ミスティック貝', rarity: 'M', desc: '神秘の模様が浮かぶ貝。会話チケット向け。' },
-      { id: 'wave_shell',     name: '波の貝', rarity: 'M', desc: '波のうねりを閉じ込めたような貝。' },
-
-      { id: 'flame_shell',    name: '炎の貝', rarity: 'H', desc: '燃えるような模様。限定アクセや演出のキー。' },
-      { id: 'night_sky_shell',name: '夜空の貝', rarity: 'H', desc: '満天の星を閉じ込めたよう。限定演出の解放に。' },
-
+      { id: 'wave_shell',     name: '波の貝',       rarity: 'M', desc: '波のうねりを閉じ込めたような貝。' },
+      { id: 'flame_shell',    name: '炎の貝',       rarity: 'H', desc: '燃えるような模様。限定アクセや演出のキー。' },
+      { id: 'night_sky_shell',name: '夜空の貝',     rarity: 'H', desc: '満天の星を閉じ込めたよう。限定演出の解放に。' },
       { id: 'rare_rainbow',   name: 'レインボー貝', rarity: 'U', desc: '七色に輝く超レア貝。特別演出と分岐のキー。' },
-      { id: 'rare_pearl',     name: '真珠', rarity: 'U', desc: '海の宝石。超レア。新たな物語を開く。' },
+      { id: 'rare_pearl',     name: '真珠',         rarity: 'U', desc: '海の宝石。超レア。新たな物語を開く。' },
     ];
 
     const RARITY_LABEL = { N: 'ノーマル', M: 'ミドル', H: 'ハイ', U: 'ウルトラ' };
@@ -196,14 +190,11 @@
     // ===== State =====
     let inventory = Object.fromEntries(SHELLS.map(s => [s.id, 0]));
 
-    // ===== Utils =====
+    // ===== Helpers =====
     const qs = (sel, el = document) => el.querySelector(sel);
     const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-    function loadVersion() {
-      const v = localStorage.getItem(VERSION_KEY);
-      return v ? String(v) : '';
-    }
+    function loadVersion(){ return localStorage.getItem(VERSION_KEY) || ''; }
 
     function loadInventory() {
       let data = null;
@@ -213,9 +204,7 @@
         try { data = JSON.parse(raw); break; } catch {}
       }
       let obj = {};
-      if (data && typeof data === 'object') {
-        obj = (data.items && typeof data.items === 'object') ? data.items : data;
-      }
+      if (data && typeof data === 'object') obj = (data.items && typeof data.items === 'object') ? data.items : data;
       const out = { ...inventory };
       for (const s of SHELLS) {
         const n = Number(obj[s.id] || 0);
@@ -230,8 +219,7 @@
     }
 
     function parseAddParam() {
-      const u = new URL(location.href);
-      const add = u.searchParams.get('add');
+      const add = new URL(location.href).searchParams.get('add');
       if (!add) return null;
       const list = add.split(',').map(x => x.trim()).filter(Boolean);
       const delta = {};
@@ -256,11 +244,12 @@
 
     function fmtCount(n) { return `${n} 個`; }
 
-    // 画像フォールバック設定（public/items を順に試す）
+    // 画像フォールバック
     function setShellImg(el, id, idx = 0) {
-      if (idx >= IMG_BASES.length) { el.style.opacity = '.3'; el.alt = 'no image'; return; }
+      const bases = IMG_BASES;
+      if (idx >= bases.length) { el.style.opacity = '.3'; el.alt = 'no image'; return; }
       el.onerror = () => setShellImg(el, id, idx + 1);
-      el.src = `${IMG_BASES[idx]}/${id}.png`;
+      el.src = `${bases[idx]}/${id}.png`;
     }
 
     // ===== Render =====
@@ -272,18 +261,14 @@
         .map(s => ({ ...s, count: inventory[s.id] || 0 }))
         .filter(it => filter === 'all' ? true : it.rarity === filter);
 
-      items.sort((a, b) => {
+      items.sort((a,b) => {
         if (sort === 'count') return (b.count - a.count) || (RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity]) || a.name.localeCompare(b.name, 'ja');
-        if (sort === 'name') return a.name.localeCompare(b.name, 'ja');
-        const r = (RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity]);
-        if (r !== 0) return r;
-        return a.name.localeCompare(b.name, 'ja');
+        if (sort === 'name')  return a.name.localeCompare(b.name, 'ja');
+        const r = RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity];
+        return r !== 0 ? r : a.name.localeCompare(b.name, 'ja');
       });
 
-      if (!items.length) {
-        grid.innerHTML = `<div class="empty">該当する貝がありません</div>`;
-        return;
-      }
+      if (!items.length) { grid.innerHTML = `<div class="empty">該当する貝がありません</div>`; return; }
 
       for (const it of items) {
         const card = document.createElement('button');
@@ -301,10 +286,10 @@
       }
 
       const totalKinds = SHELLS.length;
-      const foundKinds = SHELLS.reduce((a, s) => a + ((inventory[s.id] || 0) > 0 ? 1 : 0), 0);
+      const foundKinds = SHELLS.reduce((a,s) => a + ((inventory[s.id]||0)>0?1:0), 0);
       qs('#total').textContent = String(totalKinds);
       qs('#found').textContent = String(foundKinds);
-      qs('#bar').style.width = `${Math.round(foundKinds / totalKinds * 100)}%`;
+      qs('#bar').style.width = `${Math.round(foundKinds/totalKinds*100)}%`;
     }
 
     function openDetail(it) {
@@ -313,17 +298,15 @@
       setShellImg(img, it.id, 0);
       img.alt = it.name;
       document.querySelector('#dlgName').textContent = it.name;
-      const stars = { N: '★', M: '★★', H: '★★★', U: '★★★★' }[it.rarity] || '';
+      const stars = {N:'★', M:'★★', H:'★★★', U:'★★★★'}[it.rarity] || '';
       document.querySelector('#dlgMeta').textContent = `${RARITY_LABEL[it.rarity]} ${stars}・所持 ${fmtCount(inventory[it.id] || 0)}`;
       document.querySelector('#dlgDesc').textContent = it.desc;
-      document.querySelector('#dlgToExchange').onclick = () => {
-        location.href = `exchange.html?want=${encodeURIComponent(it.id)}`;
-      };
+      document.querySelector('#dlgToExchange').onclick = () => { location.href = `exchange.html?want=${encodeURIComponent(it.id)}`; };
       dlg.showModal();
     }
 
     function renderCharacter() {
-      const color = (localStorage.getItem(CHARACTER_KEY) || '').replace(/[^a-z]/g, '') || 'pink';
+      const color = (localStorage.getItem(CHARACTER_KEY) || '').replace(/[^a-z]/g,'') || 'pink';
       const img = document.querySelector('#charImg');
       const candidates = [
         `public/stage1/${color}_open.png`,
@@ -332,30 +315,17 @@
         `public/items/character_${color}.png`,
         `public/items/character.png`
       ];
-      let i = 0;
-      const next = () => {
-        if (i < candidates.length) {
-          img.onerror = () => { i++; next(); };
-          img.src = candidates[i];
-          img.alt = `character ${color}`;
-        } else {
-          // 最終フォールバック（画像が無い環境でも枠が崩れないよう薄表示）
-          img.alt = 'character';
-          img.style.opacity = '.3';
-        }
-      };
-      next();
+      let i = 0; const next = () => {
+        if (i < candidates.length) { img.onerror = () => { i++; next(); }; img.src = candidates[i]; img.alt = `character ${color}`; }
+        else { img.alt = 'character'; img.style.opacity = '.3'; }
+      }; next();
     }
 
     // ===== Wire Up =====
     function init() {
-      const ver = loadVersion();
-      if (ver) document.querySelector('#ver').textContent = `（${ver}）`;
-
+      const ver = loadVersion(); if (ver) document.querySelector('#ver').textContent = `（${ver}）`;
       inventory = loadInventory();
-      const delta = parseAddParam();
-      if (delta) { inventory = mergeDelta(inventory, delta); saveInventory(inventory); }
-
+      const delta = parseAddParam(); if (delta) { inventory = mergeDelta(inventory, delta); saveInventory(inventory); }
       renderCharacter();
       renderGrid('all', 'rarity');
 
@@ -391,7 +361,7 @@
     function exportCSV() {
       const headers = ['id','name','rarity','count'];
       const rows = SHELLS.map(s => [s.id, s.name, RARITY_LABEL[s.rarity], inventory[s.id] || 0]);
-      const esc = v => String(v).replaceAll('"', '""'); // CSVの二重引用
+      const esc = v => String(v).replaceAll('"','""');
       const csv = [headers.join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
