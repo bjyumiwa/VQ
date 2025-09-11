@@ -3,218 +3,355 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>WHO VQ — 潮干狩り（砂なぞり・超シンプル）</title>
+  <title>WHO VQ — コレクション図鑑</title>
   <style>
-    /* ===== Reset & Base ===== */
-    *,*::before,*::after{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+    /* ===== Base ===== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: #0b0f14; color: #e8f0f7; font-family: system-ui, "Noto Sans JP", sans-serif; }
+    a { color: inherit; text-decoration: none; }
 
-    /* ===== Stage Layers ===== */
-    .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none}
-    #bg{position:absolute;inset:0;background-image:url('public/items/bg/beach_day.jpg');background-size:cover;background-position:center;z-index:0;transition:filter .8s ease}
-    #shellLayer{position:absolute;inset:0;z-index:1}
-    #sand{position:absolute;inset:0;z-index:2;touch-action:none}
+    /* ===== App Layout ===== */
+    .app { position: relative; min-height: 100vh; padding: 72px 16px 88px; }
 
-    /* 貝（貼り付け画像） */
-    .shell{position:absolute;width:72px;height:72px;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 10px rgba(0,0,0,.35));pointer-events:none}
+    /* Top Bar */
+    .topbar { position: fixed; inset: 0 0 auto 0; height: 56px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,0)); z-index: 10; }
+    .topbar .btn { padding: 8px 12px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.05); border-radius: 12px; backdrop-filter: blur(6px); cursor: pointer; }
+    .spacer { flex: 1; }
 
-    /* HUD */
-    #hud{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
-    #hud .chip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18)}
-    #hud .btn{padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);cursor:pointer}
-    #cta{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;display:none}
-    #cta button{padding:12px 18px;border:0;border-radius:14px;font-weight:700;background:linear-gradient(90deg,#7cf3c9,#8ee8ff);color:#06251a;box-shadow:0 10px 24px rgba(124,243,201,.25);cursor:pointer}
+    /* Header */
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .title { font-size: 20px; font-weight: 700; letter-spacing: .02em; }
+    .subtitle { opacity: .85; font-size: 12px; }
 
-    /* Character（マウスより少し離れて追従） */
-    #friend{position:absolute;z-index:4;width:16vh;min-width:84px;image-rendering:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.5));transform:translate(-50%,-50%);pointer-events:none}
-    #bubble{position:absolute;z-index:5;min-width:120px;max-width:52vw;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);transform:translate(-50%,-130%);opacity:0;transition:opacity .25s ease;pointer-events:none}
+    /* Character Preview */
+    .char-box { position: fixed; right: 12px; bottom: 100px; width: 140px; height: 140px; display: grid; place-items: center; background: radial-gradient(120px 60px at 50% 30%, rgba(255,255,255,.12), rgba(255,255,255,0)); border: 1px solid rgba(255,255,255,.08); border-radius: 16px; }
+    .char-box img { max-width: 80%; height: auto; image-rendering: auto; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
 
-    /* Animations */
-    @keyframes spinOnce{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
-    .spin{animation:spinOnce .45s cubic-bezier(.2,.8,.2,1)}
+    /* Filters */
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 16px; }
+    .chip { padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); cursor: pointer; font-size: 12px; }
+    .chip[aria-pressed="true"] { background: rgba(255,255,255,.2); }
+    select { padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #e8f0f7; }
 
-    /* End brightening */
-    .bright{filter:brightness(1.18) saturate(1.08)}
+    /* Progress */
+    .progress { display: flex; align-items: center; gap: 10px; margin: 8px 0 12px; }
+    .bar { flex: 1; height: 8px; background: rgba(255,255,255,.08); border-radius: 8px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #8ee8ff, #7cf3c9); }
+    .progress .label { font-size: 12px; opacity: .9; }
+
+    /* Grid */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+
+    .card { position: relative; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); border-radius: 14px; padding: 10px; display: grid; justify-items: center; gap: 8px; cursor: pointer; transition: transform .1s ease; }
+    .card:hover { transform: translateY(-2px); }
+    .card img { width: 72px; height: 72px; object-fit: contain; image-rendering: auto; filter: drop-shadow(0 4px 8px rgba(0,0,0,.35)); }
+    .card .nm { font-size: 12px; text-align: center; line-height: 1.25; }
+    .badge { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.18); }
+    .rarity { position: absolute; left: 6px; top: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); }
+
+    /* Rarity Colors */
+    .rN { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); }
+    .rM { background: linear-gradient(180deg, rgba(140,200,255,.25), rgba(255,255,255,.02)); }
+    .rH { background: linear-gradient(180deg, rgba(255,170,90,.25), rgba(255,255,255,.02)); }
+    .rU { background: linear-gradient(180deg, rgba(255,120,180,.28), rgba(255,255,255,.02)); }
+
+    /* Empty State */
+    .empty { text-align: center; padding: 40px 12px; opacity: .85; }
+
+    /* Bottom Bar */
+    .bottombar { position: fixed; inset: auto 0 0 0; height: 72px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; background: linear-gradient(0deg, rgba(0,0,0,.75), rgba(0,0,0,0)); z-index: 10; }
+    .cta { flex: 1; padding: 10px 14px; border: 0; border-radius: 12px; font-weight: 700; cursor: pointer; color: #06251a; background: linear-gradient(90deg, #7cf3c9, #8ee8ff); box-shadow: 0 8px 24px rgba(124,243,201,.25); }
+    .ghost { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #e8f0f7; cursor: pointer; }
+
+    /* Modal */
+    dialog { width: min(520px, 96vw); border: 1px solid rgba(255,255,255,.18); background: rgba(22,30,39,.95); color: inherit; border-radius: 16px; padding: 16px; }
+    dialog::backdrop { background: rgba(0,0,0,.6); }
+    .modal-hd { display: flex; align-items: center; gap: 12px; }
+    .modal-hd img { width: 72px; height: 72px; object-fit: contain; }
+    .modal-ttl { font-size: 18px; font-weight: 700; }
+    .modal-sub { font-size: 12px; opacity: .85; }
+    .modal-main { margin: 12px 0; line-height: 1.6; font-size: 14px; }
+    .modal-act { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* Background decoration */
+    .bg-glow { position: fixed; left: -20%; bottom: -20%; width: 70vmax; height: 70vmax; border-radius: 50%; filter: blur(60px); background: radial-gradient(circle at 50% 50%, rgba(124,243,201,.12), rgba(0,0,0,0)); pointer-events: none; }
   </style>
 </head>
 <body>
-  <div class="game" id="game">
-    <div id="bg" aria-hidden="true"></div>
-    <div id="shellLayer" aria-label="shells"></div>
-    <canvas id="sand"></canvas>
+  <div class="topbar">
+    <button class="btn" id="btnBack">← 潮干狩りへ</button>
+    <button class="btn" id="btnReset" title="全削除">リセット</button>
+    <div class="spacer"></div>
+    <button class="btn" id="btnExport">CSV出力</button>
+  </div>
 
-    <img id="friend" alt="character" />
-    <div id="bubble" role="status">やった！アサリを手に入れた</div>
-
-    <div id="hud">
-      <div class="chip">回収: <b id="count">0</b> 個</div>
-      <div style="flex:1"></div>
-      <button class="btn" id="btnReset">砂を戻す</button>
-      <button class="btn" id="btnBack">戻る</button>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">コレクション図鑑 <span id="ver" class="subtitle"></span></div>
+        <div class="subtitle">集めた貝を眺めて、説明やレア度をチェックできます</div>
+      </div>
     </div>
 
-    <div id="cta"><button id="toCollection">全部回収！ 図鑑へ →</button></div>
+    <div class="controls">
+      <span class="subtitle">レア度:</span>
+      <button class="chip" data-filter="all" aria-pressed="true">すべて</button>
+      <button class="chip" data-filter="N">ノーマル</button>
+      <button class="chip" data-filter="M">ミドル</button>
+      <button class="chip" data-filter="H">ハイ</button>
+      <button class="chip" data-filter="U">ウルトラ</button>
+      <div class="spacer"></div>
+      <label class="subtitle" for="sort">並び替え:</label>
+      <select id="sort">
+        <option value="rarity">レア度 → 名前</option>
+        <option value="count">所持数 多い順</option>
+        <option value="name">名前 A→Z</option>
+      </select>
+    </div>
+
+    <div class="progress">
+      <div class="bar" aria-label="complete rate"><i id="bar"></i></div>
+      <div class="label"><span id="found">0</span>/<span id="total">0</span> 種コンプ</div>
+    </div>
+
+    <div id="grid" class="grid" role="list"></div>
   </div>
+
+  <div class="char-box" aria-label="選択中キャラ">
+    <img id="charImg" alt="character" />
+  </div>
+
+  <div class="bottombar">
+    <button class="ghost" id="btnHow">説明</button>
+    <button class="cta" id="btnNext">交換所へ →</button>
+  </div>
+
+  <div class="bg-glow"></div>
+
+  <!-- Modal: item detail -->
+  <dialog id="dlg">
+    <div class="modal-hd">
+      <img id="dlgImg" alt="shell" />
+      <div>
+        <div class="modal-ttl" id="dlgName">—</div>
+        <div class="modal-sub" id="dlgMeta">—</div>
+      </div>
+    </div>
+    <div class="modal-main" id="dlgDesc">—</div>
+    <div class="modal-act">
+      <button class="ghost" id="dlgClose">閉じる</button>
+      <button class="cta" id="dlgToExchange">この貝で交換する</button>
+    </div>
+  </dialog>
+
+  <!-- Modal: how to -->
+  <dialog id="how">
+    <div class="modal-ttl">コレクション図鑑について</div>
+    <div class="modal-main">
+      <p>潮干狩りで集めた貝がここに並びます。カードをタップすると説明とレア度が見られます。</p>
+      <ul>
+        <li>ノーマル（N）… 基本通貨。10個でアクセサリー交換に使えます。</li>
+        <li>ミドル（M）… 会話チケット用（aurora / luminous / mystic / wave）。</li>
+        <li>ハイ（H）… 限定アクセ/演出解放（flame / night_sky）。</li>
+        <li>ウルトラ（U）… 特別演出とストーリー分岐キー（rainbow / pearl）。</li>
+      </ul>
+      <p>準備ができたら「交換所へ」ボタンで <code>exchange.html</code> に進みます。</p>
+    </div>
+    <div class="modal-act">
+      <button class="cta" id="howOk">OK</button>
+    </div>
+  </dialog>
 
   <script>
   ;(() => {
-    // ====== Config ======
+    // ===== Config =====
+    const VERSION_KEY = 'who_stage_asari_version';
+    const INVENTORY_KEYS = ['who_shells', 'who_shell_inventory', 'shells'];
     const CHARACTER_KEY = 'who_character';
-    const STORAGE_KEY = 'who_shells';
 
-    // 画像ベースの候補（環境差による相対/ルートのずれを吸収）
-    const IMG_BASES = ['public/items', '/public/items', './public/items'];
+    // 画像ベース候補（相対/ルートゆれ対応）
+    const IMG_BASES = ['public/items', './public/items', '/public/items'];
 
-    const SHELL_POOL = [
-      { id:'asari1', n:6 },
-      { id:'asari2', n:5 },
-      { id:'asari3', n:4 },
-      { id:'aurora_shell', n:2 },
-      { id:'luminous_shell', n:2 },
-      { id:'mystic_shell', n:2 },
-      { id:'wave_shell', n:2 },
-      { id:'flame_shell', n:1 },
-      { id:'night_sky_shell', n:1 },
-      { id:'rare_pearl', n:1 },
-      { id:'rare_rainbow', n:1 },
+    // マスタ（画像パスは id のみ。実際の src は動的フォールバックで設定）
+    const SHELLS = [
+      { id: 'asari1', name: 'アサリ（小）', rarity: 'N', desc: '小粒のアサリ。集めやすく、基本通貨として使えます。' },
+      { id: 'asari2', name: 'アサリ（中）', rarity: 'N', desc: '標準サイズのアサリ。10個集めるとアクセサリー交換に一歩前進。' },
+      { id: 'asari3', name: 'アサリ（大）', rarity: 'N', desc: '大きめのアサリ。見つかるとちょっと嬉しい。' },
+
+      { id: 'aurora_shell',   name: 'オーロラ貝', rarity: 'M', desc: '淡い光を放つ貝。会話チケットと交換可能。' },
+      { id: 'luminous_shell', name: 'ルミナス貝', rarity: 'M', desc: '夜でも輝く貝。会話チケットの材料。' },
+      { id: 'mystic_shell',   name: 'ミスティック貝', rarity: 'M', desc: '神秘の模様が浮かぶ貝。会話チケット向け。' },
+      { id: 'wave_shell',     name: '波の貝', rarity: 'M', desc: '波のうねりを閉じ込めたような貝。' },
+
+      { id: 'flame_shell',    name: '炎の貝', rarity: 'H', desc: '燃えるような模様。限定アクセや演出のキー。' },
+      { id: 'night_sky_shell',name: '夜空の貝', rarity: 'H', desc: '満天の星を閉じ込めたよう。限定演出の解放に。' },
+
+      { id: 'rare_rainbow',   name: 'レインボー貝', rarity: 'U', desc: '七色に輝く超レア貝。特別演出と分岐のキー。' },
+      { id: 'rare_pearl',     name: '真珠', rarity: 'U', desc: '海の宝石。超レア。新たな物語を開く。' },
     ];
 
-    const SHELL_SIZE = 72; // px（当たり判定半径の基準）
+    const RARITY_LABEL = { N: 'ノーマル', M: 'ミドル', H: 'ハイ', U: 'ウルトラ' };
+    const RARITY_ORDER = { U: 0, H: 1, M: 2, N: 3 };
 
-    // 消しゴム（ノイズ入りブラシで円の輪郭を消す）
-    const ERASER = { down: 30, move: 26, noise: 10 };
+    // ===== State =====
+    let inventory = Object.fromEntries(SHELLS.map(s => [s.id, 0]));
 
-    // キャラのマウスからのオフセット（マウスより“少し離れて”付いてくる）
-    const FRIEND_OFFSET = { x: -140, y: -110 };
+    // ===== Utils =====
+    const qs = (sel, el = document) => el.querySelector(sel);
+    const qsa = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-    // ====== State ======
-    const game = document.getElementById('game');
-    const bg = document.getElementById('bg');
-    const shellLayer = document.getElementById('shellLayer');
-    const sand = document.getElementById('sand');
-    const ctx = sand.getContext('2d', { willReadFrequently: true });
-    const friend = document.getElementById('friend');
-    const bubble = document.getElementById('bubble');
-    const countEl = document.getElementById('count');
-    const cta = document.getElementById('cta');
+    function loadVersion() { const v = localStorage.getItem(VERSION_KEY); return v ? String(v) : ''; }
 
-    let shells = []; // {id,x,y,el,collected}
-    let collected = 0;
-    let isDown = false;
-    let last = null;
-
-    const pointer = { x: window.innerWidth*0.5, y: window.innerHeight*0.65 };
-    const friendPos = { x: pointer.x + FRIEND_OFFSET.x, y: pointer.y + FRIEND_OFFSET.y };
-
-    // ====== Helpers ======
-    const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
-
-    function setImgSrc(img, id, idx=0){
-      if(idx >= IMG_BASES.length){ img.style.opacity='.25'; img.alt='no image'; return; }
-      img.onerror = () => setImgSrc(img, id, idx+1);
-      img.src = `${IMG_BASES[idx]}/${id}.png`;
-    }
-
-    function loadCharacter(){
-      const color = (localStorage.getItem(CHARACTER_KEY)||'pink').replace(/[^a-z]/g,'');
-      const try1 = `public/stage1/${color}_open.png`;
-      const try2 = `./public/stage1/${color}_open.png`;
-      friend.src = try1; friend.alt = `character ${color}`; friend.onerror = () => { friend.onerror=null; friend.src = try2; };
-    }
-
-    function saveInventory(deltaId){
-      let inv = { items: {}, schema: 'who_shells/v1', updatedAt: new Date().toISOString() };
-      try{ const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); if(raw && raw.items) inv = raw; }catch{}
-      inv.items[deltaId] = (inv.items[deltaId]||0)+1;
-      inv.updatedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(inv));
-    }
-
-    // ====== Sand (mask) ======
-    function resizeCanvas(){ sand.width = game.clientWidth; sand.height = game.clientHeight; drawSand(); }
-
-    function drawSand(){
-      // フラットな砂（陰影ナシ）
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.clearRect(0,0,sand.width,sand.height);
-      ctx.fillStyle = '#e4d1a2';
-      ctx.fillRect(0,0,sand.width,sand.height);
-    }
-
-    function eraseAt(x,y,r){
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      // ベース円
-      ctx.beginPath(); ctx.arc(x,y,r*0.9,0,Math.PI*2); ctx.fill();
-      // ノイズ（ランダムな小円で縁をギザつかせる）
-      const k = ERASER.noise;
-      for(let i=0;i<k;i++){
-        const ang = Math.random()*Math.PI*2;
-        const rr = r*(0.6 + Math.random()*0.5);
-        const d  = (Math.random()*r*0.25);
-        const ox = Math.cos(ang)*(rr+d)*0.15;
-        const oy = Math.sin(ang)*(rr+d)*0.15;
-        const sr = r*(0.18 + Math.random()*0.18);
-        ctx.beginPath(); ctx.arc(x+ox, y+oy, sr, 0, Math.PI*2); ctx.fill();
+    function loadInventory() {
+      let data = null;
+      for (const k of INVENTORY_KEYS) {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        try { data = JSON.parse(raw); break; } catch {}
       }
-      ctx.restore();
+      let obj = {};
+      if (data && typeof data === 'object') { obj = data.items && typeof data.items === 'object' ? data.items : data; }
+      const out = { ...inventory };
+      for (const s of SHELLS) { const n = Number(obj[s.id] || 0); out[s.id] = Number.isFinite(n) ? clamp(n, 0, 9999) : 0; }
+      return out;
     }
 
-    function lineErase(x0,y0,x1,y1,r){ const dx=x1-x0,dy=y1-y0,dist=Math.hypot(dx,dy); const steps=Math.max(1,Math.ceil(dist/(r*0.6))); for(let i=0;i<=steps;i++){ const t=i/steps; eraseAt(x0+dx*t,y0+dy*t,r); } }
+    function saveInventory(inv) { const payload = { items: inv, updatedAt: new Date().toISOString(), schema: 'who_shells/v1' }; localStorage.setItem('who_shells', JSON.stringify(payload)); }
 
-    function isRevealed(cx,cy){
-      const s=8; const x=clamp(Math.floor(cx-s),0,sand.width-1), y=clamp(Math.floor(cy-s),0,sand.height-1);
-      const img=ctx.getImageData(x,y,s*2,s*2).data; let covered=0,total=(s*2)*(s*2);
-      for(let i=3;i<img.length;i+=4){ if(img[i]>24) covered++; }
-      return (covered/total) < 0.25; // 75%削れたら露出
-    }
-
-    // ====== Shells ======
-    function placeShells(){
-      shellLayer.innerHTML=''; shells.length=0;
-      const W = game.clientWidth, H = game.clientHeight; const margin = 64; const minDist = 80;
-      const all = []; SHELL_POOL.forEach(p=>{ for(let i=0;i<p.n;i++) all.push(p.id); });
-      const pts=[];
-      for(const id of all){
-        let tries=0,x=0,y=0; do{ x=margin+Math.random()*(W-margin*2); y=H*0.42+Math.random()*(H*0.48); tries++; }while(tries<80 && pts.some(pt=>Math.hypot(pt.x-x,pt.y-y)<minDist));
-        pts.push({x,y});
-        const img=new Image(); img.className='shell'; setImgSrc(img,id); img.alt=id; img.style.left=x+'px'; img.style.top=y+'px';
-        shellLayer.appendChild(img);
-        shells.push({id,x,y,el:img,collected:false});
+    function parseAddParam() {
+      const u = new URL(location.href);
+      const add = u.searchParams.get('add');
+      if (!add) return null;
+      const list = add.split(',').map(x => x.trim()).filter(Boolean);
+      const delta = {};
+      for (const item of list) {
+        const [id, n] = item.split(':');
+        if (!id) continue;
+        const num = Number(n || 1);
+        if (SHELLS.some(s => s.id === id) && Number.isFinite(num)) { delta[id] = (delta[id] || 0) + Math.max(0, Math.min(9999, num)); }
       }
+      return Object.keys(delta).length ? delta : null;
     }
 
-    function attemptCollectAt(px,py){
-      for(const s of shells){ if(s.collected) continue; const d=Math.hypot(s.x-px,s.y-py); if(d<=SHELL_SIZE*0.5){ if(!isRevealed(s.x,s.y)){ showBubble('砂をもう少しなぞって！'); return; } s.collected=true; s.el.classList.add('spin'); setTimeout(()=>{ s.el.style.visibility='hidden'; },420); collected++; countEl.textContent=String(collected); saveInventory(s.id); showBubble('やった！手に入れた'); if(collected===shells.length) onAllCollected(); return; } }
+    function mergeDelta(inv, delta) { const out = { ...inv }; for (const [id, n] of Object.entries(delta)) { out[id] = Math.max(0, Math.min(9999, (out[id] || 0) + n)); } return out; }
+
+    function fmtCount(n) { return `${n} 個`; }
+
+    // 画像フォールバック設定
+    function setShellImg(el, id, idx = 0) {
+      if (idx >= IMG_BASES.length) { el.style.opacity = '.3'; el.alt = 'no image'; return; }
+      el.onerror = () => setShellImg(el, id, idx + 1);
+      el.src = `${IMG_BASES[idx]}/${id}.png`;
     }
 
-    function onAllCollected(){ bg.classList.add('bright'); cta.style.display='block'; }
+    // ===== Render =====
+    function renderGrid(filter = 'all', sort = 'rarity') {
+      const grid = qs('#grid');
+      grid.innerHTML = '';
+      const items = SHELLS.map(s => ({ ...s, count: inventory[s.id] || 0 })).filter(it => filter === 'all' ? true : it.rarity === filter);
 
-    function showBubble(text){ bubble.textContent=text; bubble.style.left = friend.style.left || '50%'; bubble.style.top = friend.style.top || '60%'; bubble.style.opacity='1'; clearTimeout(showBubble._t); showBubble._t=setTimeout(()=>{ bubble.style.opacity='0'; },1100); }
+      items.sort((a,b) => {
+        if (sort === 'count') return (b.count - a.count) || (RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity]) || a.name.localeCompare(b.name, 'ja');
+        if (sort === 'name') return a.name.localeCompare(b.name, 'ja');
+        const r = (RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity]); if (r !== 0) return r; return a.name.localeCompare(b.name, 'ja');
+      });
 
-    // ====== Pointer / Friend follow ======
-    function setPointer(x,y){ pointer.x=x; pointer.y=y; }
-    sand.addEventListener('pointerdown', e=>{ isDown=true; sand.setPointerCapture(e.pointerId); const r=sand.getBoundingClientRect(); setPointer(e.clientX-r.left,e.clientY-r.top); eraseAt(pointer.x,pointer.y,ERASER.down); last={...pointer}; });
-    sand.addEventListener('pointermove', e=>{ const r=sand.getBoundingClientRect(); setPointer(e.clientX-r.left,e.clientY-r.top); if(isDown&&last){ lineErase(last.x,last.y,pointer.x,pointer.y,ERASER.move); last={...pointer}; } });
-    sand.addEventListener('pointerup', e=>{ isDown=false; last=null; const r=sand.getBoundingClientRect(); attemptCollectAt(e.clientX-r.left,e.clientY-r.top); });
-    sand.addEventListener('pointercancel',()=>{ isDown=false; last=null; });
+      if (!items.length) { grid.innerHTML = `<div class="empty">該当する貝がありません</div>`; return; }
 
-    function animate(){
-      const tx = clamp(pointer.x + FRIEND_OFFSET.x, 40, game.clientWidth-40);
-      const ty = clamp(pointer.y + FRIEND_OFFSET.y, 40, game.clientHeight-40);
-      const k=0.1; friendPos.x += (tx - friendPos.x)*k; friendPos.y += (ty - friendPos.y)*k; const bob = Math.sin(performance.now()*0.004)*4;
-      friend.style.left = friendPos.x + 'px'; friend.style.top = (friendPos.y + bob) + 'px';
-      requestAnimationFrame(animate);
+      for (const it of items) {
+        const card = document.createElement('button');
+        card.className = `card r${it.rarity}`;
+        card.setAttribute('role', 'listitem');
+        card.innerHTML = `
+          <span class="rarity">${RARITY_LABEL[it.rarity] || it.rarity}</span>
+          <span class="badge">${fmtCount(it.count)}</span>
+          <img alt="${it.name}" />
+          <div class="nm">${it.name}</div>`;
+        const img = card.querySelector('img');
+        setShellImg(img, it.id, 0);
+        card.addEventListener('click', () => openDetail(it));
+        grid.appendChild(card);
+      }
+
+      const totalKinds = SHELLS.length;
+      const foundKinds = SHELLS.reduce((a,s) => a + ((inventory[s.id]||0)>0?1:0), 0);
+      qs('#total').textContent = String(totalKinds);
+      qs('#found').textContent = String(foundKinds);
+      qs('#bar').style.width = `${Math.round(foundKinds/totalKinds*100)}%`;
     }
 
-    // ====== Buttons ======
-    document.getElementById('btnBack').addEventListener('click',()=>{ history.back(); });
-    document.getElementById('btnReset').addEventListener('click',()=>{ drawSand(); });
-    document.getElementById('toCollection').addEventListener('click',()=>{ location.href='collection.html'; });
+    function openDetail(it) {
+      const dlg = document.querySelector('#dlg');
+      const img = document.querySelector('#dlgImg');
+      setShellImg(img, it.id, 0);
+      img.alt = it.name;
+      document.querySelector('#dlgName').textContent = it.name;
+      const stars = {N:'★', M:'★★', H:'★★★', U:'★★★★'}[it.rarity] || '';
+      document.querySelector('#dlgMeta').textContent = `${RARITY_LABEL[it.rarity]} ${stars}・所持 ${fmtCount(inventory[it.id] || 0)}`;
+      document.querySelector('#dlgDesc').textContent = it.desc;
+      document.querySelector('#dlgToExchange').onclick = () => { location.href = `exchange.html?want=${encodeURIComponent(it.id)}`; };
+      dlg.showModal();
+    }
 
-    // ====== Init ======
-    function init(){ loadCharacter(); resizeCanvas(); placeShells(); collected=0; countEl.textContent='0'; requestAnimationFrame(animate); }
-    window.addEventListener('resize', ()=>{ resizeCanvas(); placeShells(); });
+    function renderCharacter() {
+      const color = (localStorage.getItem(CHARACTER_KEY) || '').replace(/[^a-z]/g,'') || 'pink';
+      const img = document.querySelector('#charImg');
+      const candidates = [
+        `public/stage1/${color}_open.png`,
+        `public/assets/stage1/${color}_open.png`,
+        `./public/stage1/${color}_open.png`,
+        `public/items/character_${color}.png`,
+        `public/items/character.png`
+      ];
+      let i = 0; const next = () => { if (i < candidates.length) { img.onerror = () => { i++; next(); }; img.src = candidates[i]; img.alt = `character ${color}`; } else { img.alt = 'character'; img.style.opacity = '.3'; } }; next();
+    }
+
+    // ===== Wire Up =====
+    function init() {
+      const ver = localStorage.getItem('who_stage_asari_version'); if (ver) document.querySelector('#ver').textContent = `（${ver}）`;
+      inventory = loadInventory();
+      const delta = parseAddParam(); if (delta) { inventory = mergeDelta(inventory, delta); saveInventory(inventory); }
+      renderCharacter();
+      renderGrid('all', 'rarity');
+
+      document.querySelectorAll('.chip').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        btn.setAttribute('aria-pressed', 'true');
+        const filter = btn.dataset.filter || 'all'; const sort = document.querySelector('#sort').value; renderGrid(filter, sort);
+      }));
+
+      document.querySelector('#sort').addEventListener('change', (e) => {
+        const filter = Array.from(document.querySelectorAll('.chip')).find(b => b.getAttribute('aria-pressed') === 'true')?.dataset.filter || 'all';
+        renderGrid(filter, e.target.value);
+      });
+
+      document.querySelector('#btnBack').addEventListener('click', () => location.href = 'asari.html');
+      document.querySelector('#btnNext').addEventListener('click', () => location.href = 'exchange.html');
+      document.querySelector('#btnHow').addEventListener('click', () => document.querySelector('#how').showModal());
+      document.querySelector('#howOk').addEventListener('click', () => document.querySelector('#how').close());
+      document.querySelector('#dlgClose').addEventListener('click', () => document.querySelector('#dlg').close());
+
+      document.querySelector('#btnReset').addEventListener('click', () => {
+        if (!confirm('貝のコレクションを全削除します。よろしいですか？')) return;
+        inventory = Object.fromEntries(SHELLS.map(s => [s.id, 0]));
+        saveInventory(inventory);
+        renderGrid();
+      });
+
+      document.querySelector('#btnExport').addEventListener('click', () => exportCSV());
+    }
+
+    function exportCSV() {
+      const headers = ['id','name','rarity','count'];
+      const rows = SHELLS.map(s => [s.id, s.name, RARITY_LABEL[s.rarity], inventory[s.id] || 0]);
+      const csv = [headers.join(','), ...rows.map(r => r.map(v => String(v).replaceAll('"','\"')).join(','))].join('
+');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'shell_collection.csv'; a.click(); URL.revokeObjectURL(url);
+    }
+
     document.addEventListener('DOMContentLoaded', init);
   })();
   </script>
