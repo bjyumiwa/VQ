@@ -3,18 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>WHO VQ — 潮干狩り（砂なぞりシンプル）</title>
+  <title>WHO VQ — 潮干狩り（砂なぞり・超シンプル）</title>
   <style>
     /* ===== Reset & Base ===== */
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%;margin:0;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
 
-    /* ===== Layers ===== */
+    /* ===== Stage Layers ===== */
     .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none}
     #bg{position:absolute;inset:0;background-image:url('public/items/bg/beach_day.jpg');background-size:cover;background-position:center;z-index:0;transition:filter .8s ease}
     #shellLayer{position:absolute;inset:0;z-index:1;pointer-events:none}
-    #shellLayer img.shell{position:absolute;width:72px;height:72px;object-fit:contain;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45));}
     #sand{position:absolute;inset:0;z-index:2;touch-action:none}
+
+    /* 貝（貼り付け画像） */
+    .shell{position:absolute;width:72px;height:72px;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 10px rgba(0,0,0,.45));}
 
     /* HUD */
     #hud{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
@@ -23,12 +25,12 @@
     #cta{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;display:none}
     #cta button{padding:12px 18px;border:0;border-radius:14px;font-weight:700;background:linear-gradient(90deg,#7cf3c9,#8ee8ff);color:#06251a;box-shadow:0 10px 24px rgba(124,243,201,.25);cursor:pointer}
 
-    /* Character */
-    #friend{position:absolute;z-index:4;width:16vh;min-width:84px;image-rendering:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.5));transform:translate(-50%,-50%)}
-    #bubble{position:absolute;z-index:5;min-width:120px;max-width:52vw;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);transform:translate(-50%,-130%);opacity:0;transition:opacity .25s ease}
+    /* Character（マウスより少し離れて追従） */
+    #friend{position:absolute;z-index:4;width:16vh;min-width:84px;image-rendering:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.5));transform:translate(-50%,-50%);pointer-events:none}
+    #bubble{position:absolute;z-index:5;min-width:120px;max-width:52vw;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);transform:translate(-50%,-130%);opacity:0;transition:opacity .25s ease;pointer-events:none}
 
     /* Animations */
-    @keyframes spinOnce{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+    @keyframes spinOnce{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
     .spin{animation:spinOnce .45s cubic-bezier(.2,.8,.2,1)}
 
     /* End brightening */
@@ -58,26 +60,38 @@
   ;(() => {
     // ====== Config ======
     const CHARACTER_KEY = 'who_character';
-    const STORAGE_KEY = 'who_shells'; // { items: {asari1: n, ...}, updatedAt, schema }
-    const IMG_BASE_PRIMARY = 'public/items/shells';
-    const IMG_BASE_FALLBACK = 'public/shells';
+    const STORAGE_KEY = 'who_shells'; // { items: {id: n}, updatedAt, schema }
+    const IMG_BASE = 'public/items'; // ご指定の配置に統一
 
-    // 貝の定義（今回はシンプルにアサリ中心）
-    const SHELL_MASTER = {
-      asari1: { name: 'アサリ(小)' },
-      asari2: { name: 'アサリ(中)' },
-      asari3: { name: 'アサリ(大)' }
-    };
-
-    // 置く数（必要に応じて調整）
-    const SHELL_POOL = [
-      { id: 'asari1', n: 5 },
-      { id: 'asari2', n: 4 },
-      { id: 'asari3', n: 3 },
+    // 画像ID（ご指定の11種＋既存3種）
+    const SHELL_MASTER = [
+      'asari1','asari2','asari3',
+      'aurora_shell','flame_shell','luminous_shell','mystic_shell','night_sky_shell',
+      'rare_pearl','rare_rainbow','wave_shell'
     ];
 
+    // マップに置く数（お好みで調整可）
+    const SHELL_POOL = [
+      { id:'asari1', n:6 },
+      { id:'asari2', n:5 },
+      { id:'asari3', n:4 },
+      { id:'aurora_shell', n:2 },
+      { id:'luminous_shell', n:2 },
+      { id:'mystic_shell', n:2 },
+      { id:'wave_shell', n:2 },
+      { id:'flame_shell', n:1 },
+      { id:'night_sky_shell', n:1 },
+      { id:'rare_pearl', n:1 },
+      { id:'rare_rainbow', n:1 },
+    ];
+
+    const SHELL_SIZE = 72; // px
+
     // キャンバス消しゴムサイズ
-    const ERASER = { down: 30, move: 26 }; // px
+    const ERASER = { down: 32, move: 28 }; // px
+
+    // キャラのマウスからのオフセット（マウスより“少し離れて”付いてくる）
+    const FRIEND_OFFSET = { x: -140, y: -110 }; // ここを調整
 
     // ====== State ======
     const game = document.getElementById('game');
@@ -90,34 +104,27 @@
     const countEl = document.getElementById('count');
     const cta = document.getElementById('cta');
 
-    let shells = []; // {el, id, x, y, collected}
+    let shells = []; // {id,x,y,el,collected}
     let collected = 0;
     let isDown = false;
-    let last = null; // last pointer pos
+    let last = null;
+
+    const pointer = { x: window.innerWidth*0.5, y: window.innerHeight*0.65 };
+    const friendPos = { x: pointer.x + FRIEND_OFFSET.x, y: pointer.y + FRIEND_OFFSET.y };
 
     // ====== Helpers ======
     const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
 
-    function shellSrc(id){
-      const pri = `${IMG_BASE_PRIMARY}/${id}.png`;
-      const fb = `${IMG_BASE_FALLBACK}/${id}.png`;
-      return { pri, fb };
-    }
+    function shellSrc(id){ return `${IMG_BASE}/${id}.png`; }
 
     function loadCharacter(){
       const color = (localStorage.getItem(CHARACTER_KEY)||'pink').replace(/[^a-z]/g,'');
       const try1 = `public/stage1/${color}_open.png`;
       const try2 = `public/assets/stage1/${color}_open.png`;
-      friend.src = try1;
-      friend.alt = `character ${color}`;
-      friend.onerror = () => { friend.onerror=null; friend.src = try2; };
-      // 初期位置
-      friend.style.left = '50%';
-      friend.style.top  = '65%';
+      friend.src = try1; friend.alt = `character ${color}`; friend.onerror = () => { friend.onerror=null; friend.src = try2; };
     }
 
     function saveInventory(deltaId){
-      // 既存読み込み
       let inv = { items: {}, schema: 'who_shells/v1', updatedAt: new Date().toISOString() };
       try{ const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); if(raw && raw.items) inv = raw; }catch{}
       inv.items[deltaId] = (inv.items[deltaId]||0)+1;
@@ -127,148 +134,78 @@
 
     // ====== Sand (mask) ======
     function resizeCanvas(){
-      sand.width = game.clientWidth;
-      sand.height = game.clientHeight;
-      drawSand();
+      sand.width = game.clientWidth; sand.height = game.clientHeight; drawSand();
     }
-
     function drawSand(){
-      // 砂っぽい色（簡易）。必要なら画像テクスチャに差し替え可。
       const g1 = ctx.createLinearGradient(0,0,0,sand.height);
-      g1.addColorStop(0,'#e7d7a8');
-      g1.addColorStop(1,'#d9c49a');
+      g1.addColorStop(0,'#e7d7a8'); g1.addColorStop(1,'#d9c49a');
       ctx.globalCompositeOperation = 'source-over';
       ctx.clearRect(0,0,sand.width,sand.height);
-      ctx.fillStyle = g1;
-      ctx.fillRect(0,0,sand.width,sand.height);
-      // うっすら陰影
+      ctx.fillStyle = g1; ctx.fillRect(0,0,sand.width,sand.height);
       const g2 = ctx.createRadialGradient(sand.width*0.5,sand.height*0.85,20,sand.width*0.5,sand.height*0.7,Math.max(sand.width,sand.height));
-      g2.addColorStop(0,'rgba(0,0,0,0)');
-      g2.addColorStop(1,'rgba(0,0,0,.12)');
-      ctx.fillStyle = g2;
-      ctx.fillRect(0,0,sand.width,sand.height);
+      g2.addColorStop(0,'rgba(0,0,0,0)'); g2.addColorStop(1,'rgba(0,0,0,.12)');
+      ctx.fillStyle = g2; ctx.fillRect(0,0,sand.width,sand.height);
     }
+    function eraseAt(x,y,r){ ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+    function lineErase(x0,y0,x1,y1,r){ const dx=x1-x0,dy=y1-y0,dist=Math.hypot(dx,dy); const steps=Math.max(1,Math.ceil(dist/(r*0.6))); for(let i=0;i<=steps;i++){ const t=i/steps; eraseAt(x0+dx*t,y0+dy*t,r); } }
 
-    function eraseAt(x,y,r){
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath();
-      ctx.arc(x,y,r,0,Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    function lineErase(x0,y0,x1,y1,r){
-      const dx=x1-x0, dy=y1-y0;
-      const dist = Math.hypot(dx,dy);
-      const steps = Math.max(1, Math.ceil(dist/(r*0.6)));
-      for(let i=0;i<=steps;i++){
-        const t=i/steps; eraseAt(x0+dx*t,y0+dy*t,r);
-      }
-    }
-
-    function isRevealed(x,y){
-      // その座標周辺の砂のアルファを確認（軽量チェック）
-      const s=8; // サンプル半径
-      const img = ctx.getImageData(clamp(Math.floor(x-s),0,sand.width-1), clamp(Math.floor(y-s),0,sand.height-1), s*2, s*2).data;
-      let covered=0, total=(s*2)*(s*2);
+    function isRevealed(cx,cy){
+      const s=8; const x=clamp(Math.floor(cx-s),0,sand.width-1), y=clamp(Math.floor(cy-s),0,sand.height-1);
+      const img=ctx.getImageData(x,y,s*2,s*2).data; let covered=0,total=(s*2)*(s*2);
       for(let i=3;i<img.length;i+=4){ if(img[i]>24) covered++; }
-      const coveredRatio = covered/total; // 1 = 砂で覆われている
-      return coveredRatio < 0.25; // 75% 以上削れていたら露出とみなす
+      return (covered/total) < 0.25; // 75%削れたら露出
     }
 
     // ====== Shells ======
     function placeShells(){
-      shellLayer.innerHTML = '';
-      shells.length = 0;
-      const rect = game.getBoundingClientRect();
-      const W = rect.width, H = rect.height;
-      const margin = 64; // 端から離す
-
-      const all = [];
-      SHELL_POOL.forEach(p=>{ for(let i=0;i<p.n;i++) all.push(p.id); });
-
-      const points = [];
+      shellLayer.innerHTML=''; shells.length=0;
+      const W = game.clientWidth, H = game.clientHeight; const margin = 64; const minDist = 80;
+      const all = []; SHELL_POOL.forEach(p=>{ for(let i=0;i<p.n;i++) all.push(p.id); });
+      const pts=[];
       for(const id of all){
-        let tries=0, x=0,y=0; const minDist=80;
-        do {
-          x = margin + Math.random()*(W-margin*2);
-          y = H*0.42 + Math.random()*(H*0.48); // 砂浜帯
-          tries++;
-        } while(tries<80 && points.some(pt=>Math.hypot(pt.x-x,pt.y-y)<minDist));
-        points.push({x,y});
-
-        const img = new Image();
-        const {pri, fb} = shellSrc(id);
-        img.src = pri; img.onerror = ()=>{ img.onerror=null; img.src = fb; };
-        img.alt = SHELL_MASTER[id]?.name || id;
-        img.className = 'shell';
-        img.style.left = x+'px';
-        img.style.top  = y+'px';
-        img.addEventListener('click', () => tryCollect(img,id,x,y));
+        let tries=0,x=0,y=0; do{ x=margin+Math.random()*(W-margin*2); y=H*0.42+Math.random()*(H*0.48); tries++; }while(tries<80 && pts.some(pt=>Math.hypot(pt.x-x,pt.y-y)<minDist));
+        pts.push({x,y});
+        const img=new Image(); img.className='shell'; img.src=shellSrc(id); img.alt=id; img.style.left=x+'px'; img.style.top=y+'px';
+        img.onerror=()=>{ img.style.opacity='.25'; };
         shellLayer.appendChild(img);
-        shells.push({el:img,id,x,y,collected:false});
+        shells.push({id,x,y,el:img,collected:false});
       }
     }
 
-    function tryCollect(el,id,x,y){
-      if(el.dataset.collected==='1') return;
-      if(!isRevealed(x,y)){
-        // 少しヒント: ここを消してね
-        showBubble('砂をもう少しなぞって！');
-        return;
+    function attemptCollectAt(px,py){
+      // 近い貝を探す
+      for(const s of shells){
+        if(s.collected) continue;
+        const d = Math.hypot(s.x-px, s.y-py);
+        if(d <= SHELL_SIZE*0.5){ // 画像サイズの半径内
+          if(!isRevealed(s.x,s.y)){ showBubble('砂をもう少しなぞって！'); return; }
+          s.collected = true; s.el.classList.add('spin'); setTimeout(()=>{ s.el.style.visibility='hidden'; }, 420);
+          collected++; countEl.textContent = String(collected); saveInventory(s.id); showBubble('やった！手に入れた');
+          if(collected === shells.length) onAllCollected();
+          return;
+        }
       }
-      el.dataset.collected='1';
-      el.classList.add('spin');
-      setTimeout(()=>{ el.style.visibility='hidden'; }, 420);
-      collected++;
-      countEl.textContent = String(collected);
-      saveInventory(id);
-      showBubble('やった！アサリを手に入れた');
-      if(collected === shells.length) onAllCollected();
     }
 
-    function onAllCollected(){
-      bg.classList.add('bright');
-      cta.style.display = 'block';
-    }
+    function onAllCollected(){ bg.classList.add('bright'); cta.style.display='block'; }
 
-    function showBubble(text){
-      bubble.textContent = text;
-      bubble.style.left = friend.style.left || '50%';
-      bubble.style.top  = friend.style.top  || '60%';
-      bubble.style.opacity = '1';
-      clearTimeout(showBubble._t);
-      showBubble._t = setTimeout(()=>{ bubble.style.opacity = '0'; }, 1100);
-    }
+    function showBubble(text){ bubble.textContent=text; bubble.style.left = friend.style.left || '50%'; bubble.style.top = friend.style.top || '60%'; bubble.style.opacity='1'; clearTimeout(showBubble._t); showBubble._t=setTimeout(()=>{ bubble.style.opacity='0'; },1100); }
 
-    // ====== Pointer erase ======
-    function toXY(e){
-      const r = sand.getBoundingClientRect();
-      const x = (e.clientX ?? (e.touches&&e.touches[0]?.clientX)) - r.left;
-      const y = (e.clientY ?? (e.touches&&e.touches[0]?.clientY)) - r.top;
-      return {x,y};
-    }
-
-    sand.addEventListener('pointerdown', e=>{ isDown=true; sand.setPointerCapture(e.pointerId); const {x,y}=toXY(e); eraseAt(x,y,ERASER.down); last={x,y}; });
-    sand.addEventListener('pointermove', e=>{ const {x,y}=toXY(e); if(isDown && last){ lineErase(last.x,last.y,x,y,ERASER.move); last={x,y}; } target.x = x; target.y = y; });
-    sand.addEventListener('pointerup',   ()=>{ isDown=false; last=null; });
+    // ====== Pointer / Friend follow ======
+    function setPointer(x,y){ pointer.x=x; pointer.y=y; }
+    sand.addEventListener('pointerdown', e=>{ isDown=true; sand.setPointerCapture(e.pointerId); const r=sand.getBoundingClientRect(); setPointer(e.clientX-r.left,e.clientY-r.top); eraseAt(pointer.x,pointer.y,ERASER.down); last={...pointer}; });
+    sand.addEventListener('pointermove', e=>{ const r=sand.getBoundingClientRect(); setPointer(e.clientX-r.left,e.clientY-r.top); if(isDown&&last){ lineErase(last.x,last.y,pointer.x,pointer.y,ERASER.move); last={...pointer}; } });
+    sand.addEventListener('pointerup', e=>{ isDown=false; last=null; const r=sand.getBoundingClientRect(); attemptCollectAt(e.clientX-r.left,e.clientY-r.top); });
     sand.addEventListener('pointercancel',()=>{ isDown=false; last=null; });
 
-    // ====== Friend follows pointer ======
-    const target = {x: window.innerWidth*0.5, y: window.innerHeight*0.65};
-    const pos = {x: target.x, y: target.y};
-    let t = 0;
-
     function animate(){
-      t += 0.016;
-      // 追従
-      const k = 0.08; // 追従係数（小さいほどヌルヌル）
-      pos.x += (target.x - pos.x)*k;
-      pos.y += (target.y - pos.y)*k;
-      const bob = Math.sin(t*2.6)*4; // 揺れ
-      friend.style.left = pos.x + 'px';
-      friend.style.top  = (pos.y + bob) + 'px';
+      // マウスより少し離れたターゲット位置
+      const tx = clamp(pointer.x + FRIEND_OFFSET.x, 40, game.clientWidth-40);
+      const ty = clamp(pointer.y + FRIEND_OFFSET.y, 40, game.clientHeight-40);
+      // 追従（滑らか）
+      const k=0.1; friendPos.x += (tx - friendPos.x)*k; friendPos.y += (ty - friendPos.y)*k;
+      const bob = Math.sin(performance.now()*0.004)*4;
+      friend.style.left = friendPos.x + 'px'; friend.style.top = (friendPos.y + bob) + 'px';
       requestAnimationFrame(animate);
     }
 
@@ -278,14 +215,7 @@
     document.getElementById('toCollection').addEventListener('click',()=>{ location.href='collection.html'; });
 
     // ====== Init ======
-    function init(){
-      loadCharacter();
-      resizeCanvas();
-      placeShells();
-      collected = 0; countEl.textContent = '0';
-      requestAnimationFrame(animate);
-    }
-
+    function init(){ loadCharacter(); resizeCanvas(); placeShells(); collected=0; countEl.textContent='0'; requestAnimationFrame(animate); }
     window.addEventListener('resize', ()=>{ resizeCanvas(); placeShells(); });
     document.addEventListener('DOMContentLoaded', init);
   })();
