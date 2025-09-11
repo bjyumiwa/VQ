@@ -3,328 +3,526 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>WHO VQ — 潮干狩り（砂なぞり・シンプル）</title>
+  <title>WHO VQ — 交換所（装備対応）</title>
   <style>
-    /* ===== Reset & Base ===== */
+    /* ===== Base ===== */
     *,*::before,*::after{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+    html,body{height:100%;margin:0;background:#0b0f14;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+    a{color:inherit;text-decoration:none}
+    .app{min-height:100vh;padding:72px 16px 116px;position:relative}
 
-    /* ===== Stage Layers ===== */
-    .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none}
-    #bg{position:absolute;inset:0;background-image:url('public/items/bg/beach_day.jpg');background-size:cover;background-position:center;z-index:0;transition:filter .8s ease}
-    #shellLayer{position:absolute;inset:0;z-index:1}
-    #sand{position:absolute;inset:0;z-index:2;touch-action:none}
+    /* Topbar */
+    .topbar{position:fixed;inset:0 0 auto 0;height:56px;padding:8px 12px;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(0,0,0,.65),rgba(0,0,0,0));z-index:10}
+    .btn{padding:8px 12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);border-radius:12px;backdrop-filter:blur(6px);cursor:pointer;color:#fff}
+    .spacer{flex:1}
 
-    /* 貝（貼り付け画像） */
-    .shell{position:absolute;width:72px;height:72px;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 10px rgba(0,0,0,.35));pointer-events:none}
+    /* Header / controls */
+    .title{font-weight:800;font-size:20px;letter-spacing:.02em}
+    .subtitle{opacity:.95;font-size:12px}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 16px}
+    .chip{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);cursor:pointer;font-size:12px}
+    .chip[aria-pressed="true"]{background:rgba(255,255,255,.22)}
+    .search{display:flex;gap:6px;align-items:center;margin-left:auto}
+    .search input{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;min-width:160px}
 
-    /* HUD */
-    #hud{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
-    #hud .chip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18)}
-    #hud .btn{padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);cursor:pointer}
-    #cta{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;display:none}
-    #cta button{padding:12px 18px;border:0;border-radius:14px;font-weight:700;background:linear-gradient(90deg,#7cf3c9,#8ee8ff);color:#06251a;box-shadow:0 10px 24px rgba(124,243,201,.25);cursor:pointer}
+    /* Summary */
+    .summary{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0 14px}
+    .pill{display:inline-flex;gap:6px;align-items:center;padding:6px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
+    .pill img{width:18px;height:18px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
 
-    /* Character（やさしく“ふわふわ”） */
-    #friend{position:absolute;z-index:4;width:16vh;min-width:84px;image-rendering:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.5));transform:translate(-50%,-50%);pointer-events:none}
-    #bubble{position:absolute;z-index:5;min-width:120px;max-width:52vw;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);transform:translate(-50%,-130%);opacity:0;transition:opacity .25s ease;pointer-events:none}
+    /* Equipment panel */
+    .equip{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:10px 0 18px}
+    .slot{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:12px;padding:10px;display:grid;gap:6px}
+    .slot h4{margin:0;font-size:12px;opacity:.9}
+    .slot .cur{min-height:36px;font-size:13px}
+    .slot .row{display:flex;gap:6px;flex-wrap:wrap}
+    .tiny{font-size:11px;opacity:.85}
+    .mini{padding:6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
 
-    /* Animations */
-    @keyframes spinOnce{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
-    .spin{animation:spinOnce .45s cubic-bezier(.2,.8,.2,1)}
+    /* Grid */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+    .card{position:relative;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:14px;padding:12px;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
+    .iconWrap{display:grid;place-items:center;height:110px}
+    .icon{width:96px;height:96px;object-fit:contain;filter:drop-shadow(0 8px 16px rgba(0,0,0,.45))}
+    .nm{font-size:14px;font-weight:700}
+    .desc{font-size:12px;opacity:.95}
+    .cost{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+    .badge{display:inline-flex;gap:4px;align-items:center;padding:4px 6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);border-radius:999px;font-size:12px}
+    .badge img{width:16px;height:16px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+    .own{position:absolute;top:8px;right:8px;font-size:11px;padding:2px 6px;border-radius:999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18)}
+    .act{display:flex;gap:8px;flex-wrap:wrap}
+    .buy{flex:1;padding:10px 12px;border:0;border-radius:12px;font-weight:700;cursor:pointer;color:#06251a;background:linear-gradient(90deg,#7cf3c9,#8ee8ff);box-shadow:0 8px 16px rgba(124,243,201,.22)}
+    .buy[disabled]{cursor:not-allowed;filter:grayscale(.6) brightness(.8)}
+    .ghost{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
+    .equipBtn{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+    .tag{position:absolute;top:8px;left:8px;font-size:11px;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
 
-    /* End brightening */
-    .bright{filter:brightness(1.18) saturate(1.08)}
+    /* Category colors for generated icons */
+    .cat-acc{--c1:#9be7ff;--c2:#e6fbff}
+    .cat-tkt{--c1:#a3ffa8;--c2:#eaffea}
+    .cat-eff{--c1:#ffd19a;--c2:#fff3e2}
+    .cat-spc{--c1:#ffb2da;--c2:#ffe6f3}
+    .cat-gear{--c1:#c6b3ff;--c2:#f1ecff}
+
+    /* Bottom */
+    .bottombar{position:fixed;inset:auto 0 0 0;height:76px;padding:10px 12px;display:flex;align-items:center;gap:10px;background:linear-gradient(0deg,rgba(0,0,0,.75),rgba(0,0,0,0));z-index:10}
   </style>
 </head>
 <body>
-  <div class="game" id="game">
-    <div id="bg" aria-hidden="true"></div>
-    <div id="shellLayer" aria-label="shells"></div>
-    <canvas id="sand"></canvas>
+  <div class="topbar">
+    <button class="btn" id="btnBack">← 図鑑へ</button>
+    <div class="spacer"></div>
+    <button class="btn" id="btnResetOwn">購入履歴リセット</button>
+    <button class="btn" id="btnResetEquip">装備リセット</button>
+  </div>
 
-    <img id="friend" alt="character" />
-    <div id="bubble" role="status">やった！アサリを手に入れた</div>
+  <div class="app">
+    <div class="title">交換所</div>
+    <div class="subtitle">商品を交換し、装備品はさらに<strong>装着/脱着</strong>に貝を使います</div>
 
-    <div id="hud">
-      <div class="chip">回収: <b id="count">0</b> 個</div>
-      <div style="flex:1"></div>
-      <button class="btn" id="btnReset">砂を戻す</button>
-      <button class="btn" id="btnBack">戻る</button>
+    <div class="controls">
+      <button class="chip" data-cat="all" aria-pressed="true">すべて</button>
+      <button class="chip" data-cat="acc">アクセサリー</button>
+      <button class="chip" data-cat="gear">装備（靴/服/帽子など）</button>
+      <button class="chip" data-cat="tkt">チケット</button>
+      <button class="chip" data-cat="eff">演出</button>
+      <button class="chip" data-cat="spc">スペシャル</button>
+      <div class="search">
+        <input id="q" type="search" placeholder="商品名で検索…" />
+      </div>
     </div>
 
-    <div id="cta"><button id="toCollection">全部回収！ 図鑑へ →</button></div>
+    <!-- 所持サマリ -->
+    <div id="summary" class="summary"></div>
+
+    <!-- 装備スロット -->
+    <div class="equip" id="equipPanel" aria-label="装備パネル"></div>
+
+    <div id="grid" class="grid"></div>
   </div>
+
+  <div class="bottombar">
+    <button class="btn" id="btnHow">使い方</button>
+    <button class="btn" id="btnToStory">ストーリーへ →</button>
+  </div>
+
+  <!-- HowTo -->
+  <dialog id="how">
+    <div class="modal-ttl">交換所の使い方</div>
+    <div class="modal-main">
+      <ul>
+        <li>ノーマル（アサリ1〜3）は <b>合算</b>で使えます（表示：<i>合算</i>）。</li>
+        <li>装備品は、<b>交換（購入）</b>したうえで<b>装着</b>すると反映されます。</li>
+        <li>装着/脱着それぞれに追加コストがかかります（カードに表示）。</li>
+        <li>同一スロットに別装備を装着すると、先の装備を<b>自動で脱着</b>（コスト消費）してから装着します。</li>
+      </ul>
+    </div>
+    <div class="modal-act">
+      <button class="btn" onclick="document.getElementById('how').close()">OK</button>
+    </div>
+  </dialog>
 
   <script>
   ;(() => {
-    // ====== Config ======
-    const STORAGE_KEY = 'who_shells';
-    const CHARACTER_KEYS = ['who_character','character','selected_character','playerColor','avatar','hero'];
+    /* ===== Config / Storage Keys ===== */
+    const STORAGE_INV   = 'who_shells';          // asari.html と共通
+    const STORAGE_OWN   = 'who_exchange_owned';  // 交換済み個数
+    const STORAGE_EQUIP = 'who_equipment';       // 装備スロット状態
+    const IMG_BASES     = ['public/items','./public/items','/public/items'];
 
-    // 画像ベース（相対/ルートゆれ対策）
-    const IMG_BASES = ['public/items','./public/items','/public/items'];
-
-    const SHELL_POOL = [
-      { id:'asari1', n:6 },
-      { id:'asari2', n:5 },
-      { id:'asari3', n:4 },
-      { id:'aurora_shell', n:2 },
-      { id:'luminous_shell', n:2 },
-      { id:'mystic_shell', n:2 },
-      { id:'wave_shell', n:2 },
-      { id:'flame_shell', n:1 },
-      { id:'night_sky_shell', n:1 },
-      { id:'rare_pearl', n:1 },
-      { id:'rare_rainbow', n:1 },
-    ];
-
-    const SHELL_SIZE = 72; // px
-
-    // 消しゴム（ノイズ入りブラシで輪郭の丸さを抑える）
-    const ERASER = { down: 30, move: 26, noise: 10 };
-
-    // ふわふわ挙動のパラメータ（落ち着いた動き）
-    const FLOAT = {
-      intervalMin: 5000,   // 目標更新 5s〜
-      intervalMax: 9000,   // 〜9s
-      springK: 0.025,      // 小さいほどゆっくり追従
-      bobAmp: 2,           // 上下ゆれ振幅（px）
-      bobFreq: 0.0016      // 上下ゆれ速さ
+    // シェルID → 表示名
+    const SHELL_NAME = {
+      asari1:'アサリ（小）', asari2:'アサリ（中）', asari3:'アサリ（大）',
+      aurora_shell:'オーロラ貝', luminous_shell:'ルミナス貝', mystic_shell:'ミスティック貝', wave_shell:'波の貝',
+      flame_shell:'炎の貝', night_sky_shell:'夜空の貝',
+      rare_rainbow:'レインボー貝', rare_pearl:'真珠'
     };
 
-    // ====== State ======
-    const game = document.getElementById('game');
-    const bg = document.getElementById('bg');
-    const shellLayer = document.getElementById('shellLayer');
-    const sand = document.getElementById('sand');
-    const ctx = sand.getContext('2d', { willReadFrequently: true });
-    const friend = document.getElementById('friend');
-    const bubble = document.getElementById('bubble');
-    const countEl = document.getElementById('count');
-    const cta = document.getElementById('cta');
+    // 装備スロット
+    const SLOTS = {
+      head:  '頭',
+      body:  '服',
+      back:  '背中',
+      hands: '手',
+      shoes: '靴',
+      style: 'スタイル'
+    };
 
-    let shells = []; // {id,x,y,el,collected}
-    let collected = 0;
-    let isDown = false;
-    let last = null;
+    /* ===== 商品カタログ =====
+       - type: 'item'（通常） or 'gear'（装備）
+       - cat:  表示カテゴリ（acc/gear/tkt/eff/spc）
+       - cost: 購入コスト
+       - equipCost / unequipCost: gearのみ装着/脱着コスト
+       - slot: 装備スロット（gearのみ）
+    */
+    const CATALOG = [
+      /* --- 既存（例）アクセ系（合算） --- */
+      { id:'acc_pin',   name:'貝殻ヘアピン',      type:'item', cat:'acc', desc:'浜辺テイストのワンポイント。', cost:[{id:'asari_any',qty:10}] },
+      { id:'acc_ear1',  name:'波きらりイヤリング',type:'item', cat:'acc', desc:'さざ波のきらめきモチーフ。',   cost:[{id:'asari_any',qty:12}] },
 
-    // キャラの“ふわふわ”用
-    const friendPos = { x: window.innerWidth*0.5, y: window.innerHeight*0.62 };
-    const friendTarget = { x: friendPos.x, y: friendPos.y };
-    let friendTimer = 0;
+      /* --- チケット --- */
+      { id:'tkt_aurora', name:'会話チケットA', type:'item', cat:'tkt', desc:'心がほどける話題へ。', cost:[{id:'aurora_shell',qty:1}] },
 
-    // ====== Helpers ======
+      /* --- 演出 --- */
+      { id:'fx_flameTrail', name:'炎の足跡トレイル', type:'item', cat:'eff', desc:'移動に炎のエフェクト。', cost:[{id:'flame_shell',qty:1},{id:'asari_any',qty:10}] },
+
+      /* --- スペシャル --- */
+      { id:'spc_rainbow', name:'レインボー演出解放', type:'item', cat:'spc', desc:'七色の特別演出。', cost:[{id:'rare_rainbow',qty:1}] },
+
+      /* ===================================================== */
+      /* ===================  装備（新規）  =================== */
+      /* 単品：靴・服など */
+      { id:'gear_shoes_beach', name:'砂浜スニーカー', type:'gear', cat:'gear', slot:'shoes',
+        desc:'濡れてもへっちゃらな軽量靴。', cost:[{id:'asari_any',qty:15}],
+        equipCost:[{id:'asari_any',qty:3}], unequipCost:[{id:'asari_any',qty:1}] },
+
+      { id:'gear_boots_explorer', name:'探検ブーツ', type:'gear', cat:'gear', slot:'shoes',
+        desc:'滑りにくいソールで安心。', cost:[{id:'asari_any',qty:22}],
+        equipCost:[{id:'asari_any',qty:4}], unequipCost:[{id:'asari_any',qty:2}] },
+
+      { id:'gear_hat_explorer', name:'探検帽（茶）', type:'gear', cat:'gear', slot:'head',
+        desc:'森の冒険に！', cost:[{id:'flame_shell',qty:1},{id:'asari_any',qty:8}],
+        equipCost:[{id:'asari_any',qty:3}], unequipCost:[{id:'asari_any',qty:1}] },
+
+      { id:'gear_vest_orange', name:'オレンジのベスト', type:'gear', cat:'gear', slot:'body',
+        desc:'実用的で動きやすい。', cost:[{id:'asari_any',qty:14}],
+        equipCost:[{id:'asari_any',qty:2}], unequipCost:[{id:'asari_any',qty:1}] },
+
+      { id:'gear_backpack_red', name:'赤いバックパック', type:'gear', cat:'gear', slot:'back',
+        desc:'必要な道具をしっかり収納。', cost:[{id:'asari_any',qty:12}],
+        equipCost:[{id:'asari_any',qty:2}], unequipCost:[{id:'asari_any',qty:1}] },
+
+      { id:'gear_hat_wizard', name:'魔法帽（紫）', type:'gear', cat:'gear', slot:'head',
+        desc:'先端がくるんと曲がった帽子。', cost:[{id:'luminous_shell',qty:1},{id:'asari_any',qty:8}],
+        equipCost:[{id:'asari_any',qty:3}], unequipCost:[{id:'asari_any',qty:1}] },
+
+      { id:'gear_robe_star', name:'星のローブ', type:'gear', cat:'gear', slot:'body',
+        desc:'星が散りばめられた神秘のローブ。', cost:[{id:'mystic_shell',qty:1},{id:'asari_any',qty:12}],
+        equipCost:[{id:'asari_any',qty:4}], unequipCost:[{id:'asari_any',qty:2}] },
+
+      { id:'gear_wand_magic', name:'魔法の杖', type:'gear', cat:'gear', slot:'hands',
+        desc:'杖先がほのかに光る。', cost:[{id:'luminous_shell',qty:1},{id:'mystic_shell',qty:1}],
+        equipCost:[{id:'asari_any',qty:5}], unequipCost:[{id:'asari_any',qty:2}] },
+
+      /* スタイル一式（セットの雰囲気を付与する“スタイル”スロット） */
+      { id:'style_adventurer', name:'冒険家スタイル', type:'gear', cat:'gear', slot:'style',
+        desc:'茶の探検帽 + オレンジのベスト + 赤バックパックの実用装い。', 
+        cost:[{id:'asari_any',qty:20},{id:'flame_shell',qty:1}],
+        equipCost:[{id:'asari_any',qty:5}], unequipCost:[{id:'asari_any',qty:3}] },
+
+      { id:'style_wizard', name:'魔法使いスタイル', type:'gear', cat:'gear', slot:'style',
+        desc:'紫の魔法帽と星ローブ、魔法の杖の神秘スタイル。', 
+        cost:[{id:'asari_any',qty:20},{id:'night_sky_shell',qty:1},{id:'mystic_shell',qty:1}],
+        equipCost:[{id:'asari_any',qty:6}], unequipCost:[{id:'asari_any',qty:3}] },
+      /* ===================================================== */
+    ];
+
+    const CATS = {acc:'アクセ', gear:'装備', tkt:'チケット', eff:'演出', spc:'スペシャル'};
+
+    /* ===== State ===== */
+    let inv = {};                        // 所持貝 {id:count}
+    let owned = {};                      // 交換済 {productId:count}
+    let equip = {};                      // 装備 {slot: productId|null}
+    let filterCat = 'all', qText = '';
+
+    /* ===== Utils ===== */
+    const qs = (s,el=document)=>el.querySelector(s);
+    const qsa = (s,el=document)=>Array.from(el.querySelectorAll(s));
     const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
 
-    function setImgSrc(img, id, idx=0){
-      if(idx >= IMG_BASES.length){ img.style.opacity='.25'; img.alt='no image'; return; }
-      img.onerror = () => setImgSrc(img, id, idx+1);
+    function setShellImg(img, id, idx=0){
+      if(idx>=IMG_BASES.length){ img.style.opacity='.35'; img.alt='no image'; return; }
+      img.onerror = ()=> setShellImg(img,id,idx+1);
       img.src = `${IMG_BASES[idx]}/${id}.png`;
+      img.alt = SHELL_NAME[id] || id;
     }
 
-    function getCharacterColor(){
-      for(const k of CHARACTER_KEYS){
-        const v = localStorage.getItem(k);
-        if(v){ const m = String(v).toLowerCase().match(/[a-z]+/); if(m) return m[0]; }
-      }
-      return 'pink';
+    function genEmojiSVG(emoji, cls){
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+          <defs><radialGradient id="g" cx="50%" cy="35%" r="70%">
+            <stop offset="0%" stop-color="var(--c2)"/><stop offset="100%" stop-color="var(--c1)"/></radialGradient></defs>
+          <circle cx="90" cy="90" r="78" fill="url(#g)"/>
+          <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="84">${emoji}</text>
+        </svg>`;
+      const img = new Image(); img.className='icon '+cls; img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+      return img;
     }
 
-    // フォールバックSVG（画像が無い環境でも必ず出る）
-    function charSVG(color){
-      const P = {
-        pink:{a:'#ff9ac2',b:'#ffe0eb'},
-        blue:{a:'#8ec8ff',b:'#e3f2ff'},
-        green:{a:'#7cf3c9',b:'#e3fff6'},
-        yellow:{a:'#ffe58e',b:'#fff6cc'},
-        purple:{a:'#c6a7ff',b:'#f0e9ff'},
-        orange:{a:'#ffb47a',b:'#ffe4cc'}
-      }[color] || {a:'#ff9ac2',b:'#ffe0eb'};
-      const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><defs><radialGradient id='g' cx='50%' cy='35%' r='60%'><stop offset='0%' stop-color='#fff'/><stop offset='100%' stop-color='${P.a}'/></radialGradient></defs><circle cx='100' cy='108' r='70' fill='url(#g)'/><circle cx='76' cy='96' r='8' fill='#fff'/><circle cx='124' cy='96' r='8' fill='#fff'/><path d='M70 128 q30 22 60 0' fill='none' stroke='#fff' stroke-width='8' stroke-linecap='round'/></svg>`;
-      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    function loadInventory(){
+      inv = {};
+      try{
+        const raw = localStorage.getItem(STORAGE_INV); 
+        const data = raw? JSON.parse(raw): null;
+        const items = data && data.items ? data.items : (data||{});
+        ['asari1','asari2','asari3','aurora_shell','luminous_shell','mystic_shell','wave_shell',
+         'flame_shell','night_sky_shell','rare_rainbow','rare_pearl'].forEach(k=>{
+          const n = Number(items[k]||0);
+          inv[k] = Number.isFinite(n)? clamp(n,0,9999): 0;
+        });
+      }catch{}
+    }
+    function saveInventory(){ 
+      const payload = { items: inv, updatedAt: new Date().toISOString(), schema: 'who_shells/v1' };
+      localStorage.setItem(STORAGE_INV, JSON.stringify(payload));
+    }
+    function loadOwned(){ try{ owned = JSON.parse(localStorage.getItem(STORAGE_OWN)||'{}'); }catch{ owned = {}; } }
+    function saveOwned(){ localStorage.setItem(STORAGE_OWN, JSON.stringify(owned)); }
+    function loadEquip(){ 
+      try{ equip = JSON.parse(localStorage.getItem(STORAGE_EQUIP)||'{}'); }catch{ equip={}; }
+      for(const k of Object.keys(SLOTS)){ if(!(k in equip)) equip[k]=null; }
+    }
+    function saveEquip(){ localStorage.setItem(STORAGE_EQUIP, JSON.stringify(equip)); }
+
+    function asariTotal(){ return (inv.asari1||0)+(inv.asari2||0)+(inv.asari3||0); }
+
+    function mergeCosts(a=[], b=[]){
+      const m = {};
+      [...a,...b].forEach(c => { m[c.id]=(m[c.id]||0)+(c.qty||0); });
+      return Object.entries(m).map(([id,qty])=>({id,qty}));
     }
 
-    function loadCharacter(){
-      const color = getCharacterColor();
-      const candidates = [
-        `public/stage1/${color}_open.png`,
-        `public/assets/stage1/${color}_open.png`,
-        `./public/stage1/${color}_open.png`,
-        `public/items/character_${color}.png`,
-        `public/items/character.png`
-      ];
-      let i = 0;
-      const next = () => {
-        if(i < candidates.length){
-          friend.onerror = () => { i++; next(); };
-          friend.src = candidates[i];
-          friend.alt = `character ${color}`;
+    function canAfford(cost){
+      const pool = { ...inv, asari_any: asariTotal() };
+      return cost.every(c => (pool[c.id]||0) >= c.qty);
+    }
+
+    function spend(cost){
+      for(const c of cost){
+        if(c.id==='asari_any'){
+          let remain = c.qty;
+          const order = ['asari3','asari2','asari1']; // 大きいのから使う
+          for(const k of order){
+            const use = Math.min(inv[k]||0, remain);
+            inv[k] = (inv[k]||0) - use;
+            remain -= use;
+          }
         }else{
-          friend.onerror = null;
-          friend.src = charSVG(color);
-          friend.alt = `character (${color})`;
-        }
-      };
-      next();
-    }
-
-    function saveInventory(deltaId){
-      let inv = { items: {}, schema: 'who_shells/v1', updatedAt: new Date().toISOString() };
-      try{ const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); if(raw && raw.items) inv = raw; }catch{}
-      inv.items[deltaId] = (inv.items[deltaId]||0)+1;
-      inv.updatedAt = new Date().toISOString();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(inv));
-    }
-
-    // ====== Sand (mask) ======
-    function resizeCanvas(){ sand.width = game.clientWidth; sand.height = game.clientHeight; drawSand(); }
-
-    function drawSand(){
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.clearRect(0,0,sand.width,sand.height);
-      ctx.fillStyle = '#e4d1a2';
-      ctx.fillRect(0,0,sand.width,sand.height);
-    }
-
-    function eraseAt(x,y,r){
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      // ベース円
-      ctx.beginPath(); ctx.arc(x,y,r*0.9,0,Math.PI*2); ctx.fill();
-      // ノイズで縁をギザつかせる
-      const k = ERASER.noise;
-      for(let i=0;i<k;i++){
-        const ang = Math.random()*Math.PI*2;
-        const rr = r*(0.6 + Math.random()*0.5);
-        const d  = (Math.random()*r*0.25);
-        const ox = Math.cos(ang)*(rr+d)*0.15;
-        const oy = Math.sin(ang)*(rr+d)*0.15;
-        const sr = r*(0.18 + Math.random()*0.18);
-        ctx.beginPath(); ctx.arc(x+ox, y+oy, sr, 0, Math.PI*2); ctx.fill();
-      }
-      ctx.restore();
-    }
-
-    function lineErase(x0,y0,x1,y1,r){
-      const dx=x1-x0,dy=y1-y0,dist=Math.hypot(dx,dy);
-      const steps=Math.max(1,Math.ceil(dist/(r*0.6)));
-      for(let i=0;i<=steps;i++){
-        const t=i/steps; eraseAt(x0+dx*t,y0+dy*t,r);
-      }
-    }
-
-    function isRevealed(cx,cy){
-      const s=8; const x=clamp(Math.floor(cx-s),0,sand.width-1), y=clamp(Math.floor(cy-s),0,sand.height-1);
-      const img=ctx.getImageData(x,y,s*2,s*2).data; let covered=0,total=(s*2)*(s*2);
-      for(let i=3;i<img.length;i+=4){ if(img[i]>24) covered++; }
-      return (covered/total) < 0.25; // 75%削れたら露出
-    }
-
-    // ====== Shells ======
-    function placeShells(){
-      shellLayer.innerHTML=''; shells.length=0;
-      const W = game.clientWidth, H = game.clientHeight;
-      const margin = 64; const minDist = 80;
-      const all = []; SHELL_POOL.forEach(p=>{ for(let i=0;i<p.n;i++) all.push(p.id); });
-      const pts=[];
-      for(const id of all){
-        let tries=0,x=0,y=0;
-        do{
-          x=margin+Math.random()*(W-margin*2);
-          y=H*0.42+Math.random()*(H*0.48);
-          tries++;
-        }while(tries<80 && pts.some(pt=>Math.hypot(pt.x-x,pt.y-y)<minDist));
-        pts.push({x,y});
-        const img=new Image(); img.className='shell'; setImgSrc(img,id); img.alt=id; img.style.left=x+'px'; img.style.top=y+'px';
-        shellLayer.appendChild(img);
-        shells.push({id,x,y,el:img,collected:false});
-      }
-    }
-
-    function attemptCollectAt(px,py){
-      for(const s of shells){
-        if(s.collected) continue;
-        const d=Math.hypot(s.x-px,s.y-py);
-        if(d<=SHELL_SIZE*0.5){
-          if(!isRevealed(s.x,s.y)){ showBubble('砂をもう少しなぞって！'); return; }
-          s.collected=true; s.el.classList.add('spin');
-          setTimeout(()=>{ s.el.style.visibility='hidden'; },420);
-          collected++; countEl.textContent=String(collected);
-          saveInventory(s.id);
-          showBubble('やった！手に入れた');
-          if(collected===shells.length) onAllCollected();
-          return;
+          inv[c.id] = (inv[c.id]||0) - c.qty;
         }
       }
+      saveInventory();
     }
 
-    function onAllCollected(){ bg.classList.add('bright'); cta.style.display='block'; }
+    /* ===== Render: summary ===== */
+    function renderSummary(){
+      const wrap = qs('#summary'); wrap.innerHTML='';
+      const keys = [
+        'asari1','asari2','asari3','aurora_shell','luminous_shell','mystic_shell','wave_shell',
+        'flame_shell','night_sky_shell','rare_rainbow','rare_pearl'
+      ];
+      // 合算
+      const sum = document.createElement('span'); sum.className='pill';
+      sum.innerHTML = `<b>${asariTotal()}</b><span>アサリ合計</span>`;
+      wrap.appendChild(sum);
 
-    function showBubble(text){
-      bubble.textContent=text;
-      bubble.style.left = friend.style.left || '50%';
-      bubble.style.top  = friend.style.top  || '60%';
-      bubble.style.opacity='1';
-      clearTimeout(showBubble._t);
-      showBubble._t=setTimeout(()=>{ bubble.style.opacity='0'; },1100);
+      for(const id of keys){
+        const pill = document.createElement('span'); pill.className='pill';
+        const img = new Image(); setShellImg(img,id,0);
+        const n = document.createElement('b'); n.textContent = String(inv[id]||0);
+        const nm= document.createElement('span'); nm.textContent = SHELL_NAME[id]||id;
+        pill.append(img,n,nm); wrap.appendChild(pill);
+      }
     }
 
-    // ====== Character idle float (穏やか) ======
-    function pickNewTarget(soft=false){
-      const W = game.clientWidth, H = game.clientHeight;
-      // 砂浜帯の中で控えめな範囲
-      const xMin = W*0.30, xMax = W*0.70;
-      const yMin = H*0.52, yMax = H*0.80;
-      let nx = xMin + Math.random()*(xMax-xMin);
-      let ny = yMin + Math.random()*(yMax-yMin);
-      // 急なジャンプを抑えるため、現在地に35%寄せる
-      if(soft){ nx = friendPos.x + (nx - friendPos.x)*0.35; ny = friendPos.y + (ny - friendPos.y)*0.35; }
-      friendTarget.x = nx; friendTarget.y = ny;
-      friendTimer = FLOAT.intervalMin + Math.random()*(FLOAT.intervalMax - FLOAT.intervalMin);
+    /* ===== Render: equip panel ===== */
+    function costBadge(c){
+      const el = document.createElement('span'); el.className='badge';
+      const img = new Image();
+      if(c.id==='asari_any'){ setShellImg(img,'asari1',0); el.append(img, document.createTextNode(`×${c.qty}（合算）`)); }
+      else { setShellImg(img,c.id,0); el.append(img, document.createTextNode('×'+c.qty)); }
+      return el;
     }
 
-    function animate(ts){
-      // 目標へゆっくり寄せる
-      friendPos.x += (friendTarget.x - friendPos.x) * FLOAT.springK;
-      friendPos.y += (friendTarget.y - friendPos.y) * FLOAT.springK;
+    function renderEquipPanel(){
+      const wrap = qs('#equipPanel'); wrap.innerHTML='';
+      for(const [slot, label] of Object.entries(SLOTS)){
+        const box = document.createElement('div'); box.className='slot';
+        const h = document.createElement('h4'); h.textContent = `${label}（${slot}）`; box.appendChild(h);
 
-      // 小さな上下ゆれ
-      const bob = Math.sin(ts * FLOAT.bobFreq) * FLOAT.bobAmp;
-
-      friend.style.left = friendPos.x + 'px';
-      friend.style.top  = (friendPos.y + bob) + 'px';
-
-      // しばらくしたら次の近場へ
-      friendTimer -= 16;
-      const dist = Math.hypot(friendTarget.x-friendPos.x, friendTarget.y-friendPos.y);
-      if(friendTimer <= 0 || dist < 4) pickNewTarget(true);
-
-      requestAnimationFrame(animate);
+        const cur = equip[slot];
+        const curDiv = document.createElement('div'); curDiv.className='cur';
+        if(cur){
+          const p = CATALOG.find(x=>x.id===cur);
+          curDiv.textContent = p ? p.name : cur;
+          const row = document.createElement('div'); row.className='row';
+          const note = document.createElement('span'); note.className='tiny'; note.textContent='脱着コスト:';
+          row.appendChild(note);
+          (p.unequipCost||[]).forEach(c=> row.appendChild(costBadge(c)));
+          const btn = document.createElement('button'); btn.className='mini'; btn.textContent='外す';
+          btn.addEventListener('click', ()=> onUnequip(slot));
+          box.append(curDiv,row,btn);
+        }else{
+          curDiv.textContent = '— 装備なし —';
+          box.appendChild(curDiv);
+        }
+        wrap.appendChild(box);
+      }
     }
 
-    // ====== Pointer（砂けずりのみ） ======
-    function toLocal(e){ const r=sand.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
-    sand.addEventListener('pointerdown', e=>{ isDown=true; sand.setPointerCapture(e.pointerId); const p=toLocal(e); eraseAt(p.x,p.y,ERASER.down); last=p; });
-    sand.addEventListener('pointermove', e=>{ const p=toLocal(e); if(isDown&&last){ lineErase(last.x,last.y,p.x,p.y,ERASER.move); last=p; } });
-    sand.addEventListener('pointerup',   e=>{ isDown=false; last=null; const p=toLocal(e); attemptCollectAt(p.x,p.y); });
-    sand.addEventListener('pointercancel',()=>{ isDown=false; last=null; });
+    /* ===== Render: product grid ===== */
+    function render(){
+      renderSummary();
+      renderEquipPanel();
 
-    // ====== Buttons ======
-    document.getElementById('btnBack').addEventListener('click',()=>{ history.back(); });
-    document.getElementById('btnReset').addEventListener('click',()=>{ drawSand(); });
-    document.getElementById('toCollection').addEventListener('click',()=>{ location.href='collection.html'; });
+      const grid = qs('#grid'); grid.innerHTML='';
+      const text = qText.trim();
 
-    // ====== Init ======
+      const list = CATALOG.filter(p => 
+        (filterCat==='all' || p.cat===filterCat) &&
+        (text==='' || p.name.includes(text))
+      );
+
+      for(const p of list){
+        const card = document.createElement('div'); card.className='card';
+
+        const own = owned[p.id]||0;
+        const ownTag = document.createElement('span'); ownTag.className='own'; ownTag.textContent = `所持 ${own}`;
+        card.appendChild(ownTag);
+
+        // 装備タグ
+        if(p.type==='gear'){
+          const tag = document.createElement('span'); tag.className='tag'; tag.textContent = `${SLOTS[p.slot] || '装備'}`;
+          card.appendChild(tag);
+        }
+
+        const iconWrap = document.createElement('div'); iconWrap.className='iconWrap';
+        const img = new Image(); img.className='icon';
+        let usedFallback = false;
+        img.onerror = ()=>{
+          if(usedFallback) return;
+          usedFallback = true;
+          const emoji =
+            p.cat==='acc' ? '🎀' :
+            p.cat==='tkt' ? '🎫' :
+            p.cat==='eff' ? '✨' :
+            p.cat==='spc' ? '🌈' :
+            '👟';
+          iconWrap.innerHTML='';
+          iconWrap.appendChild(genEmojiSVG(emoji, 'cat-'+(p.cat==='gear'?'gear':p.cat)));
+        };
+        img.src = `public/items/ex_${p.id}.png`;
+        iconWrap.appendChild(img);
+
+        const nm = document.createElement('div'); nm.className='nm'; nm.textContent = p.name;
+        const desc = document.createElement('div'); desc.className='desc'; desc.textContent = p.desc;
+
+        // 購入コスト
+        const cost = document.createElement('div'); cost.className='cost';
+        p.cost.forEach(c => cost.appendChild(costBadge(c)));
+
+        // アクション
+        const act = document.createElement('div'); act.className='act';
+        const buyBtn = document.createElement('button'); buyBtn.className='buy'; buyBtn.textContent='交換';
+        buyBtn.disabled = !canAfford(p.cost);
+        buyBtn.addEventListener('click', () => onBuy(p, buyBtn));
+        act.appendChild(buyBtn);
+
+        // 装備ボタン（gearのみ）
+        if(p.type==='gear'){
+          const equipBtn = document.createElement('button'); equipBtn.className='equipBtn';
+          const isEquipped = equip[p.slot] === p.id;
+          equipBtn.textContent = isEquipped ? '装備中' : '装備する';
+          if(!owned[p.id]) equipBtn.disabled = true;
+
+          equipBtn.addEventListener('click', () => onEquip(p));
+          act.appendChild(equipBtn);
+
+          // 装備/脱着コスト表示
+          const equipRow = document.createElement('div'); equipRow.className='cost';
+          const cap1 = document.createElement('span'); cap1.className='tiny'; cap1.textContent='装着:';
+          equipRow.appendChild(cap1);
+          (p.equipCost||[]).forEach(c=> equipRow.appendChild(costBadge(c)));
+          const equipRow2 = document.createElement('div'); equipRow2.className='cost';
+          const cap2 = document.createElement('span'); cap2.className='tiny'; cap2.textContent='外す:';
+          equipRow2.appendChild(cap2);
+          (p.unequipCost||[]).forEach(c=> equipRow2.appendChild(costBadge(c)));
+
+          card.append(iconWrap,nm,desc,cost,equipRow,equipRow2,act);
+        }else{
+          card.append(iconWrap,nm,desc,cost,act);
+        }
+
+        grid.appendChild(card);
+      }
+    }
+
+    /* ===== Actions ===== */
+    function onBuy(p, btn){
+      if(!canAfford(p.cost)) { btn.disabled=true; return; }
+      if(!confirm(`「${p.name}」を交換しますか？`)) return;
+      spend(p.cost);
+      owned[p.id] = (owned[p.id]||0) + 1; saveOwned();
+      btn.textContent = '交換しました！'; setTimeout(()=>{ btn.textContent='交換'; },900);
+      render();
+    }
+
+    function onEquip(p){
+      if(!(owned[p.id]>0)) { alert('まずは交換してください。'); return; }
+      const curId = equip[p.slot];
+      let extra = [];
+      if(curId){
+        const cur = CATALOG.find(x=>x.id===curId);
+        extra = mergeCosts(extra, cur.unequipCost||[]);
+      }
+      const total = mergeCosts(p.equipCost||[], extra);
+
+      if(!canAfford(total)){
+        alert('装着に必要な貝が足りません。');
+        return;
+      }
+
+      const confirmText = [
+        `装備スロット: ${SLOTS[p.slot]}`,
+        curId ? `現在装備: ${CATALOG.find(x=>x.id===curId)?.name || curId}（外すコストあり）` : '現在装備: なし',
+        '消費予定:',
+      ].join('\n');
+      if(!confirm(confirmText)) return;
+
+      spend(total);
+      equip[p.slot] = p.id; saveEquip();
+      render();
+    }
+
+    function onUnequip(slot){
+      const curId = equip[slot];
+      if(!curId) return;
+      const cur = CATALOG.find(x=>x.id===curId);
+      const cost = cur.unequipCost||[];
+      if(!canAfford(cost)){ alert('外すための貝が足りません。'); return; }
+      if(!confirm(`「${cur.name}」を外しますか？`)) return;
+      spend(cost);
+      equip[slot] = null; saveEquip();
+      render();
+    }
+
+    /* ===== Wire ===== */
     function init(){
-      loadCharacter();
-      resizeCanvas();
-      placeShells();
-      collected=0; countEl.textContent='0';
-      pickNewTarget(false);
-      requestAnimationFrame(animate);
+      loadInventory(); loadOwned(); loadEquip(); render();
+
+      // Filters
+      qsa('.chip').forEach(ch => ch.addEventListener('click', () => {
+        qsa('.chip').forEach(b => b.setAttribute('aria-pressed','false'));
+        ch.setAttribute('aria-pressed','true');
+        filterCat = ch.dataset.cat || 'all';
+        render();
+      }));
+      qs('#q').addEventListener('input', e => { qText = e.target.value; render(); });
+
+      // Buttons
+      qs('#btnBack').addEventListener('click', ()=> location.href='collection.html');
+      qs('#btnToStory').addEventListener('click', ()=> location.href='story.html');
+      qs('#btnHow').addEventListener('click', ()=> qs('#how').showModal());
+      qs('#btnResetOwn').addEventListener('click', ()=>{
+        if(!confirm('購入履歴（交換済み個数）をリセットします。よろしいですか？')) return;
+        owned = {}; saveOwned(); render();
+      });
+      qs('#btnResetEquip').addEventListener('click', ()=>{
+        if(!confirm('装備をすべて外します。よろしいですか？')) return;
+        for(const k of Object.keys(SLOTS)) equip[k]=null; saveEquip(); render();
+      });
     }
-    window.addEventListener('resize', ()=>{ resizeCanvas(); placeShells(); });
+
     document.addEventListener('DOMContentLoaded', init);
   })();
   </script>
