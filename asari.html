@@ -1,119 +1,380 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — 潮干狩り</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{
-      font-family:'Helvetica Neue','Arial','Hiragino Kaku Gothic ProN','Hiragino Sans','Meiryo',sans-serif;
-      overflow:hidden;background:#000;color:#fff
-    }
-    .game-container{position:relative;width:100vw;height:100vh;overflow:hidden}
-    .bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;transition:opacity .8s ease;z-index:0}
-    canvas{position:absolute;inset:0;z-index:1;cursor:pointer}
-    .char{position:absolute;bottom:10%;left:50%;transform:translateX(-50%);width:200px;z-index:2;animation:floatY 4s ease-in-out infinite}
-    @keyframes floatY{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-10px)}}
-    .counter{position:absolute;top:10px;left:10px;z-index:3;padding:8px 12px;background:rgba(0,0,0,0.5);border-radius:8px;font-size:14px}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHO VQ — 潮干狩り</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif;overflow:hidden}
+
+  /* ===== Stage layers ===== */
+  .stage{position:relative;width:100vw;height:100vh;overflow:hidden;isolation:isolate}
+  .sky{position:absolute;inset:0;z-index:0;transition:filter .6s, opacity .6s}
+  .sky.morning{background:linear-gradient(180deg,#8fd0ff 0%,#bfe8ff 45%,#e9f7ff 100%)}
+  .sky.noon{background:linear-gradient(180deg,#63b3ff 0%,#8fd0ff 45%,#c2f0ff 100%)}
+  .sky.night{background:linear-gradient(180deg,#0b172a 0%,#142849 45%,#03101f 100%)}
+
+  .ocean{
+    position:absolute;left:0;right:0;z-index:1;
+    height:28vh;bottom:28vh; /* 海帯 */
+    background:linear-gradient(180deg,rgba(40,140,220,.85),rgba(40,140,220,.65));
+    overflow:hidden;
+  }
+  .ocean::before{
+    content:"";position:absolute;inset:-10px;opacity:.35;
+    background:
+      radial-gradient(120px 12px at 0 60%, #fff, transparent 65%) 0 0/220px 44px repeat-x,
+      radial-gradient(120px 12px at 110px 80%, #fff, transparent 65%) 0 22px/220px 44px repeat-x;
+    animation:waves 12s linear infinite;
+  }
+  @keyframes waves{ to { transform: translateX(-220px); } }
+
+  .shore{
+    position:absolute;left:0;right:0;bottom:0;z-index:1;
+    height:30vh; /* 砂浜の基礎色（砂マスクを削ると見える層） */
+    background:
+      radial-gradient(800px 220px at 60% -40px, rgba(255,250,210,.35), transparent 60%),
+      linear-gradient(180deg,#f3e2b3 0%,#e6d09a 50%,#d3bd82 100%);
+  }
+
+  /* canvases */
+  canvas{position:absolute;left:0;top:0;width:100%;height:100%;image-rendering:auto}
+  #world{z-index:2}     /* 貝・演出 */
+  #sandMask{z-index:3}  /* 砂オーバーレイ（消しゴムで削る） */
+
+  /* UI */
+  .hud{position:absolute;z-index:4;left:10px;top:10px;padding:8px 12px;border-radius:10px;
+       background:rgba(0,0,0,.45);backdrop-filter:blur(4px);font-size:14px}
+  .btn{cursor:pointer;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);
+       color:#fff;padding:6px 10px;border-radius:8px;font-size:13px}
+  .hud-row{display:flex;gap:8px;align-items:center;margin-top:6px}
+
+  /* Character */
+  .char{position:absolute;z-index:4;width:180px;height:auto;left:50%;top:50%;
+        transform:translate(-50%,-50%);filter:drop-shadow(0 6px 14px rgba(0,0,0,.35))}
+  @keyframes floatY{0%,100%{transform:translate(-50%,-50%) }50%{transform:translate(-50%,-56%)}}
+  .char.float{animation:floatY 4s ease-in-out infinite}
+  .speech{position:absolute;z-index:5;left:50%;transform:translateX(-50%);bottom:24vh;
+          background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.25);padding:6px 10px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s}
+
+  /* “全部集めた” 演出 */
+  .bloom{position:absolute;inset:0;background:radial-gradient(60% 40% at 50% 40%, rgba(255,255,255,.45), transparent 60%);
+         z-index:4;opacity:0;pointer-events:none;transition:opacity .8s}
+  .stage.win .bloom{opacity:1}
+  .stage.win .sky{filter:brightness(1.2) saturate(1.2)}
+
+  /* touch cursor hint */
+  .hint{position:absolute;z-index:4;right:10px;top:10px;font-size:12px;opacity:.75}
+</style>
 </head>
 <body>
-  <div class="game-container">
-    <div id="bg" class="bg"></div>
-    <canvas id="sand"></canvas>
-    <img id="char" class="char" src="" alt="char">
-    <div class="counter" id="counter">🐚 0</div>
+<div class="stage" id="stage">
+  <div id="sky" class="sky"></div>
+  <div class="ocean"></div>
+  <div class="shore"></div>
+
+  <canvas id="world"></canvas>
+  <canvas id="sandMask"></canvas>
+
+  <img id="char" class="char float" alt="character" src="" />
+  <div id="speech" class="speech">やった！</div>
+  <div class="bloom"></div>
+
+  <div class="hud" id="hud">
+    <div>🐚 貝: <span id="count">0</span> / <span id="total">0</span></div>
+    <div class="hud-row">
+      <button class="btn" id="resetBtn">砂を元に戻す</button>
+      <button class="btn" id="toCollection">コレクションへ</button>
+    </div>
   </div>
-  <script>
-    // ========== 背景（時間帯で変化） ==========
-    function setTimeBackground(){
-      const hour=new Date().getHours();
-      const bg=document.getElementById("bg");
-      if(hour>=5 && hour<11){
-        bg.style.background="linear-gradient(180deg,#87ceeb 0%,#ffe2b3 100%)";
-      }else if(hour>=11 && hour<18){
-        bg.style.background="linear-gradient(180deg,#63b3ff 0%,#c2f0ff 100%)";
-      }else{
-        bg.style.background="linear-gradient(180deg,#0b172a 0%,#03101f 100%)";
+  <div class="hint">ドラッグで砂を削ろう</div>
+</div>
+
+<script>
+/* ========= 基本設定 ========= */
+const LS_KEYS = { shells:"shell_inventory", whoChar:"who_character" };
+
+function getCharPath(){
+  const color = localStorage.getItem(LS_KEYS.whoChar) || "pink";
+  return `public/assets/stage1/${color}_open.png`;
+}
+function setTimeBackground(){
+  const h = new Date().getHours();
+  const sky = document.getElementById("sky");
+  sky.className = "sky " + (h>=5&&h<11 ? "morning" : h<18 ? "noon" : "night");
+}
+
+/* ========= 画面サイズ ========= */
+const world = document.getElementById("world");
+const wctx  = world.getContext("2d");
+const mask  = document.getElementById("sandMask");
+const mctx  = mask.getContext("2d", { willReadFrequently:true });
+
+let W=0,H=0, DPR = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+const SAND_TOP = () => H*0.70; // 砂浜開始Y（ここより下が砂）
+function resize(){
+  DPR = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+  W = world.width  = Math.floor(innerWidth * DPR);
+  H = world.height = Math.floor(innerHeight* DPR);
+  mask.width  = W; mask.height = H;
+  world.style.width = mask.style.width = innerWidth+"px";
+  world.style.height= mask.style.height= innerHeight+"px";
+  drawMask(); // 砂を再塗り
+  drawWorld(true); // 背景/貝の再配置（比率維持）
+}
+window.addEventListener('resize', resize);
+
+/* ========= 貝データ ========= */
+const SHELL_MASTER = [
+  {id:"asari1", img:"public/assets/shells/asari1.png", weight:22, r:32},
+  {id:"asari2", img:"public/assets/shells/asari2.png", weight:18, r:32},
+  {id:"asari3", img:"public/assets/shells/asari3.png", weight:18, r:32},
+  {id:"aurora_shell",   img:"public/assets/shells/aurora_shell.png",   weight:6, r:34},
+  {id:"luminous_shell", img:"public/assets/shells/luminous_shell.png", weight:6, r:34},
+  {id:"mystic_shell",   img:"public/assets/shells/mystic_shell.png",   weight:5, r:34},
+  {id:"flame_shell",    img:"public/assets/shells/flame_shell.png",    weight:3, r:36},
+  {id:"night_sky_shell",img:"public/assets/shells/night_sky_shell.png",weight:3, r:36},
+  {id:"rare_rainbow",   img:"public/assets/shells/rare_rainbow.png",   weight:1, r:36},
+  {id:"rare_pearl",     img:"public/assets/shells/rare_pearl.png",     weight:1, r:36},
+];
+
+const TOTAL_SHELLS = 12;  // 出現個数
+let shells = [];          // {id,img,x,y,r,found:false}
+let foundCount = 0;
+let inventory = loadJSON(LS_KEYS.shells, {});
+
+function pickWeighted(){
+  const sum = SHELL_MASTER.reduce((a,s)=>a+s.weight,0);
+  let t = Math.random()*sum;
+  for(const s of SHELL_MASTER){ if((t-=s.weight)<=0) return s; }
+  return SHELL_MASTER[0];
+}
+function spawnShells(){
+  shells = [];
+  for(let i=0;i<TOTAL_SHELLS;i++){
+    const m = pickWeighted();
+    const img = new Image(); img.src = m.img;
+    // 砂浜エリアにランダム配置（左右の端は余白）
+    const px = (innerWidth*DPR)*0.12 + Math.random()*(W*0.76);
+    const py = SAND_TOP() + (Math.random()* (H - SAND_TOP() - 20*DPR));
+    shells.push({ id:m.id, img, x:px, y:py, r:m.r*DPR, found:false });
+  }
+  document.getElementById("total").textContent = String(shells.length);
+}
+
+/* ========= 砂マスク（消しゴム） ========= */
+const BRUSH = { r: 26*DPR }; // ブラシ半径
+let drawing = false, lastX=0, lastY=0;
+
+function drawMask(){
+  // 砂浜領域だけ塗る（上側は透明）
+  mctx.clearRect(0,0,W,H);
+  // ノイズっぽい砂
+  const grad = mctx.createLinearGradient(0,SAND_TOP(),0,H);
+  grad.addColorStop(0, "rgba(233,210,150,0.95)");
+  grad.addColorStop(1, "rgba(210,185,120,0.97)");
+  mctx.fillStyle = grad;
+  mctx.fillRect(0,SAND_TOP(),W,H-SAND_TOP());
+
+  // 粒感
+  const noiseStep = 6*DPR;
+  mctx.globalAlpha = 0.08;
+  for(let y=SAND_TOP(); y<H; y+=noiseStep){
+    for(let x=0; x<W; x+=noiseStep){
+      mctx.fillStyle = ( (x+y/noiseStep)%3===0 ? "#000" : "#fff" );
+      mctx.fillRect(x,y,1,1);
+    }
+  }
+  mctx.globalAlpha = 1;
+}
+function eraseAt(x,y){
+  mctx.save();
+  mctx.globalCompositeOperation = 'destination-out';
+  mctx.beginPath();
+  mctx.arc(x,y,BRUSH.r,0,Math.PI*2);
+  mctx.fill();
+  mctx.restore();
+}
+
+function onPointerDown(e){ drawing=true; const p=point(e); lastX=p.x; lastY=p.y; if(p.y>=SAND_TOP()) eraseAt(p.x,p.y); }
+function onPointerMove(e){
+  const p=point(e);
+  // キャラは常に追従（後述）
+  if(!drawing) return;
+  if(p.y < SAND_TOP()) return;
+  // 直線を埋める（速いドラッグでも穴が空くように）
+  const dx=p.x-lastX, dy=p.y-lastY;
+  const dist=Math.hypot(dx,dy);
+  const step=BRUSH.r*0.6;
+  for(let t=0;t<=dist;t+=step){
+    const x=lastX + dx*(t/dist);
+    const y=lastY + dy*(t/dist);
+    eraseAt(x,y);
+  }
+  lastX=p.x; lastY=p.y;
+}
+function onPointerUp(){ drawing=false; }
+
+/* ========= 露出判定 ========= */
+/* クリック時、貝の中心半径の α=0 が一定割合以上なら拾える */
+function isExposed(sh, ratioNeeded=0.55){
+  const r = Math.floor(sh.r*0.9);
+  const size = r*2;
+  const sx = Math.max(0, Math.min(Math.floor(sh.x - r), W-size));
+  const sy = Math.max(0, Math.min(Math.floor(sh.y - r), H-size));
+  try{
+    const imgData = mctx.getImageData(sx, sy, size, size).data;
+    let transparent=0, total=0;
+    const step = 6; // サンプリング間引き
+    for(let yy=0; yy<size; yy+=step){
+      for(let xx=0; xx<size; xx+=step){
+        const px = (yy*size + xx)*4 + 3; // alpha
+        const a = imgData[px];
+        total++;
+        if(a===0) transparent++;
       }
     }
+    return (transparent/total) >= ratioNeeded;
+  }catch(e){
+    // セキュリティ制限等で失敗時は甘めに
+    return true;
+  }
+}
 
-    // ========== キャラ反映 ==========
-    function setCharacter(){
-      const color=localStorage.getItem("who_character")||"pink";
-      document.getElementById("char").src=`public/assets/stage1/${color}_open.png`;
-    }
+/* ========= 描画 & 当たり判定 ========= */
+function drawWorld(reseed=false){
+  if(reseed){ spawnShells(); }
+  wctx.clearRect(0,0,W,H);
+  // 砂浜上の薄い陰影
+  const g = wctx.createLinearGradient(0,SAND_TOP(),0,H);
+  g.addColorStop(0,"rgba(0,0,0,0.08)");
+  g.addColorStop(1,"rgba(0,0,0,0.15)");
+  wctx.fillStyle = g;
+  wctx.fillRect(0,SAND_TOP(),W,H-SAND_TOP());
 
-    // ========== 貝データ ==========
-    const SHELLS=[
-      {id:"asari1", img:"public/assets/shells/asari1.png", rarity:1},
-      {id:"asari2", img:"public/assets/shells/asari2.png", rarity:1},
-      {id:"asari3", img:"public/assets/shells/asari3.png", rarity:1},
-      {id:"aurora_shell", img:"public/assets/shells/aurora_shell.png", rarity:2},
-      {id:"luminous_shell", img:"public/assets/shells/luminous_shell.png", rarity:2},
-      {id:"mystic_shell", img:"public/assets/shells/mystic_shell.png", rarity:2},
-      {id:"flame_shell", img:"public/assets/shells/flame_shell.png", rarity:3},
-      {id:"night_sky_shell", img:"public/assets/shells/night_sky_shell.png", rarity:3},
-      {id:"rare_rainbow", img:"public/assets/shells/rare_rainbow.png", rarity:4},
-      {id:"rare_pearl", img:"public/assets/shells/rare_pearl.png", rarity:5}
-    ];
+  // 貝（まだ未回収のみ）
+  shells.forEach(sh=>{
+    if(sh.found) return;
+    const sz = sh.r*2;
+    try{
+      wctx.drawImage(sh.img, sh.x - sh.r, sh.y - sh.r, sz, sz);
+    }catch{}
+  });
+}
 
-    // ========== ゲーム描画 ==========
-    const canvas=document.getElementById("sand");
-    const ctx=canvas.getContext("2d");
-    let W,H;
-    function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
-    window.addEventListener("resize",resize);resize();
+function onClick(e){
+  const p = point(e);
+  // 下側（砂浜）だけ反応
+  if(p.y < SAND_TOP()) return;
 
-    let shells=[]; // 出現中の貝
-    function spawnShells(){
-      shells=[];
-      for(let i=0;i<12;i++){
-        const s=SHELLS[Math.floor(Math.random()*SHELLS.length)];
-        shells.push({
-          id:s.id,img:new Image(),x:Math.random()*W*0.8+W*0.1,y:Math.random()*H*0.5+H*0.4,found:false
-        });
-        shells[i].img.src=s.img;
-      }
-    }
-    spawnShells();
+  // 近い貝を探す
+  let target=null, dmin=1e9;
+  for(const sh of shells){
+    if(sh.found) continue;
+    const d = Math.hypot(p.x - sh.x, p.y - sh.y);
+    if(d < sh.r*1.2 && d < dmin){ dmin=d; target=sh; }
+  }
+  if(!target) return;
 
-    let collected=0;
-    let inventory=JSON.parse(localStorage.getItem("shell_inventory")||"{}");
+  if(!isExposed(target, 0.55)){
+    say("まだ砂の中…");
+    return;
+  }
 
-    function draw(){
-      ctx.clearRect(0,0,W,H);
-      shells.forEach(sh=>{
-        if(!sh.found){
-          ctx.drawImage(sh.img,sh.x-32,sh.y-32,64,64);
-        }
-      });
-      requestAnimationFrame(draw);
-    }
-    draw();
+  // 回収！
+  target.found = true;
+  foundCount++;
+  inventory[target.id] = (inventory[target.id]||0) + 1;
+  saveJSON(LS_KEYS.shells, inventory);
+  document.getElementById("count").textContent = String(foundCount);
+  drawWorld();
 
-    canvas.addEventListener("click",e=>{
-      const mx=e.offsetX,my=e.offsetY;
-      for(const sh of shells){
-        if(!sh.found && mx>sh.x-32 && mx<sh.x+32 && my>sh.y-32 && my<sh.y+32){
-          sh.found=true;
-          collected++;
-          inventory[sh.id]=(inventory[sh.id]||0)+1;
-          localStorage.setItem("shell_inventory",JSON.stringify(inventory));
-          document.getElementById("counter").textContent="🐚 "+collected;
-          break;
-        }
-      }
-      // 全部拾ったら次ページ
-      if(shells.every(s=>s.found)){
-        setTimeout(()=>{location.href="collection.html";},1000);
-      }
-    });
+  // ちょい演出（吹き出し＆キャラスピン）
+  spinCharacter();
+  say(pickMessage(target.id));
 
-    // 初期化
-    setTimeBackground();
-    setCharacter();
-  </script>
+  if(shells.every(s=>s.found)){
+    document.getElementById("stage").classList.add("win");
+    setTimeout(()=> location.href="collection.html", 1200);
+  }
+}
+
+/* ========= キャラ（追従・スピン・吹き出し） ========= */
+const charEl = document.getElementById("char");
+function setupCharacter(){
+  charEl.src = getCharPath();
+  // 追従：スムーズ（慣性）+ ゆらぎ
+  let cx = innerWidth/2, cy = innerHeight*0.52, vx=0, vy=0;
+  const k = 0.08, damp=0.85;
+  function tick(){
+    const tx = mouse.x, ty = mouse.y-30;
+    vx = (vx + (tx - cx)*k) * damp;
+    vy = (vy + (ty - cy)*k) * damp;
+    cx += vx; cy += vy;
+    charEl.style.left = cx + "px";
+    charEl.style.top  = cy + "px";
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+function spinCharacter(){
+  charEl.style.transition="transform .5s";
+  charEl.style.transform="translate(-50%,-50%) rotate(360deg)";
+  setTimeout(()=>{ charEl.style.transform="translate(-50%,-50%)"; }, 500);
+}
+function say(text){
+  const sp = document.getElementById("speech");
+  sp.textContent = text;
+  sp.style.opacity = 1;
+  clearTimeout(say._t);
+  say._t = setTimeout(()=> sp.style.opacity = 0, 1200);
+}
+function pickMessage(id){
+  switch(id){
+    case "rare_pearl": return "真珠だ！";
+    case "rare_rainbow": return "虹色の貝！";
+    case "flame_shell": return "あつい…！";
+    case "night_sky_shell": return "キラキラ～";
+    default: return "やった！";
+  }
+}
+
+/* ========= 入出力ユーティリティ ========= */
+function loadJSON(k,fb){ try{return JSON.parse(localStorage.getItem(k))||fb}catch(e){return fb} }
+function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)) }
+
+const mouse = {x: innerWidth/2, y: innerHeight/2};
+function point(e){
+  const rect = world.getBoundingClientRect();
+  const x = ((e.touches?e.touches[0].clientX:e.clientX) - rect.left) * DPR;
+  const y = ((e.touches?e.touches[0].clientY:e.clientY) - rect.top)  * DPR;
+  // 追従用の表示座標も更新
+  mouse.x = (x / DPR); mouse.y = (y / DPR);
+  return {x,y};
+}
+
+/* ========= 初期化 ========= */
+function init(){
+  setTimeBackground();
+  document.getElementById("count").textContent = "0";
+  document.getElementById("total").textContent = "0";
+
+  resize();
+  setupCharacter();
+  drawWorld(true);
+
+  // 砂削り
+  mask.addEventListener("pointerdown", onPointerDown);
+  mask.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
+  mask.addEventListener("click", onClick);
+
+  // ボタン
+  document.getElementById("resetBtn").onclick = ()=>{ drawMask(); drawWorld(); foundCount=0; shells.forEach(s=>s.found=false); document.getElementById("count").textContent="0"; };
+  document.getElementById("toCollection").onclick = ()=> location.href="collection.html";
+}
+init();
+</script>
 </body>
 </html>
