@@ -6,7 +6,382 @@
   <title>WHO VQ — コレクション図鑑</title>
   <style>
     /* ===== Base ===== */
-    *, *::before, *::after { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; }<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHO VQ — 交換所（exchange）</title>
+<style>
+  :root{ --ui-bg: rgba(0,0,0,.35); --card-bg: rgba(0,0,0,.55); }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+  .page{display:flex;flex-direction:column;min-height:100vh}
+  header{
+    position:sticky;top:0;z-index:5;background:linear-gradient(180deg,rgba(0,0,0,.65),rgba(0,0,0,0));
+    padding:10px 12px;display:flex;gap:10px;align-items:center;justify-content:space-between
+  }
+  .pill{background:var(--ui-bg);border:1px solid rgba(255,255,255,.15);padding:6px 10px;border-radius:999px;backdrop-filter:blur(6px)}
+  main{flex:1;display:grid;grid-template-columns: 280px 1fr;gap:14px;padding:12px}
+  aside{position:sticky;top:58px;align-self:start;background:var(--ui-bg);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px}
+  .catBtn{display:block;width:100%;text-align:left;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#fff;cursor:pointer;margin-bottom:8px}
+  .catBtn.active{background:rgba(255,255,255,.12)}
+  section{scroll-margin-top:66px}
+  h2{font-size:18px;margin:8px 0 10px}
+  .grid{display:grid;grid-template-columns: repeat(auto-fill, minmax(220px,1fr));gap:12px}
+  .card{
+    background:var(--card-bg);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:10px;display:flex;gap:10px
+  }
+  .thumb{width:64px;height:64px;border-radius:10px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .thumb img{max-width:100%;max-height:100%;display:block}
+  .meta{flex:1;min-width:0}
+  .meta h3{font-size:16px;line-height:1.2;margin-bottom:6px}
+  .meta p{font-size:12px;opacity:.9}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .tag{font-size:11px;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08)}
+  .ops{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .btn{padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .highlight{outline:2px solid #7ec8ff; box-shadow:0 0 0 4px rgba(126,200,255,.25);}
+
+  /* 装備パネル */
+  .equipPanel{margin-top:12px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05)}
+  .equipRow{display:grid;grid-template-columns: 80px 1fr auto;gap:8px;align-items:center;margin:6px 0}
+  .equipRow .slot{opacity:.9}
+  .inlineNote{font-size:12px;opacity:.9}
+
+  /* フッターバー */
+  footer{
+    position:sticky;bottom:0;z-index:5;background:linear-gradient(0deg,rgba(0,0,0,.65),rgba(0,0,0,0));padding:10px 12px;display:flex;justify-content:space-between;align-items:center
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="pill">合算アサリ 残：<b id="asariAny">0</b>（asari1/2/3）</div>
+    <div class="pill">現在装備を確認 → 下パネル</div>
+  </header>
+
+  <main>
+    <aside>
+      <button class="catBtn active" data-target="#cat-gear">装備</button>
+      <button class="catBtn" data-target="#cat-accessory">アクセ</button>
+      <button class="catBtn" data-target="#cat-ticket">チケット</button>
+      <button class="catBtn" data-target="#cat-effect">演出</button>
+
+      <div class="equipPanel">
+        <h3 style="margin-bottom:6px">現在装備</h3>
+        <div id="equipList"></div>
+        <div class="inlineNote">外すには追加コストが必要です。</div>
+      </div>
+    </aside>
+
+    <div id="catalog">
+      <!-- 装備 -->
+      <section id="cat-gear">
+        <h2>装備（gear）</h2>
+        <div class="grid" id="grid-gear"></div>
+      </section>
+      <!-- アクセ -->
+      <section id="cat-accessory">
+        <h2>アクセサリー</h2>
+        <div class="grid" id="grid-accessory"></div>
+      </section>
+      <!-- チケット -->
+      <section id="cat-ticket">
+        <h2>会話チケット</h2>
+        <div class="grid" id="grid-ticket"></div>
+      </section>
+      <!-- 演出 -->
+      <section id="cat-effect">
+        <h2>演出</h2>
+        <div class="grid" id="grid-effect"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="pill">テキストは白基調で可読性を確保</div>
+    <div>
+      <button class="btn" onclick="location.href='asari.html?preview=1'">キャラでプレビュー</button>
+      <button class="btn" onclick="location.href='asari.html'">潮干狩りへ</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+/* ====== 共有ユーティリティ ====== */
+const $ = s=>document.querySelector(s);
+const $$ = s=>Array.from(document.querySelectorAll(s));
+
+function readJSON(key, fallback){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } }
+function writeJSON(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
+
+/* icon fallback: public/items/ex_<id>.png → public/items/<id>.png → ./public/items → /public/items */
+function loadIconWithFallback(id){
+  const paths = [
+    `public/items/ex_${id}.png`,
+    `public/items/${id}.png`,
+    `./public/items/${id}.png`,
+    `/public/items/${id}.png`,
+  ];
+  return new Promise(resolve=>{
+    const img=new Image(); let i=0;
+    const tryNext=()=>{
+      if(i>=paths.length){ resolve(null); return; }
+      img.src=paths[i++]; img.onload=()=>resolve(img); img.onerror=tryNext;
+    }; tryNext();
+  });
+}
+function emojiDataURI(emoji="🧩", size=128){
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/* ====== 通貨（合算アサリ） ====== */
+function ensureShells(){
+  let s = readJSON('who_shells', null);
+  if(!s || s.schema!=='who_shells/v1'){ s = {schema:'who_shells/v1',updatedAt:new Date().toISOString(),items:{}}; writeJSON('who_shells', s); }
+  return s;
+}
+function asariAny(){
+  const st = ensureShells();
+  const it = st.items||{};
+  // 同価値合算：1枚換算
+  return (it.asari1||0)+(it.asari2||0)+(it.asari3||0);
+}
+function spendAsari(n){
+  const st = ensureShells();
+  let need = n;
+  const order = ['asari3','asari2','asari1']; // 大→中→小から消費（任意ルール）
+  for(const k of order){
+    const have = st.items[k]||0;
+    const use = Math.min(have, need);
+    st.items[k] = have - use;
+    need -= use;
+    if(need<=0) break;
+  }
+  if(need>0) return false; // 足りない
+  st.updatedAt = new Date().toISOString();
+  writeJSON('who_shells', st);
+  return true;
+}
+
+/* ====== 所持・装備 ====== */
+function ensureOwned(){ const v = readJSON('who_exchange_owned', {}); writeJSON('who_exchange_owned', v); return v; }
+function ensureEquip(){ const v = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null}); writeJSON('who_equipment', v); return v; }
+
+/* ====== 商品カタログ（例） ======
+  - id: productId
+  - name, desc, cat
+  - for gear: slot, price, equipCost, unequipCost
+  - for others: price
+*/
+const CATS = {
+  gear: {label:'装備', emoji:'🧢'},
+  accessory: {label:'アクセ', emoji:'✨'},
+  ticket: {label:'チケット', emoji:'🎫'},
+  effect: {label:'演出', emoji:'🌟'},
+};
+const CATALOG = [
+  // ---- gear (slot別) ----
+  {id:'gear_hat_explorer', name:'探検帽', desc:'冒険家スタイルの帽子', cat:'gear', slot:'head', price:6, equipCost:1, unequipCost:1},
+  {id:'gear_robe_star',    name:'星のローブ', desc:'夜空のきらめき', cat:'gear', slot:'body', price:8, equipCost:2, unequipCost:1},
+  {id:'gear_back_pack',    name:'赤いバックパック', desc:'旅の必需品', cat:'gear', slot:'back', price:5, equipCost:1, unequipCost:1},
+  {id:'gear_staff_mage',   name:'魔法の杖', desc:'不思議な力を宿す', cat:'gear', slot:'hands', price:7, equipCost:2, unequipCost:1},
+  {id:'gear_shoes_beach',  name:'ビーチシューズ', desc:'砂浜でも快適', cat:'gear', slot:'shoes', price:4, equipCost:1, unequipCost:1},
+  {id:'style_adventurer',  name:'スタイル：冒険家', desc:'全体に演出レイヤ', cat:'gear', slot:'style', price:5, equipCost:1, unequipCost:1},
+
+  // ---- accessory ----
+  {id:'acc_sunglasses', name:'サングラス', desc:'まぶしい日差しに', cat:'accessory', price:3},
+  {id:'acc_star_yellow', name:'星バッジ', desc:'胸元にきらり', cat:'accessory', price:2},
+
+  // ---- ticket ----
+  {id:'ticket_chat1', name:'会話チケット', desc:'特別会話を解放', cat:'ticket', price:3},
+
+  // ---- effect ----
+  {id:'fx_fireworks', name:'花火演出', desc:'夜空に大輪', cat:'effect', price:5},
+];
+
+function byCategory(cat){ return CATALOG.filter(p => p.cat===cat); }
+
+/* ====== UI ====== */
+function setAsariAny(){
+  $('#asariAny').textContent = String(asariAny());
+}
+function makeCard(p){
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.id = `prod-${p.id}`;
+
+  const thumb = document.createElement('div');
+  thumb.className = 'thumb';
+  const img = document.createElement('img');
+  thumb.appendChild(img);
+
+  // 画像ロード（なければカテゴリ絵文字）
+  loadIconWithFallback(p.id).then(pic=>{
+    if(pic) img.src = pic.src;
+    else img.src = emojiDataURI(CATS[p.cat]?.emoji || '🧩', 128);
+  });
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const h3 = document.createElement('h3'); h3.textContent = p.name;
+  const pdesc = document.createElement('p'); pdesc.textContent = p.desc || '';
+  const tags = document.createElement('div'); tags.className = 'tags';
+  const t1 = document.createElement('span'); t1.className='tag'; t1.textContent = `価格 ${p.price}枚`;
+  tags.appendChild(t1);
+  if(p.cat==='gear'){
+    const t2 = document.createElement('span'); t2.className='tag'; t2.textContent = `slot: ${p.slot}`;
+    const t3 = document.createElement('span'); t3.className='tag'; t3.textContent = `装備+${p.equipCost} / 外す+${p.unequipCost}`;
+    tags.appendChild(t2); tags.appendChild(t3);
+  }
+
+  const ops = document.createElement('div'); ops.className = 'ops';
+  const btnBuy = document.createElement('button'); btnBuy.className='btn'; btnBuy.textContent = '購入';
+  const btnEquip = document.createElement('button'); btnEquip.className='btn'; btnEquip.textContent = '装備';
+  const btnUnequip = document.createElement('button'); btnUnequip.className='btn'; btnUnequip.textContent = '外す';
+
+  // ボタン制御
+  function refreshButtons(){
+    const owned = ensureOwned(); const have = owned[p.id]||0;
+    btnBuy.disabled = asariAny() < p.price;
+    if(p.cat==='gear'){
+      const eq = ensureEquip();
+      const using = eq[p.slot] === p.id;
+      btnEquip.disabled = (have<=0) || using || (asariAny() < (p.equipCost||0));
+      btnUnequip.disabled = !using || (asariAny() < (p.unequipCost||0));
+    }else{
+      btnEquip.style.display='none'; btnUnequip.style.display='none';
+    }
+  }
+
+  btnBuy.addEventListener('click', ()=>{
+    if(asariAny() < p.price){ alert('アサリが足りません'); return; }
+    if(!spendAsari(p.price)){ alert('消費に失敗しました'); return; }
+    const owned = ensureOwned();
+    owned[p.id] = (owned[p.id]||0) + 1;
+    writeJSON('who_exchange_owned', owned);
+    setAsariAny(); refreshButtons();
+  });
+
+  btnEquip.addEventListener('click', ()=>{
+    if(p.cat!=='gear') return;
+    const cost = p.equipCost||0;
+    if(asariAny() < cost){ alert('装備の追加コストが足りません'); return; }
+    if(!spendAsari(cost)){ alert('消費に失敗しました'); return; }
+    const eq = ensureEquip();
+    eq[p.slot] = p.id;
+    writeJSON('who_equipment', eq);
+    setAsariAny(); renderEquipPanel(); refreshButtons();
+  });
+
+  btnUnequip.addEventListener('click', ()=>{
+    if(p.cat!=='gear') return;
+    const cost = p.unequipCost||0;
+    if(asariAny() < cost){ alert('外すコストが足りません'); return; }
+    if(!spendAsari(cost)){ alert('消費に失敗しました'); return; }
+    const eq = ensureEquip();
+    if(eq[p.slot] === p.id){ eq[p.slot] = null; writeJSON('who_equipment', eq); }
+    setAsariAny(); renderEquipPanel(); refreshButtons();
+  });
+
+  ops.appendChild(btnBuy);
+  ops.appendChild(btnEquip);
+  ops.appendChild(btnUnequip);
+
+  meta.appendChild(h3); meta.appendChild(pdesc); meta.appendChild(tags); meta.appendChild(ops);
+  div.appendChild(thumb); div.appendChild(meta);
+  return div;
+}
+
+function mountCatalog(){
+  const slots = {gear:$('#grid-gear'), accessory:$('#grid-accessory'), ticket:$('#grid-ticket'), effect:$('#grid-effect')};
+  Object.values(slots).forEach(el=>el.innerHTML='');
+  for(const p of CATALOG){
+    const card = makeCard(p);
+    (slots[p.cat]||$('#grid-accessory')).appendChild(card);
+  }
+}
+
+/* 左メニュー */
+$$('.catBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    $$('.catBtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const tgt = btn.dataset.target;
+    if(tgt){ document.querySelector(tgt).scrollIntoView({behavior:'smooth'}); }
+  });
+});
+
+/* 現在装備パネル */
+function renderEquipPanel(){
+  const wrap = $('#equipList'); wrap.innerHTML='';
+  const eq = ensureEquip();
+  const order = ['head','body','back','hands','shoes','style'];
+  for(const slot of order){
+    const row = document.createElement('div'); row.className='equipRow';
+    const a = document.createElement('div'); a.className='slot'; a.textContent = slot;
+    const b = document.createElement('div');
+    const pid = eq[slot];
+    b.textContent = pid ? (CATALOG.find(x=>x.id===pid)?.name || pid) : '（なし）';
+    const c = document.createElement('div');
+    if(pid){
+      const prod = CATALOG.find(x=>x.id===pid);
+      const btn = document.createElement('button'); btn.className='btn';
+      btn.textContent = `外す（+${prod?.unequipCost||0}）`;
+      btn.disabled = asariAny() < (prod?.unequipCost||0);
+      btn.addEventListener('click', ()=>{
+        const cost = prod?.unequipCost||0;
+        if(asariAny()<cost){ alert('外すコストが足りません'); return; }
+        if(!spendAsari(cost)){ alert('消費に失敗しました'); return; }
+        const nowEq = ensureEquip(); nowEq[slot] = null; writeJSON('who_equipment', nowEq);
+        setAsariAny(); renderEquipPanel();
+        // カード側のボタン状態も更新
+        CATALOG.forEach(p=>{
+          const card = document.getElementById(`prod-${p.id}`);
+          if(card){
+            // ざっくり再描画：購入ボタン以外はカード生成時のロジックに依存するため、ここでは簡易にdisabledをリセット
+            const btns = card.querySelectorAll('.btn'); btns.forEach(b=>b.disabled=false);
+          }
+        });
+      });
+      c.appendChild(btn);
+    }else{
+      c.textContent = '';
+    }
+    row.appendChild(a); row.appendChild(b); row.appendChild(c);
+    wrap.appendChild(row);
+  }
+}
+
+/* want= ハイライト */
+function applyWant(){
+  const want = new URLSearchParams(location.search).get('want');
+  if(!want) return;
+  const el = document.getElementById(`prod-${want}`);
+  if(el){
+    el.classList.add('highlight');
+    el.scrollIntoView({behavior:'smooth', block:'center'});
+    setTimeout(()=>el.classList.remove('highlight'), 2000);
+  }
+}
+
+/* ====== 起動 ====== */
+(function init(){
+  // 初期ストア確保
+  ensureShells(); ensureOwned(); ensureEquip();
+  setAsariAny();
+  mountCatalog();
+  renderEquipPanel();
+  applyWant();
+})();
+</script>
+</body>
+</html>
+
     html, body { height: 100%; margin: 0; background: #0b0f14; color: #ffffff; font-family: system-ui, "Noto Sans JP", sans-serif; }
     a { color: inherit; text-decoration: none; }
 
