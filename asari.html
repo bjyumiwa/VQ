@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>WHO VQ — 潮干狩り（砂なぞり・超シンプル）</title>
+  <title>WHO VQ — 潮干狩り（砂なぞり・シンプル）</title>
   <style>
     /* ===== Reset & Base ===== */
     *,*::before,*::after{box-sizing:border-box}
@@ -25,7 +25,7 @@
     #cta{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;display:none}
     #cta button{padding:12px 18px;border:0;border-radius:14px;font-weight:700;background:linear-gradient(90deg,#7cf3c9,#8ee8ff);color:#06251a;box-shadow:0 10px 24px rgba(124,243,201,.25);cursor:pointer}
 
-    /* Character（適当にふわふわ） */
+    /* Character（やさしく“ふわふわ”） */
     #friend{position:absolute;z-index:4;width:16vh;min-width:84px;image-rendering:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.5));transform:translate(-50%,-50%);pointer-events:none}
     #bubble{position:absolute;z-index:5;min-width:120px;max-width:52vw;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);transform:translate(-50%,-130%);opacity:0;transition:opacity .25s ease;pointer-events:none}
 
@@ -60,9 +60,10 @@
   ;(() => {
     // ====== Config ======
     const STORAGE_KEY = 'who_shells';
+    const CHARACTER_KEYS = ['who_character','character','selected_character','playerColor','avatar','hero'];
 
-    // 画像ベースの候補（環境差による相対/ルートのずれを吸収）
-    const IMG_BASES = ['public/items', './public/items', '/public/items'];
+    // 画像ベース（相対/ルートゆれ対策）
+    const IMG_BASES = ['public/items','./public/items','/public/items'];
 
     const SHELL_POOL = [
       { id:'asari1', n:6 },
@@ -78,10 +79,19 @@
       { id:'rare_rainbow', n:1 },
     ];
 
-    const SHELL_SIZE = 72; // px（当たり判定半径の基準）
+    const SHELL_SIZE = 72; // px
 
-    // 消しゴム（ノイズ入りブラシで円の輪郭を消す）
+    // 消しゴム（ノイズ入りブラシで輪郭の丸さを抑える）
     const ERASER = { down: 30, move: 26, noise: 10 };
+
+    // ふわふわ挙動のパラメータ（落ち着いた動き）
+    const FLOAT = {
+      intervalMin: 5000,   // 目標更新 5s〜
+      intervalMax: 9000,   // 〜9s
+      springK: 0.025,      // 小さいほどゆっくり追従
+      bobAmp: 2,           // 上下ゆれ振幅（px）
+      bobFreq: 0.0016      // 上下ゆれ速さ
+    };
 
     // ====== State ======
     const game = document.getElementById('game');
@@ -99,10 +109,10 @@
     let isDown = false;
     let last = null;
 
-    // ふわふわ移動用
-    const friendPos = { x: window.innerWidth*0.5, y: window.innerHeight*0.6 };
-    let friendTarget = { x: friendPos.x, y: friendPos.y };
-    let friendTimer = 0; // 次の目標までの時間
+    // キャラの“ふわふわ”用
+    const friendPos = { x: window.innerWidth*0.5, y: window.innerHeight*0.62 };
+    const friendTarget = { x: friendPos.x, y: friendPos.y };
+    let friendTimer = 0;
 
     // ====== Helpers ======
     const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
@@ -113,23 +123,25 @@
       img.src = `${IMG_BASES[idx]}/${id}.png`;
     }
 
-    // --- Character ---
     function getCharacterColor(){
-      const keys = ['who_character','character','selected_character','playerColor','avatar','hero'];
-      for(const k of keys){ const v = localStorage.getItem(k); if(v){ const m = String(v).toLowerCase().match(/[a-z]+/); if(m) return m[0]; }}
+      for(const k of CHARACTER_KEYS){
+        const v = localStorage.getItem(k);
+        if(v){ const m = String(v).toLowerCase().match(/[a-z]+/); if(m) return m[0]; }
+      }
       return 'pink';
     }
 
+    // フォールバックSVG（画像が無い環境でも必ず出る）
     function charSVG(color){
       const P = {
-        pink:   {a:'#ff9ac2', b:'#ffe0eb'},
-        blue:   {a:'#8ec8ff', b:'#e3f2ff'},
-        green:  {a:'#7cf3c9', b:'#e3fff6'},
-        yellow: {a:'#ffe58e', b:'#fff6cc'},
-        purple: {a:'#c6a7ff', b:'#f0e9ff'},
-        orange: {a:'#ffb47a', b:'#ffe4cc'}
-      }[color] || {a:'#ff9ac2', b:'#ffe0eb'};
-      const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><defs><radialGradient id='g' cx='50%' cy='35%' r='60%'><stop offset='0%' stop-color='#fff'/><stop offset='100%' stop-color='${P.a}'/></radialGradient><radialGradient id='bg' cx='50%' cy='70%' r='70%'><stop offset='0%' stop-color='${P.b}' stop-opacity='.65'/><stop offset='100%' stop-color='${P.a}' stop-opacity='0'/></radialGradient></defs><rect width='200' height='200' fill='url(#bg)' opacity='.0'/><circle cx='100' cy='108' r='70' fill='url(#g)'/><circle cx='76' cy='96' r='8' fill='#fff'/><circle cx='124' cy='96' r='8' fill='#fff'/><path d='M70 128 q30 22 60 0' fill='none' stroke='#fff' stroke-width='8' stroke-linecap='round'/></svg>`;
+        pink:{a:'#ff9ac2',b:'#ffe0eb'},
+        blue:{a:'#8ec8ff',b:'#e3f2ff'},
+        green:{a:'#7cf3c9',b:'#e3fff6'},
+        yellow:{a:'#ffe58e',b:'#fff6cc'},
+        purple:{a:'#c6a7ff',b:'#f0e9ff'},
+        orange:{a:'#ffb47a',b:'#ffe4cc'}
+      }[color] || {a:'#ff9ac2',b:'#ffe0eb'};
+      const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><defs><radialGradient id='g' cx='50%' cy='35%' r='60%'><stop offset='0%' stop-color='#fff'/><stop offset='100%' stop-color='${P.a}'/></radialGradient></defs><circle cx='100' cy='108' r='70' fill='url(#g)'/><circle cx='76' cy='96' r='8' fill='#fff'/><circle cx='124' cy='96' r='8' fill='#fff'/><path d='M70 128 q30 22 60 0' fill='none' stroke='#fff' stroke-width='8' stroke-linecap='round'/></svg>`;
       return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     }
 
@@ -143,11 +155,18 @@
         `public/items/character.png`
       ];
       let i = 0;
-      const setNext = () => {
-        if(i < candidates.length){ friend.onerror = () => { i++; setNext(); }; friend.src = candidates[i]; friend.alt = `character ${color}`; }
-        else { friend.onerror = null; friend.src = charSVG(color); friend.alt = `character (${color})`; }
+      const next = () => {
+        if(i < candidates.length){
+          friend.onerror = () => { i++; next(); };
+          friend.src = candidates[i];
+          friend.alt = `character ${color}`;
+        }else{
+          friend.onerror = null;
+          friend.src = charSVG(color);
+          friend.alt = `character (${color})`;
+        }
       };
-      setNext();
+      next();
     }
 
     function saveInventory(deltaId){
@@ -162,7 +181,6 @@
     function resizeCanvas(){ sand.width = game.clientWidth; sand.height = game.clientHeight; drawSand(); }
 
     function drawSand(){
-      // フラットな砂（陰影ナシ）
       ctx.globalCompositeOperation = 'source-over';
       ctx.clearRect(0,0,sand.width,sand.height);
       ctx.fillStyle = '#e4d1a2';
@@ -174,7 +192,7 @@
       ctx.globalCompositeOperation = 'destination-out';
       // ベース円
       ctx.beginPath(); ctx.arc(x,y,r*0.9,0,Math.PI*2); ctx.fill();
-      // ノイズ（ランダムな小円で縁をギザつかせる）
+      // ノイズで縁をギザつかせる
       const k = ERASER.noise;
       for(let i=0;i<k;i++){
         const ang = Math.random()*Math.PI*2;
@@ -188,7 +206,13 @@
       ctx.restore();
     }
 
-    function lineErase(x0,y0,x1,y1,r){ const dx=x1-x0,dy=y1-y0,dist=Math.hypot(dx,dy); const steps=Math.max(1,Math.ceil(dist/(r*0.6))); for(let i=0;i<=steps;i++){ const t=i/steps; eraseAt(x0+dx*t,y0+dy*t,r); } }
+    function lineErase(x0,y0,x1,y1,r){
+      const dx=x1-x0,dy=y1-y0,dist=Math.hypot(dx,dy);
+      const steps=Math.max(1,Math.ceil(dist/(r*0.6)));
+      for(let i=0;i<=steps;i++){
+        const t=i/steps; eraseAt(x0+dx*t,y0+dy*t,r);
+      }
+    }
 
     function isRevealed(cx,cy){
       const s=8; const x=clamp(Math.floor(cx-s),0,sand.width-1), y=clamp(Math.floor(cy-s),0,sand.height-1);
@@ -200,11 +224,17 @@
     // ====== Shells ======
     function placeShells(){
       shellLayer.innerHTML=''; shells.length=0;
-      const W = game.clientWidth, H = game.clientHeight; const margin = 64; const minDist = 80;
+      const W = game.clientWidth, H = game.clientHeight;
+      const margin = 64; const minDist = 80;
       const all = []; SHELL_POOL.forEach(p=>{ for(let i=0;i<p.n;i++) all.push(p.id); });
       const pts=[];
       for(const id of all){
-        let tries=0,x=0,y=0; do{ x=margin+Math.random()*(W-margin*2); y=H*0.42+Math.random()*(H*0.48); tries++; }while(tries<80 && pts.some(pt=>Math.hypot(pt.x-x,pt.y-y)<minDist));
+        let tries=0,x=0,y=0;
+        do{
+          x=margin+Math.random()*(W-margin*2);
+          y=H*0.42+Math.random()*(H*0.48);
+          tries++;
+        }while(tries<80 && pts.some(pt=>Math.hypot(pt.x-x,pt.y-y)<minDist));
         pts.push({x,y});
         const img=new Image(); img.className='shell'; setImgSrc(img,id); img.alt=id; img.style.left=x+'px'; img.style.top=y+'px';
         shellLayer.appendChild(img);
@@ -213,41 +243,71 @@
     }
 
     function attemptCollectAt(px,py){
-      for(const s of shells){ if(s.collected) continue; const d=Math.hypot(s.x-px,s.y-py); if(d<=SHELL_SIZE*0.5){ if(!isRevealed(s.x,s.y)){ showBubble('砂をもう少しなぞって！'); return; } s.collected=true; s.el.classList.add('spin'); setTimeout(()=>{ s.el.style.visibility='hidden'; },420); collected++; countEl.textContent=String(collected); saveInventory(s.id); showBubble('やった！手に入れた'); if(collected===shells.length) onAllCollected(); return; } }
+      for(const s of shells){
+        if(s.collected) continue;
+        const d=Math.hypot(s.x-px,s.y-py);
+        if(d<=SHELL_SIZE*0.5){
+          if(!isRevealed(s.x,s.y)){ showBubble('砂をもう少しなぞって！'); return; }
+          s.collected=true; s.el.classList.add('spin');
+          setTimeout(()=>{ s.el.style.visibility='hidden'; },420);
+          collected++; countEl.textContent=String(collected);
+          saveInventory(s.id);
+          showBubble('やった！手に入れた');
+          if(collected===shells.length) onAllCollected();
+          return;
+        }
+      }
     }
 
     function onAllCollected(){ bg.classList.add('bright'); cta.style.display='block'; }
 
-    function showBubble(text){ bubble.textContent=text; bubble.style.left = friend.style.left || '50%'; bubble.style.top = friend.style.top || '60%'; bubble.style.opacity='1'; clearTimeout(showBubble._t); showBubble._t=setTimeout(()=>{ bubble.style.opacity='0'; },1100); }
+    function showBubble(text){
+      bubble.textContent=text;
+      bubble.style.left = friend.style.left || '50%';
+      bubble.style.top  = friend.style.top  || '60%';
+      bubble.style.opacity='1';
+      clearTimeout(showBubble._t);
+      showBubble._t=setTimeout(()=>{ bubble.style.opacity='0'; },1100);
+    }
 
-    // ====== Character idle float ======
-    function pickNewTarget(){
+    // ====== Character idle float (穏やか) ======
+    function pickNewTarget(soft=false){
       const W = game.clientWidth, H = game.clientHeight;
-      // 砂浜帯: 横20%〜80%, 縦45%〜85% あたり
-      friendTarget = { x: Math.random()*(W*0.6) + W*0.2, y: Math.random()*(H*0.4) + H*0.45 };
-      friendTimer = 2000 + Math.random()*3000; // 2〜5秒で次へ
+      // 砂浜帯の中で控えめな範囲
+      const xMin = W*0.30, xMax = W*0.70;
+      const yMin = H*0.52, yMax = H*0.80;
+      let nx = xMin + Math.random()*(xMax-xMin);
+      let ny = yMin + Math.random()*(yMax-yMin);
+      // 急なジャンプを抑えるため、現在地に35%寄せる
+      if(soft){ nx = friendPos.x + (nx - friendPos.x)*0.35; ny = friendPos.y + (ny - friendPos.y)*0.35; }
+      friendTarget.x = nx; friendTarget.y = ny;
+      friendTimer = FLOAT.intervalMin + Math.random()*(FLOAT.intervalMax - FLOAT.intervalMin);
     }
 
     function animate(ts){
-      // 目的地へスムーズに
-      const k = 0.06; // 小さいほどヌルヌル
-      friendPos.x += (friendTarget.x - friendPos.x)*k;
-      friendPos.y += (friendTarget.y - friendPos.y)*k;
-      // ふわふわ上下
-      const bob = Math.sin(ts*0.004)*4;
+      // 目標へゆっくり寄せる
+      friendPos.x += (friendTarget.x - friendPos.x) * FLOAT.springK;
+      friendPos.y += (friendTarget.y - friendPos.y) * FLOAT.springK;
+
+      // 小さな上下ゆれ
+      const bob = Math.sin(ts * FLOAT.bobFreq) * FLOAT.bobAmp;
+
       friend.style.left = friendPos.x + 'px';
       friend.style.top  = (friendPos.y + bob) + 'px';
-      // 目標更新タイミング
-      friendTimer -= 16; const dist = Math.hypot(friendTarget.x-friendPos.x, friendTarget.y-friendPos.y);
-      if(friendTimer <= 0 || dist < 12) pickNewTarget();
+
+      // しばらくしたら次の近場へ
+      friendTimer -= 16;
+      const dist = Math.hypot(friendTarget.x-friendPos.x, friendTarget.y-friendPos.y);
+      if(friendTimer <= 0 || dist < 4) pickNewTarget(true);
+
       requestAnimationFrame(animate);
     }
 
-    // ====== Pointer (砂削りだけ) ======
-    function toLocal(e){ const r=sand.getBoundingClientRect(); return { x:e.clientX - r.left, y:e.clientY - r.top }; }
+    // ====== Pointer（砂けずりのみ） ======
+    function toLocal(e){ const r=sand.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
     sand.addEventListener('pointerdown', e=>{ isDown=true; sand.setPointerCapture(e.pointerId); const p=toLocal(e); eraseAt(p.x,p.y,ERASER.down); last=p; });
     sand.addEventListener('pointermove', e=>{ const p=toLocal(e); if(isDown&&last){ lineErase(last.x,last.y,p.x,p.y,ERASER.move); last=p; } });
-    sand.addEventListener('pointerup', e=>{ isDown=false; last=null; const p=toLocal(e); attemptCollectAt(p.x,p.y); });
+    sand.addEventListener('pointerup',   e=>{ isDown=false; last=null; const p=toLocal(e); attemptCollectAt(p.x,p.y); });
     sand.addEventListener('pointercancel',()=>{ isDown=false; last=null; });
 
     // ====== Buttons ======
@@ -256,7 +316,14 @@
     document.getElementById('toCollection').addEventListener('click',()=>{ location.href='collection.html'; });
 
     // ====== Init ======
-    function init(){ loadCharacter(); resizeCanvas(); placeShells(); collected=0; countEl.textContent='0'; pickNewTarget(); requestAnimationFrame(animate); }
+    function init(){
+      loadCharacter();
+      resizeCanvas();
+      placeShells();
+      collected=0; countEl.textContent='0';
+      pickNewTarget(false);
+      requestAnimationFrame(animate);
+    }
     window.addEventListener('resize', ()=>{ resizeCanvas(); placeShells(); });
     document.addEventListener('DOMContentLoaded', init);
   })();
