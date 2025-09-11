@@ -46,20 +46,20 @@
     function loadJSON(k,fb){ try{return JSON.parse(localStorage.getItem(k))||fb}catch(e){return fb} }
     function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)) }
 
-    // 交換品（Miwaさん指定の5点）
+    // 商品（アクセ画像パスを public/accessories/ に修正）
     const ITEMS = [
-      { id:"ribbon_yellow", name:"黄色リボン",   img:"public/assets/accessories/ribbon_yellow.png", cost:{asari:10},          type:"acc" },
-      { id:"star_yellow",   name:"星",           img:"public/assets/accessories/star_yellow.png",   cost:{asari:8},           type:"acc" },
-      { id:"knit_hat",      name:"ニット帽",     img:"public/assets/accessories/knit_hat.png",      cost:{aurora_shell:1},    type:"acc" },
-      { id:"straw_hat",     name:"麦わら帽子",   img:"public/assets/accessories/straw_hat.png",     cost:{flame_shell:1},     type:"acc" },
-      { id:"sunglasses",    name:"サングラス",   img:"public/assets/accessories/sunglasses.png",    cost:{night_sky_shell:1}, type:"acc" },
+      { id:"ribbon_yellow", name:"黄色リボン", img:"public/accessories/ribbon_yellow.png", cost:{asari:10},          type:"acc" },
+      { id:"star_yellow",   name:"星",         img:"public/accessories/star_yellow.png",   cost:{asari:8},           type:"acc" },
+      { id:"knit_hat",      name:"ニット帽",   img:"public/accessories/knit_hat.png",      cost:{aurora_shell:1},    type:"acc" },
+      { id:"straw_hat",     name:"麦わら帽子", img:"public/accessories/straw_hat.png",     cost:{flame_shell:1},     type:"acc" },
+      { id:"sunglasses",    name:"サングラス", img:"public/accessories/sunglasses.png",    cost:{night_sky_shell:1}, type:"acc" },
     ];
 
     let shells = loadJSON(LS_KEYS.shells,{});
     let accOwned = loadJSON(LS_KEYS.accOwned,[]);
     let tickets = loadJSON(LS_KEYS.tickets,0);
 
-    function sumAsari(){ return (shells.asari1||0)+(shells.asari2||0)+(shells.asari3||0) }
+    function sumAsari(){ return (shells.asari1||0)+(shells.asari2||0)+(shells.asari3||0); }
 
     function canBuy(item){
       for(const [k,v] of Object.entries(item.cost)){
@@ -117,7 +117,6 @@
 
     function showToast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
 
-    // 初期描画
     renderShop();
   </script>
 </body>
