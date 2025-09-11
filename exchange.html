@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <title>WHO VQ — 交換所</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+    .bg{position:fixed;inset:0;background:linear-gradient(180deg,#222 0%,#111 100%);z-index:0}
+    #topbar{position:fixed;top:0;left:0;right:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent)}
+    #topbar .btn{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);border-radius:8px;padding:6px 10px;font-size:13px;color:#fff}
+    .wrap{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:80px 16px}
+    h1{font-size:22px;margin-bottom:12px}
+    .summary{margin-bottom:16px;opacity:.85}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+    .card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+    .card img{width:72px;height:72px;object-fit:contain}
+    .price{font-size:13px;opacity:.8}
+    .btn{border:none;border-radius:8px;padding:8px 10px;font-size:14px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff}
+    .btn:disabled{opacity:.35;cursor:not-allowed}
+    .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .3s;z-index:3}
+    .toast.show{opacity:1}
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div id="topbar">
+    <div>💎 交換所</div>
+    <div>
+      <button class="btn" onclick="location.href='asari.html'">⛏️ 潮干狩り</button>
+      <button class="btn" onclick="location.href='collection.html'">📂 コレクション</button>
+      <button class="btn" onclick="location.href='story.html'">📖 ストーリー</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h1>🐚 アサリ交換</h1>
+    <div class="summary" id="summary">所持: —</div>
+    <div class="grid" id="shop"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const LS_KEYS={ shells:"shell_inventory", accOwned:"accessories_owned", tickets:"tickets" };
+    function loadJSON(k,fb){ try{return JSON.parse(localStorage.getItem(k))||fb}catch(e){return fb} }
+    function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)) }
+
+    // 交換品（Miwaさん指定の5点）
+    const ITEMS = [
+      { id:"ribbon_yellow", name:"黄色リボン",   img:"public/assets/accessories/ribbon_yellow.png", cost:{asari:10},          type:"acc" },
+      { id:"star_yellow",   name:"星",           img:"public/assets/accessories/star_yellow.png",   cost:{asari:8},           type:"acc" },
+      { id:"knit_hat",      name:"ニット帽",     img:"public/assets/accessories/knit_hat.png",      cost:{aurora_shell:1},    type:"acc" },
+      { id:"straw_hat",     name:"麦わら帽子",   img:"public/assets/accessories/straw_hat.png",     cost:{flame_shell:1},     type:"acc" },
+      { id:"sunglasses",    name:"サングラス",   img:"public/assets/accessories/sunglasses.png",    cost:{night_sky_shell:1}, type:"acc" },
+    ];
+
+    let shells = loadJSON(LS_KEYS.shells,{});
+    let accOwned = loadJSON(LS_KEYS.accOwned,[]);
+    let tickets = loadJSON(LS_KEYS.tickets,0);
+
+    function sumAsari(){ return (shells.asari1||0)+(shells.asari2||0)+(shells.asari3||0) }
+
+    function canBuy(item){
+      for(const [k,v] of Object.entries(item.cost)){
+        if(k==="asari"){ if(sumAsari()<v) return false; }
+        else{ if((shells[k]||0)<v) return false; }
+      }
+      return true;
+    }
+
+    function payCost(cost){
+      for(const [k,v] of Object.entries(cost)){
+        if(k==="asari"){
+          let remain=v;
+          ["asari1","asari2","asari3"].forEach(id=>{
+            const use=Math.min(shells[id]||0,remain);
+            shells[id]=(shells[id]||0)-use; remain-=use;
+          });
+        }else{
+          shells[k]=(shells[k]||0)-v;
+        }
+      }
+      saveJSON(LS_KEYS.shells, shells);
+    }
+
+    function acquire(item){
+      if(item.type==="acc" && !accOwned.includes(item.id)){
+        accOwned.push(item.id); saveJSON(LS_KEYS.accOwned, accOwned);
+      }
+      if(item.type==="ticket"){ tickets++; saveJSON(LS_KEYS.tickets,tickets); }
+    }
+
+    function renderShop(){
+      document.getElementById("summary").textContent =
+        `アサリ合計: ${sumAsari()}　|　aurora:${shells.aurora_shell||0}　luminous:${shells.luminous_shell||0}　mystic:${shells.mystic_shell||0}　flame:${shells.flame_shell||0}　night:${shells.night_sky_shell||0}`;
+      const shop=document.getElementById("shop"); shop.innerHTML="";
+      ITEMS.forEach(item=>{
+        const card=document.createElement("div"); card.className="card";
+        const costTxt=Object.entries(item.cost).map(([k,v])=>`${k}×${v}`).join(" + ");
+        const ownedMark = accOwned.includes(item.id) ? `<span class="price" style="color:#9fe29f">（所持済）</span>`:"";
+        card.innerHTML=`<img src="${item.img}" alt=""><div>${item.name} ${ownedMark}</div><div class="price">必要: ${costTxt}</div>`;
+        const btn=document.createElement("button"); btn.className="btn"; btn.textContent="交換する";
+        btn.disabled=!canBuy(item);
+        btn.onclick=()=>{
+          if(!canBuy(item)) return;
+          payCost(item.cost); acquire(item);
+          showToast(`${item.name} を入手！`);
+          shells = loadJSON(LS_KEYS.shells,{});
+          accOwned = loadJSON(LS_KEYS.accOwned,[]);
+          renderShop();
+        };
+        card.appendChild(btn);
+        shop.appendChild(card);
+      });
+    }
+
+    function showToast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
+
+    // 初期描画
+    renderShop();
+  </script>
+</body>
+</html>
