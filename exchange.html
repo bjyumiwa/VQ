@@ -2,122 +2,331 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — 交換所</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>WHO VQ — 潮干狩り（砂なぞり・シンプル）</title>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
-    .bg{position:fixed;inset:0;background:linear-gradient(180deg,#222 0%,#111 100%);z-index:0}
-    #topbar{position:fixed;top:0;left:0;right:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent)}
-    #topbar .btn{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);border-radius:8px;padding:6px 10px;font-size:13px;color:#fff}
-    .wrap{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:80px 16px}
-    h1{font-size:22px;margin-bottom:12px}
-    .summary{margin-bottom:16px;opacity:.85}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-    .card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
-    .card img{width:72px;height:72px;object-fit:contain}
-    .price{font-size:13px;opacity:.8}
-    .btn{border:none;border-radius:8px;padding:8px 10px;font-size:14px;cursor:pointer;background:rgba(255,255,255,.18);color:#fff}
-    .btn:disabled{opacity:.35;cursor:not-allowed}
-    .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .3s;z-index:3}
-    .toast.show{opacity:1}
+    /* ===== Reset & Base ===== */
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+
+    /* ===== Stage Layers ===== */
+    .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none}
+    #bg{position:absolute;inset:0;background-image:url('public/items/bg/beach_day.jpg');background-size:cover;background-position:center;z-index:0;transition:filter .8s ease}
+    #shellLayer{position:absolute;inset:0;z-index:1}
+    #sand{position:absolute;inset:0;z-index:2;touch-action:none}
+
+    /* 貝（貼り付け画像） */
+    .shell{position:absolute;width:72px;height:72px;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 10px rgba(0,0,0,.35));pointer-events:none}
+
+    /* HUD */
+    #hud{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
+    #hud .chip{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18)}
+    #hud .btn{padding:8px 12px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);cursor:pointer}
+    #cta{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;display:none}
+    #cta button{padding:12px 18px;border:0;border-radius:14px;font-weight:700;background:linear-gradient(90deg,#7cf3c9,#8ee8ff);color:#06251a;box-shadow:0 10px 24px rgba(124,243,201,.25);cursor:pointer}
+
+    /* Character（やさしく“ふわふわ”） */
+    #friend{position:absolute;z-index:4;width:16vh;min-width:84px;image-rendering:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.5));transform:translate(-50%,-50%);pointer-events:none}
+    #bubble{position:absolute;z-index:5;min-width:120px;max-width:52vw;padding:8px 10px;border-radius:12px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);transform:translate(-50%,-130%);opacity:0;transition:opacity .25s ease;pointer-events:none}
+
+    /* Animations */
+    @keyframes spinOnce{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+    .spin{animation:spinOnce .45s cubic-bezier(.2,.8,.2,1)}
+
+    /* End brightening */
+    .bright{filter:brightness(1.18) saturate(1.08)}
   </style>
 </head>
 <body>
-  <div class="bg"></div>
-  <div id="topbar">
-    <div>💎 交換所</div>
-    <div>
-      <button class="btn" onclick="location.href='asari.html'">⛏️ 潮干狩り</button>
-      <button class="btn" onclick="location.href='collection.html'">📂 コレクション</button>
-      <button class="btn" onclick="location.href='story.html'">📖 ストーリー</button>
-    </div>
-  </div>
+  <div class="game" id="game">
+    <div id="bg" aria-hidden="true"></div>
+    <div id="shellLayer" aria-label="shells"></div>
+    <canvas id="sand"></canvas>
 
-  <div class="wrap">
-    <h1>🐚 アサリ交換</h1>
-    <div class="summary" id="summary">所持: —</div>
-    <div class="grid" id="shop"></div>
+    <img id="friend" alt="character" />
+    <div id="bubble" role="status">やった！アサリを手に入れた</div>
+
+    <div id="hud">
+      <div class="chip">回収: <b id="count">0</b> 個</div>
+      <div style="flex:1"></div>
+      <button class="btn" id="btnReset">砂を戻す</button>
+      <button class="btn" id="btnBack">戻る</button>
+    </div>
+
+    <div id="cta"><button id="toCollection">全部回収！ 図鑑へ →</button></div>
   </div>
-  <div class="toast" id="toast"></div>
 
   <script>
-    const LS_KEYS={ shells:"shell_inventory", accOwned:"accessories_owned", tickets:"tickets" };
-    function loadJSON(k,fb){ try{return JSON.parse(localStorage.getItem(k))||fb}catch(e){return fb} }
-    function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)) }
+  ;(() => {
+    // ====== Config ======
+    const STORAGE_KEY = 'who_shells';
+    const CHARACTER_KEYS = ['who_character','character','selected_character','playerColor','avatar','hero'];
 
-    // 商品（アクセ画像パスを public/accessories/ に修正）
-    const ITEMS = [
-      { id:"ribbon_yellow", name:"黄色リボン", img:"public/accessories/ribbon_yellow.png", cost:{asari:10},          type:"acc" },
-      { id:"star_yellow",   name:"星",         img:"public/accessories/star_yellow.png",   cost:{asari:8},           type:"acc" },
-      { id:"knit_hat",      name:"ニット帽",   img:"public/accessories/knit_hat.png",      cost:{aurora_shell:1},    type:"acc" },
-      { id:"straw_hat",     name:"麦わら帽子", img:"public/accessories/straw_hat.png",     cost:{flame_shell:1},     type:"acc" },
-      { id:"sunglasses",    name:"サングラス", img:"public/accessories/sunglasses.png",    cost:{night_sky_shell:1}, type:"acc" },
+    // 画像ベース（相対/ルートゆれ対策）
+    const IMG_BASES = ['public/items','./public/items','/public/items'];
+
+    const SHELL_POOL = [
+      { id:'asari1', n:6 },
+      { id:'asari2', n:5 },
+      { id:'asari3', n:4 },
+      { id:'aurora_shell', n:2 },
+      { id:'luminous_shell', n:2 },
+      { id:'mystic_shell', n:2 },
+      { id:'wave_shell', n:2 },
+      { id:'flame_shell', n:1 },
+      { id:'night_sky_shell', n:1 },
+      { id:'rare_pearl', n:1 },
+      { id:'rare_rainbow', n:1 },
     ];
 
-    let shells = loadJSON(LS_KEYS.shells,{});
-    let accOwned = loadJSON(LS_KEYS.accOwned,[]);
-    let tickets = loadJSON(LS_KEYS.tickets,0);
+    const SHELL_SIZE = 72; // px
 
-    function sumAsari(){ return (shells.asari1||0)+(shells.asari2||0)+(shells.asari3||0); }
+    // 消しゴム（ノイズ入りブラシで輪郭の丸さを抑える）
+    const ERASER = { down: 30, move: 26, noise: 10 };
 
-    function canBuy(item){
-      for(const [k,v] of Object.entries(item.cost)){
-        if(k==="asari"){ if(sumAsari()<v) return false; }
-        else{ if((shells[k]||0)<v) return false; }
-      }
-      return true;
+    // ふわふわ挙動のパラメータ（落ち着いた動き）
+    const FLOAT = {
+      intervalMin: 5000,   // 目標更新 5s〜
+      intervalMax: 9000,   // 〜9s
+      springK: 0.025,      // 小さいほどゆっくり追従
+      bobAmp: 2,           // 上下ゆれ振幅（px）
+      bobFreq: 0.0016      // 上下ゆれ速さ
+    };
+
+    // ====== State ======
+    const game = document.getElementById('game');
+    const bg = document.getElementById('bg');
+    const shellLayer = document.getElementById('shellLayer');
+    const sand = document.getElementById('sand');
+    const ctx = sand.getContext('2d', { willReadFrequently: true });
+    const friend = document.getElementById('friend');
+    const bubble = document.getElementById('bubble');
+    const countEl = document.getElementById('count');
+    const cta = document.getElementById('cta');
+
+    let shells = []; // {id,x,y,el,collected}
+    let collected = 0;
+    let isDown = false;
+    let last = null;
+
+    // キャラの“ふわふわ”用
+    const friendPos = { x: window.innerWidth*0.5, y: window.innerHeight*0.62 };
+    const friendTarget = { x: friendPos.x, y: friendPos.y };
+    let friendTimer = 0;
+
+    // ====== Helpers ======
+    const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+
+    function setImgSrc(img, id, idx=0){
+      if(idx >= IMG_BASES.length){ img.style.opacity='.25'; img.alt='no image'; return; }
+      img.onerror = () => setImgSrc(img, id, idx+1);
+      img.src = `${IMG_BASES[idx]}/${id}.png`;
     }
 
-    function payCost(cost){
-      for(const [k,v] of Object.entries(cost)){
-        if(k==="asari"){
-          let remain=v;
-          ["asari1","asari2","asari3"].forEach(id=>{
-            const use=Math.min(shells[id]||0,remain);
-            shells[id]=(shells[id]||0)-use; remain-=use;
-          });
+    function getCharacterColor(){
+      for(const k of CHARACTER_KEYS){
+        const v = localStorage.getItem(k);
+        if(v){ const m = String(v).toLowerCase().match(/[a-z]+/); if(m) return m[0]; }
+      }
+      return 'pink';
+    }
+
+    // フォールバックSVG（画像が無い環境でも必ず出る）
+    function charSVG(color){
+      const P = {
+        pink:{a:'#ff9ac2',b:'#ffe0eb'},
+        blue:{a:'#8ec8ff',b:'#e3f2ff'},
+        green:{a:'#7cf3c9',b:'#e3fff6'},
+        yellow:{a:'#ffe58e',b:'#fff6cc'},
+        purple:{a:'#c6a7ff',b:'#f0e9ff'},
+        orange:{a:'#ffb47a',b:'#ffe4cc'}
+      }[color] || {a:'#ff9ac2',b:'#ffe0eb'};
+      const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><defs><radialGradient id='g' cx='50%' cy='35%' r='60%'><stop offset='0%' stop-color='#fff'/><stop offset='100%' stop-color='${P.a}'/></radialGradient></defs><circle cx='100' cy='108' r='70' fill='url(#g)'/><circle cx='76' cy='96' r='8' fill='#fff'/><circle cx='124' cy='96' r='8' fill='#fff'/><path d='M70 128 q30 22 60 0' fill='none' stroke='#fff' stroke-width='8' stroke-linecap='round'/></svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    }
+
+    function loadCharacter(){
+      const color = getCharacterColor();
+      const candidates = [
+        `public/stage1/${color}_open.png`,
+        `public/assets/stage1/${color}_open.png`,
+        `./public/stage1/${color}_open.png`,
+        `public/items/character_${color}.png`,
+        `public/items/character.png`
+      ];
+      let i = 0;
+      const next = () => {
+        if(i < candidates.length){
+          friend.onerror = () => { i++; next(); };
+          friend.src = candidates[i];
+          friend.alt = `character ${color}`;
         }else{
-          shells[k]=(shells[k]||0)-v;
+          friend.onerror = null;
+          friend.src = charSVG(color);
+          friend.alt = `character (${color})`;
+        }
+      };
+      next();
+    }
+
+    function saveInventory(deltaId){
+      let inv = { items: {}, schema: 'who_shells/v1', updatedAt: new Date().toISOString() };
+      try{ const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); if(raw && raw.items) inv = raw; }catch{}
+      inv.items[deltaId] = (inv.items[deltaId]||0)+1;
+      inv.updatedAt = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(inv));
+    }
+
+    // ====== Sand (mask) ======
+    function resizeCanvas(){ sand.width = game.clientWidth; sand.height = game.clientHeight; drawSand(); }
+
+    function drawSand(){
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0,0,sand.width,sand.height);
+      ctx.fillStyle = '#e4d1a2';
+      ctx.fillRect(0,0,sand.width,sand.height);
+    }
+
+    function eraseAt(x,y,r){
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      // ベース円
+      ctx.beginPath(); ctx.arc(x,y,r*0.9,0,Math.PI*2); ctx.fill();
+      // ノイズで縁をギザつかせる
+      const k = ERASER.noise;
+      for(let i=0;i<k;i++){
+        const ang = Math.random()*Math.PI*2;
+        const rr = r*(0.6 + Math.random()*0.5);
+        const d  = (Math.random()*r*0.25);
+        const ox = Math.cos(ang)*(rr+d)*0.15;
+        const oy = Math.sin(ang)*(rr+d)*0.15;
+        const sr = r*(0.18 + Math.random()*0.18);
+        ctx.beginPath(); ctx.arc(x+ox, y+oy, sr, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function lineErase(x0,y0,x1,y1,r){
+      const dx=x1-x0,dy=y1-y0,dist=Math.hypot(dx,dy);
+      const steps=Math.max(1,Math.ceil(dist/(r*0.6)));
+      for(let i=0;i<=steps;i++){
+        const t=i/steps; eraseAt(x0+dx*t,y0+dy*t,r);
+      }
+    }
+
+    function isRevealed(cx,cy){
+      const s=8; const x=clamp(Math.floor(cx-s),0,sand.width-1), y=clamp(Math.floor(cy-s),0,sand.height-1);
+      const img=ctx.getImageData(x,y,s*2,s*2).data; let covered=0,total=(s*2)*(s*2);
+      for(let i=3;i<img.length;i+=4){ if(img[i]>24) covered++; }
+      return (covered/total) < 0.25; // 75%削れたら露出
+    }
+
+    // ====== Shells ======
+    function placeShells(){
+      shellLayer.innerHTML=''; shells.length=0;
+      const W = game.clientWidth, H = game.clientHeight;
+      const margin = 64; const minDist = 80;
+      const all = []; SHELL_POOL.forEach(p=>{ for(let i=0;i<p.n;i++) all.push(p.id); });
+      const pts=[];
+      for(const id of all){
+        let tries=0,x=0,y=0;
+        do{
+          x=margin+Math.random()*(W-margin*2);
+          y=H*0.42+Math.random()*(H*0.48);
+          tries++;
+        }while(tries<80 && pts.some(pt=>Math.hypot(pt.x-x,pt.y-y)<minDist));
+        pts.push({x,y});
+        const img=new Image(); img.className='shell'; setImgSrc(img,id); img.alt=id; img.style.left=x+'px'; img.style.top=y+'px';
+        shellLayer.appendChild(img);
+        shells.push({id,x,y,el:img,collected:false});
+      }
+    }
+
+    function attemptCollectAt(px,py){
+      for(const s of shells){
+        if(s.collected) continue;
+        const d=Math.hypot(s.x-px,s.y-py);
+        if(d<=SHELL_SIZE*0.5){
+          if(!isRevealed(s.x,s.y)){ showBubble('砂をもう少しなぞって！'); return; }
+          s.collected=true; s.el.classList.add('spin');
+          setTimeout(()=>{ s.el.style.visibility='hidden'; },420);
+          collected++; countEl.textContent=String(collected);
+          saveInventory(s.id);
+          showBubble('やった！手に入れた');
+          if(collected===shells.length) onAllCollected();
+          return;
         }
       }
-      saveJSON(LS_KEYS.shells, shells);
     }
 
-    function acquire(item){
-      if(item.type==="acc" && !accOwned.includes(item.id)){
-        accOwned.push(item.id); saveJSON(LS_KEYS.accOwned, accOwned);
-      }
-      if(item.type==="ticket"){ tickets++; saveJSON(LS_KEYS.tickets,tickets); }
+    function onAllCollected(){ bg.classList.add('bright'); cta.style.display='block'; }
+
+    function showBubble(text){
+      bubble.textContent=text;
+      bubble.style.left = friend.style.left || '50%';
+      bubble.style.top  = friend.style.top  || '60%';
+      bubble.style.opacity='1';
+      clearTimeout(showBubble._t);
+      showBubble._t=setTimeout(()=>{ bubble.style.opacity='0'; },1100);
     }
 
-    function renderShop(){
-      document.getElementById("summary").textContent =
-        `アサリ合計: ${sumAsari()}　|　aurora:${shells.aurora_shell||0}　luminous:${shells.luminous_shell||0}　mystic:${shells.mystic_shell||0}　flame:${shells.flame_shell||0}　night:${shells.night_sky_shell||0}`;
-      const shop=document.getElementById("shop"); shop.innerHTML="";
-      ITEMS.forEach(item=>{
-        const card=document.createElement("div"); card.className="card";
-        const costTxt=Object.entries(item.cost).map(([k,v])=>`${k}×${v}`).join(" + ");
-        const ownedMark = accOwned.includes(item.id) ? `<span class="price" style="color:#9fe29f">（所持済）</span>`:"";
-        card.innerHTML=`<img src="${item.img}" alt=""><div>${item.name} ${ownedMark}</div><div class="price">必要: ${costTxt}</div>`;
-        const btn=document.createElement("button"); btn.className="btn"; btn.textContent="交換する";
-        btn.disabled=!canBuy(item);
-        btn.onclick=()=>{
-          if(!canBuy(item)) return;
-          payCost(item.cost); acquire(item);
-          showToast(`${item.name} を入手！`);
-          shells = loadJSON(LS_KEYS.shells,{});
-          accOwned = loadJSON(LS_KEYS.accOwned,[]);
-          renderShop();
-        };
-        card.appendChild(btn);
-        shop.appendChild(card);
-      });
+    // ====== Character idle float (穏やか) ======
+    function pickNewTarget(soft=false){
+      const W = game.clientWidth, H = game.clientHeight;
+      // 砂浜帯の中で控えめな範囲
+      const xMin = W*0.30, xMax = W*0.70;
+      const yMin = H*0.52, yMax = H*0.80;
+      let nx = xMin + Math.random()*(xMax-xMin);
+      let ny = yMin + Math.random()*(yMax-yMin);
+      // 急なジャンプを抑えるため、現在地に35%寄せる
+      if(soft){ nx = friendPos.x + (nx - friendPos.x)*0.35; ny = friendPos.y + (ny - friendPos.y)*0.35; }
+      friendTarget.x = nx; friendTarget.y = ny;
+      friendTimer = FLOAT.intervalMin + Math.random()*(FLOAT.intervalMax - FLOAT.intervalMin);
     }
 
-    function showToast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
+    function animate(ts){
+      // 目標へゆっくり寄せる
+      friendPos.x += (friendTarget.x - friendPos.x) * FLOAT.springK;
+      friendPos.y += (friendTarget.y - friendPos.y) * FLOAT.springK;
 
-    renderShop();
+      // 小さな上下ゆれ
+      const bob = Math.sin(ts * FLOAT.bobFreq) * FLOAT.bobAmp;
+
+      friend.style.left = friendPos.x + 'px';
+      friend.style.top  = (friendPos.y + bob) + 'px';
+
+      // しばらくしたら次の近場へ
+      friendTimer -= 16;
+      const dist = Math.hypot(friendTarget.x-friendPos.x, friendTarget.y-friendPos.y);
+      if(friendTimer <= 0 || dist < 4) pickNewTarget(true);
+
+      requestAnimationFrame(animate);
+    }
+
+    // ====== Pointer（砂けずりのみ） ======
+    function toLocal(e){ const r=sand.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
+    sand.addEventListener('pointerdown', e=>{ isDown=true; sand.setPointerCapture(e.pointerId); const p=toLocal(e); eraseAt(p.x,p.y,ERASER.down); last=p; });
+    sand.addEventListener('pointermove', e=>{ const p=toLocal(e); if(isDown&&last){ lineErase(last.x,last.y,p.x,p.y,ERASER.move); last=p; } });
+    sand.addEventListener('pointerup',   e=>{ isDown=false; last=null; const p=toLocal(e); attemptCollectAt(p.x,p.y); });
+    sand.addEventListener('pointercancel',()=>{ isDown=false; last=null; });
+
+    // ====== Buttons ======
+    document.getElementById('btnBack').addEventListener('click',()=>{ history.back(); });
+    document.getElementById('btnReset').addEventListener('click',()=>{ drawSand(); });
+    document.getElementById('toCollection').addEventListener('click',()=>{ location.href='collection.html'; });
+
+    // ====== Init ======
+    function init(){
+      loadCharacter();
+      resizeCanvas();
+      placeShells();
+      collected=0; countEl.textContent='0';
+      pickNewTarget(false);
+      requestAnimationFrame(animate);
+    }
+    window.addEventListener('resize', ()=>{ resizeCanvas(); placeShells(); });
+    document.addEventListener('DOMContentLoaded', init);
+  })();
   </script>
 </body>
 </html>
