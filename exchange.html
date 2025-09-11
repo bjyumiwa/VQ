@@ -3,524 +3,359 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>WHO VQ — 交換所（装備対応）</title>
+  <title>WHO VQ — コレクション図鑑</title>
   <style>
     /* ===== Base ===== */
-    *,*::before,*::after{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:#0b0f14;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
-    a{color:inherit;text-decoration:none}
-    .app{min-height:100vh;padding:72px 16px 116px;position:relative}
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: #0b0f14; color: #ffffff; font-family: system-ui, "Noto Sans JP", sans-serif; }
+    a { color: inherit; text-decoration: none; }
 
-    /* Topbar */
-    .topbar{position:fixed;inset:0 0 auto 0;height:56px;padding:8px 12px;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,rgba(0,0,0,.65),rgba(0,0,0,0));z-index:10}
-    .btn{padding:8px 12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);border-radius:12px;backdrop-filter:blur(6px);cursor:pointer;color:#fff}
-    .spacer{flex:1}
+    /* ===== App Layout ===== */
+    .app { position: relative; min-height: 100vh; padding: 72px 16px 88px; }
 
-    /* Header / controls */
-    .title{font-weight:800;font-size:20px;letter-spacing:.02em}
-    .subtitle{opacity:.95;font-size:12px}
-    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 16px}
-    .chip{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);cursor:pointer;font-size:12px}
-    .chip[aria-pressed="true"]{background:rgba(255,255,255,.22)}
-    .search{display:flex;gap:6px;align-items:center;margin-left:auto}
-    .search input{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;min-width:160px}
+    /* Top Bar */
+    .topbar { position: fixed; inset: 0 0 auto 0; height: 56px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,0)); z-index: 10; }
+    .topbar .btn { padding: 8px 12px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.08); border-radius: 12px; backdrop-filter: blur(6px); cursor: pointer; color:#fff; }
+    .spacer { flex: 1; }
 
-    /* Summary */
-    .summary{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0 14px}
-    .pill{display:inline-flex;gap:6px;align-items:center;padding:6px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
-    .pill img{width:18px;height:18px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+    /* Header */
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .title { font-size: 20px; font-weight: 700; letter-spacing: .02em; color:#fff; }
+    .subtitle { opacity: .95; font-size: 12px; color:#fff; }
 
-    /* Equipment panel */
-    .equip{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:10px 0 18px}
-    .slot{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:12px;padding:10px;display:grid;gap:6px}
-    .slot h4{margin:0;font-size:12px;opacity:.9}
-    .slot .cur{min-height:36px;font-size:13px}
-    .slot .row{display:flex;gap:6px;flex-wrap:wrap}
-    .tiny{font-size:11px;opacity:.85}
-    .mini{padding:6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
+    /* Character Preview */
+    .char-box { position: fixed; right: 12px; bottom: 100px; width: 140px; height: 140px; display: grid; place-items: center; background: radial-gradient(120px 60px at 50% 30%, rgba(255,255,255,.12), rgba(255,255,255,0)); border: 1px solid rgba(255,255,255,.08); border-radius: 16px; }
+    .char-box img { max-width: 80%; height: auto; image-rendering: auto; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+
+    /* Filters */
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 16px; }
+    .chip { padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.10); cursor: pointer; font-size: 12px; color:#fff; }
+    .chip[aria-pressed="true"] { background: rgba(255,255,255,.25); }
+
+    select { padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.10); color: #fff; }
+
+    /* Progress */
+    .progress { display: flex; align-items: center; gap: 10px; margin: 8px 0 12px; }
+    .bar { flex: 1; height: 8px; background: rgba(255,255,255,.15); border-radius: 8px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #8ee8ff, #7cf3c9); }
+    .progress .label { font-size: 12px; opacity: .95; color:#fff; }
 
     /* Grid */
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-    .card{position:relative;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);border-radius:14px;padding:12px;display:grid;grid-template-rows:auto 1fr auto;gap:8px}
-    .iconWrap{display:grid;place-items:center;height:110px}
-    .icon{width:96px;height:96px;object-fit:contain;filter:drop-shadow(0 8px 16px rgba(0,0,0,.45))}
-    .nm{font-size:14px;font-weight:700}
-    .desc{font-size:12px;opacity:.95}
-    .cost{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
-    .badge{display:inline-flex;gap:4px;align-items:center;padding:4px 6px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);border-radius:999px;font-size:12px}
-    .badge img{width:16px;height:16px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
-    .own{position:absolute;top:8px;right:8px;font-size:11px;padding:2px 6px;border-radius:999px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18)}
-    .act{display:flex;gap:8px;flex-wrap:wrap}
-    .buy{flex:1;padding:10px 12px;border:0;border-radius:12px;font-weight:700;cursor:pointer;color:#06251a;background:linear-gradient(90deg,#7cf3c9,#8ee8ff);box-shadow:0 8px 16px rgba(124,243,201,.22)}
-    .buy[disabled]{cursor:not-allowed;filter:grayscale(.6) brightness(.8)}
-    .ghost{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#fff;cursor:pointer}
-    .equipBtn{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
-    .tag{position:absolute;top:8px;left:8px;font-size:11px;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
 
-    /* Category colors for generated icons */
-    .cat-acc{--c1:#9be7ff;--c2:#e6fbff}
-    .cat-tkt{--c1:#a3ffa8;--c2:#eaffea}
-    .cat-eff{--c1:#ffd19a;--c2:#fff3e2}
-    .cat-spc{--c1:#ffb2da;--c2:#ffe6f3}
-    .cat-gear{--c1:#c6b3ff;--c2:#f1ecff}
+    .card { position: relative; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); border-radius: 14px; padding: 10px; display: grid; justify-items: center; gap: 8px; cursor: pointer; transition: transform .1s ease; }
+    .card:hover { transform: translateY(-2px); }
+    .card img { width: 72px; height: 72px; object-fit: contain; image-rendering: auto; filter: drop-shadow(0 4px 8px rgba(0,0,0,.35)); }
+    .card .nm { font-size: 12px; text-align: center; line-height: 1.25; color:#fff; }
+    .badge { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.18); color:#fff; }
+    .rarity { position: absolute; left: 6px; top: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); color:#fff; }
 
-    /* Bottom */
-    .bottombar{position:fixed;inset:auto 0 0 0;height:76px;padding:10px 12px;display:flex;align-items:center;gap:10px;background:linear-gradient(0deg,rgba(0,0,0,.75),rgba(0,0,0,0));z-index:10}
+    /* Rarity Colors */
+    .rN { background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03)); }
+    .rM { background: linear-gradient(180deg, rgba(140,200,255,.28), rgba(255,255,255,.03)); }
+    .rH { background: linear-gradient(180deg, rgba(255,170,90,.28), rgba(255,255,255,.03)); }
+    .rU { background: linear-gradient(180deg, rgba(255,120,180,.30), rgba(255,255,255,.03)); }
+
+    /* Empty State */
+    .empty { text-align: center; padding: 40px 12px; opacity: .9; color:#fff; }
+
+    /* Bottom Bar */
+    .bottombar { position: fixed; inset: auto 0 0 0; height: 72px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; background: linear-gradient(0deg, rgba(0,0,0,.75), rgba(0,0,0,0)); z-index: 10; }
+    .cta { flex: 1; padding: 10px 14px; border: 0; border-radius: 12px; font-weight: 700; cursor: pointer; color: #06251a; background: linear-gradient(90deg, #7cf3c9, #8ee8ff); box-shadow: 0 8px 24px rgba(124,243,201,.25); }
+    .ghost { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.10); color: #fff; cursor: pointer; }
+
+    /* Modal */
+    dialog { width: min(520px, 96vw); border: 1px solid rgba(255,255,255,.18); background: rgba(22,30,39,.95); color: inherit; border-radius: 16px; padding: 16px; }
+    dialog::backdrop { background: rgba(0,0,0,.6); }
+    .modal-hd { display: flex; align-items: center; gap: 12px; }
+    .modal-hd img { width: 72px; height: 72px; object-fit: contain; }
+    .modal-ttl { font-size: 18px; font-weight: 700; color:#fff; }
+    .modal-sub { font-size: 12px; opacity: .95; color:#fff; }
+    .modal-main { margin: 12px 0; line-height: 1.6; font-size: 14px; color:#fff; }
+    .modal-act { display: flex; gap: 8px; justify-content: flex-end; }
   </style>
 </head>
 <body>
   <div class="topbar">
-    <button class="btn" id="btnBack">← 図鑑へ</button>
+    <button class="btn" id="btnBack">← 潮干狩りへ</button>
+    <button class="btn" id="btnReset" title="全削除">リセット</button>
     <div class="spacer"></div>
-    <button class="btn" id="btnResetOwn">購入履歴リセット</button>
-    <button class="btn" id="btnResetEquip">装備リセット</button>
+    <button class="btn" id="btnExport">CSV出力</button>
   </div>
 
   <div class="app">
-    <div class="title">交換所</div>
-    <div class="subtitle">商品を交換し、装備品はさらに<strong>装着/脱着</strong>に貝を使います</div>
-
-    <div class="controls">
-      <button class="chip" data-cat="all" aria-pressed="true">すべて</button>
-      <button class="chip" data-cat="acc">アクセサリー</button>
-      <button class="chip" data-cat="gear">装備（靴/服/帽子など）</button>
-      <button class="chip" data-cat="tkt">チケット</button>
-      <button class="chip" data-cat="eff">演出</button>
-      <button class="chip" data-cat="spc">スペシャル</button>
-      <div class="search">
-        <input id="q" type="search" placeholder="商品名で検索…" />
+    <div class="header">
+      <div>
+        <div class="title">コレクション図鑑 <span id="ver" class="subtitle"></span></div>
+        <div class="subtitle">集めた貝を眺めて、説明やレア度をチェックできます</div>
       </div>
     </div>
 
-    <!-- 所持サマリ -->
-    <div id="summary" class="summary"></div>
+    <div class="controls">
+      <span class="subtitle">レア度:</span>
+      <button class="chip" data-filter="all" aria-pressed="true">すべて</button>
+      <button class="chip" data-filter="N">ノーマル</button>
+      <button class="chip" data-filter="M">ミドル</button>
+      <button class="chip" data-filter="H">ハイ</button>
+      <button class="chip" data-filter="U">ウルトラ</button>
+      <div class="spacer"></div>
+      <label class="subtitle" for="sort">並び替え:</label>
+      <select id="sort">
+        <option value="rarity">レア度 → 名前</option>
+        <option value="count">所持数 多い順</option>
+        <option value="name">名前 A→Z</option>
+      </select>
+    </div>
 
-    <!-- 装備スロット -->
-    <div class="equip" id="equipPanel" aria-label="装備パネル"></div>
+    <div class="progress">
+      <div class="bar" aria-label="complete rate"><i id="bar"></i></div>
+      <div class="label"><span id="found">0</span>/<span id="total">0</span> 種コンプ</div>
+    </div>
 
-    <div id="grid" class="grid"></div>
+    <div id="grid" class="grid" role="list"></div>
+  </div>
+
+  <div class="char-box" aria-label="選択中キャラ">
+    <img id="charImg" alt="character" />
   </div>
 
   <div class="bottombar">
-    <button class="btn" id="btnHow">使い方</button>
-    <button class="btn" id="btnToStory">ストーリーへ →</button>
+    <button class="ghost" id="btnHow">説明</button>
+    <button class="cta" id="btnNext">交換所へ →</button>
   </div>
 
-  <!-- HowTo -->
+  <!-- Modal: item detail -->
+  <dialog id="dlg">
+    <div class="modal-hd">
+      <img id="dlgImg" alt="shell" />
+      <div>
+        <div class="modal-ttl" id="dlgName">—</div>
+        <div class="modal-sub" id="dlgMeta">—</div>
+      </div>
+    </div>
+    <div class="modal-main" id="dlgDesc">—</div>
+    <div class="modal-act">
+      <button class="ghost" id="dlgClose" type="button">閉じる</button>
+      <!-- ☆ submit化を防ぐため type="button" を明示 -->
+      <button class="cta" id="dlgToExchange" type="button">この貝で交換する</button>
+    </div>
+  </dialog>
+
+  <!-- Modal: how to -->
   <dialog id="how">
-    <div class="modal-ttl">交換所の使い方</div>
+    <div class="modal-ttl">コレクション図鑑について</div>
     <div class="modal-main">
+      <p>潮干狩りで集めた貝がここに並びます。カードをタップすると説明とレア度が見られます。</p>
       <ul>
-        <li>ノーマル（アサリ1〜3）は <b>合算</b>で使えます（表示：<i>合算</i>）。</li>
-        <li>装備品は、<b>交換（購入）</b>したうえで<b>装着</b>すると反映されます。</li>
-        <li>装着/脱着それぞれに追加コストがかかります（カードに表示）。</li>
-        <li>同一スロットに別装備を装着すると、先の装備を<b>自動で脱着</b>（コスト消費）してから装着します。</li>
+        <li>ノーマル（N）… 基本通貨。10個でアクセサリー交換に使えます。</li>
+        <li>ミドル（M）… 会話チケット用（aurora / luminous / mystic / wave）。</li>
+        <li>ハイ（H）… 限定アクセ/演出解放（flame / night_sky）。</li>
+        <li>ウルトラ（U）… 特別演出とストーリー分岐キー（rainbow / pearl）。</li>
       </ul>
+      <p>準備ができたら「交換所へ」ボタンで <code>exchange.html</code> に進みます。</p>
     </div>
     <div class="modal-act">
-      <button class="btn" onclick="document.getElementById('how').close()">OK</button>
+      <button class="cta" id="howOk" type="button">OK</button>
     </div>
   </dialog>
 
   <script>
   ;(() => {
-    /* ===== Config / Storage Keys ===== */
-    const STORAGE_INV   = 'who_shells';          // asari.html と共通
-    const STORAGE_OWN   = 'who_exchange_owned';  // 交換済み個数
-    const STORAGE_EQUIP = 'who_equipment';       // 装備スロット状態
-    const IMG_BASES     = ['public/items','./public/items','/public/items'];
+    // ===== Config =====
+    const VERSION_KEY = 'who_stage_asari_version';
+    const INVENTORY_KEYS = ['who_shells', 'who_shell_inventory', 'shells'];
+    const CHARACTER_KEY = 'who_character';
 
-    // シェルID → 表示名
-    const SHELL_NAME = {
-      asari1:'アサリ（小）', asari2:'アサリ（中）', asari3:'アサリ（大）',
-      aurora_shell:'オーロラ貝', luminous_shell:'ルミナス貝', mystic_shell:'ミスティック貝', wave_shell:'波の貝',
-      flame_shell:'炎の貝', night_sky_shell:'夜空の貝',
-      rare_rainbow:'レインボー貝', rare_pearl:'真珠'
-    };
+    // 画像ベース候補（相対/ルートゆれ対応）
+    const IMG_BASES = ['public/items', './public/items', '/public/items'];
 
-    // 装備スロット
-    const SLOTS = {
-      head:  '頭',
-      body:  '服',
-      back:  '背中',
-      hands: '手',
-      shoes: '靴',
-      style: 'スタイル'
-    };
+    // マスタ
+    const SHELLS = [
+      { id: 'asari1', name: 'アサリ（小）', rarity: 'N', desc: '小粒のアサリ。集めやすく、基本通貨として使えます。' },
+      { id: 'asari2', name: 'アサリ（中）', rarity: 'N', desc: '標準サイズのアサリ。10個集めるとアクセサリー交換に一歩前進。' },
+      { id: 'asari3', name: 'アサリ（大）', rarity: 'N', desc: '大きめのアサリ。見つかるとちょっと嬉しい。' },
 
-    /* ===== 商品カタログ =====
-       - type: 'item'（通常） or 'gear'（装備）
-       - cat:  表示カテゴリ（acc/gear/tkt/eff/spc）
-       - cost: 購入コスト
-       - equipCost / unequipCost: gearのみ装着/脱着コスト
-       - slot: 装備スロット（gearのみ）
-    */
-    const CATALOG = [
-      /* --- 既存（例）アクセ系（合算） --- */
-      { id:'acc_pin',   name:'貝殻ヘアピン',      type:'item', cat:'acc', desc:'浜辺テイストのワンポイント。', cost:[{id:'asari_any',qty:10}] },
-      { id:'acc_ear1',  name:'波きらりイヤリング',type:'item', cat:'acc', desc:'さざ波のきらめきモチーフ。',   cost:[{id:'asari_any',qty:12}] },
+      { id: 'aurora_shell',   name: 'オーロラ貝', rarity: 'M', desc: '淡い光を放つ貝。会話チケットと交換可能。' },
+      { id: 'luminous_shell', name: 'ルミナス貝', rarity: 'M', desc: '夜でも輝く貝。会話チケットの材料。' },
+      { id: 'mystic_shell',   name: 'ミスティック貝', rarity: 'M', desc: '神秘の模様が浮かぶ貝。会話チケット向け。' },
+      { id: 'wave_shell',     name: '波の貝', rarity: 'M', desc: '波のうねりを閉じ込めたような貝。' },
 
-      /* --- チケット --- */
-      { id:'tkt_aurora', name:'会話チケットA', type:'item', cat:'tkt', desc:'心がほどける話題へ。', cost:[{id:'aurora_shell',qty:1}] },
+      { id: 'flame_shell',    name: '炎の貝', rarity: 'H', desc: '燃えるような模様。限定アクセや演出のキー。' },
+      { id: 'night_sky_shell',name: '夜空の貝', rarity: 'H', desc: '満天の星を閉じ込めたよう。限定演出の解放に。' },
 
-      /* --- 演出 --- */
-      { id:'fx_flameTrail', name:'炎の足跡トレイル', type:'item', cat:'eff', desc:'移動に炎のエフェクト。', cost:[{id:'flame_shell',qty:1},{id:'asari_any',qty:10}] },
-
-      /* --- スペシャル --- */
-      { id:'spc_rainbow', name:'レインボー演出解放', type:'item', cat:'spc', desc:'七色の特別演出。', cost:[{id:'rare_rainbow',qty:1}] },
-
-      /* ===================================================== */
-      /* ===================  装備（新規）  =================== */
-      /* 単品：靴・服など */
-      { id:'gear_shoes_beach', name:'砂浜スニーカー', type:'gear', cat:'gear', slot:'shoes',
-        desc:'濡れてもへっちゃらな軽量靴。', cost:[{id:'asari_any',qty:15}],
-        equipCost:[{id:'asari_any',qty:3}], unequipCost:[{id:'asari_any',qty:1}] },
-
-      { id:'gear_boots_explorer', name:'探検ブーツ', type:'gear', cat:'gear', slot:'shoes',
-        desc:'滑りにくいソールで安心。', cost:[{id:'asari_any',qty:22}],
-        equipCost:[{id:'asari_any',qty:4}], unequipCost:[{id:'asari_any',qty:2}] },
-
-      { id:'gear_hat_explorer', name:'探検帽（茶）', type:'gear', cat:'gear', slot:'head',
-        desc:'森の冒険に！', cost:[{id:'flame_shell',qty:1},{id:'asari_any',qty:8}],
-        equipCost:[{id:'asari_any',qty:3}], unequipCost:[{id:'asari_any',qty:1}] },
-
-      { id:'gear_vest_orange', name:'オレンジのベスト', type:'gear', cat:'gear', slot:'body',
-        desc:'実用的で動きやすい。', cost:[{id:'asari_any',qty:14}],
-        equipCost:[{id:'asari_any',qty:2}], unequipCost:[{id:'asari_any',qty:1}] },
-
-      { id:'gear_backpack_red', name:'赤いバックパック', type:'gear', cat:'gear', slot:'back',
-        desc:'必要な道具をしっかり収納。', cost:[{id:'asari_any',qty:12}],
-        equipCost:[{id:'asari_any',qty:2}], unequipCost:[{id:'asari_any',qty:1}] },
-
-      { id:'gear_hat_wizard', name:'魔法帽（紫）', type:'gear', cat:'gear', slot:'head',
-        desc:'先端がくるんと曲がった帽子。', cost:[{id:'luminous_shell',qty:1},{id:'asari_any',qty:8}],
-        equipCost:[{id:'asari_any',qty:3}], unequipCost:[{id:'asari_any',qty:1}] },
-
-      { id:'gear_robe_star', name:'星のローブ', type:'gear', cat:'gear', slot:'body',
-        desc:'星が散りばめられた神秘のローブ。', cost:[{id:'mystic_shell',qty:1},{id:'asari_any',qty:12}],
-        equipCost:[{id:'asari_any',qty:4}], unequipCost:[{id:'asari_any',qty:2}] },
-
-      { id:'gear_wand_magic', name:'魔法の杖', type:'gear', cat:'gear', slot:'hands',
-        desc:'杖先がほのかに光る。', cost:[{id:'luminous_shell',qty:1},{id:'mystic_shell',qty:1}],
-        equipCost:[{id:'asari_any',qty:5}], unequipCost:[{id:'asari_any',qty:2}] },
-
-      /* スタイル一式（セットの雰囲気を付与する“スタイル”スロット） */
-      { id:'style_adventurer', name:'冒険家スタイル', type:'gear', cat:'gear', slot:'style',
-        desc:'茶の探検帽 + オレンジのベスト + 赤バックパックの実用装い。', 
-        cost:[{id:'asari_any',qty:20},{id:'flame_shell',qty:1}],
-        equipCost:[{id:'asari_any',qty:5}], unequipCost:[{id:'asari_any',qty:3}] },
-
-      { id:'style_wizard', name:'魔法使いスタイル', type:'gear', cat:'gear', slot:'style',
-        desc:'紫の魔法帽と星ローブ、魔法の杖の神秘スタイル。', 
-        cost:[{id:'asari_any',qty:20},{id:'night_sky_shell',qty:1},{id:'mystic_shell',qty:1}],
-        equipCost:[{id:'asari_any',qty:6}], unequipCost:[{id:'asari_any',qty:3}] },
-      /* ===================================================== */
+      { id: 'rare_rainbow',   name: 'レインボー貝', rarity: 'U', desc: '七色に輝く超レア貝。特別演出と分岐のキー。' },
+      { id: 'rare_pearl',     name: '真珠', rarity: 'U', desc: '海の宝石。超レア。新たな物語を開く。' },
     ];
 
-    const CATS = {acc:'アクセ', gear:'装備', tkt:'チケット', eff:'演出', spc:'スペシャル'};
+    const RARITY_LABEL = { N: 'ノーマル', M: 'ミドル', H: 'ハイ', U: 'ウルトラ' };
+    const RARITY_ORDER = { U: 0, H: 1, M: 2, N: 3 };
 
-    /* ===== State ===== */
-    let inv = {};                        // 所持貝 {id:count}
-    let owned = {};                      // 交換済 {productId:count}
-    let equip = {};                      // 装備 {slot: productId|null}
-    let filterCat = 'all', qText = '';
+    // ===== State =====
+    let inventory = Object.fromEntries(SHELLS.map(s => [s.id, 0]));
 
-    /* ===== Utils ===== */
-    const qs = (s,el=document)=>el.querySelector(s);
-    const qsa = (s,el=document)=>Array.from(el.querySelectorAll(s));
-    const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+    // ===== Utils =====
+    const qs = (sel, el = document) => el.querySelector(sel);
+    const qsa = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-    function setShellImg(img, id, idx=0){
-      if(idx>=IMG_BASES.length){ img.style.opacity='.35'; img.alt='no image'; return; }
-      img.onerror = ()=> setShellImg(img,id,idx+1);
-      img.src = `${IMG_BASES[idx]}/${id}.png`;
-      img.alt = SHELL_NAME[id] || id;
-    }
+    function loadVersion() { const v = localStorage.getItem(VERSION_KEY); return v ? String(v) : ''; }
 
-    function genEmojiSVG(emoji, cls){
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
-          <defs><radialGradient id="g" cx="50%" cy="35%" r="70%">
-            <stop offset="0%" stop-color="var(--c2)"/><stop offset="100%" stop-color="var(--c1)"/></radialGradient></defs>
-          <circle cx="90" cy="90" r="78" fill="url(#g)"/>
-          <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle" font-size="84">${emoji}</text>
-        </svg>`;
-      const img = new Image(); img.className='icon '+cls; img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-      return img;
-    }
-
-    function loadInventory(){
-      inv = {};
-      try{
-        const raw = localStorage.getItem(STORAGE_INV); 
-        const data = raw? JSON.parse(raw): null;
-        const items = data && data.items ? data.items : (data||{});
-        ['asari1','asari2','asari3','aurora_shell','luminous_shell','mystic_shell','wave_shell',
-         'flame_shell','night_sky_shell','rare_rainbow','rare_pearl'].forEach(k=>{
-          const n = Number(items[k]||0);
-          inv[k] = Number.isFinite(n)? clamp(n,0,9999): 0;
-        });
-      }catch{}
-    }
-    function saveInventory(){ 
-      const payload = { items: inv, updatedAt: new Date().toISOString(), schema: 'who_shells/v1' };
-      localStorage.setItem(STORAGE_INV, JSON.stringify(payload));
-    }
-    function loadOwned(){ try{ owned = JSON.parse(localStorage.getItem(STORAGE_OWN)||'{}'); }catch{ owned = {}; } }
-    function saveOwned(){ localStorage.setItem(STORAGE_OWN, JSON.stringify(owned)); }
-    function loadEquip(){ 
-      try{ equip = JSON.parse(localStorage.getItem(STORAGE_EQUIP)||'{}'); }catch{ equip={}; }
-      for(const k of Object.keys(SLOTS)){ if(!(k in equip)) equip[k]=null; }
-    }
-    function saveEquip(){ localStorage.setItem(STORAGE_EQUIP, JSON.stringify(equip)); }
-
-    function asariTotal(){ return (inv.asari1||0)+(inv.asari2||0)+(inv.asari3||0); }
-
-    function mergeCosts(a=[], b=[]){
-      const m = {};
-      [...a,...b].forEach(c => { m[c.id]=(m[c.id]||0)+(c.qty||0); });
-      return Object.entries(m).map(([id,qty])=>({id,qty}));
-    }
-
-    function canAfford(cost){
-      const pool = { ...inv, asari_any: asariTotal() };
-      return cost.every(c => (pool[c.id]||0) >= c.qty);
-    }
-
-    function spend(cost){
-      for(const c of cost){
-        if(c.id==='asari_any'){
-          let remain = c.qty;
-          const order = ['asari3','asari2','asari1']; // 大きいのから使う
-          for(const k of order){
-            const use = Math.min(inv[k]||0, remain);
-            inv[k] = (inv[k]||0) - use;
-            remain -= use;
-          }
-        }else{
-          inv[c.id] = (inv[c.id]||0) - c.qty;
-        }
+    function loadInventory() {
+      let data = null;
+      for (const k of INVENTORY_KEYS) {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        try { data = JSON.parse(raw); break; } catch {}
       }
-      saveInventory();
+      let obj = {};
+      if (data && typeof data === 'object') { obj = data.items && typeof data.items === 'object' ? data.items : data; }
+      const out = { ...inventory };
+      for (const s of SHELLS) { const n = Number(obj[s.id] || 0); out[s.id] = Number.isFinite(n) ? clamp(n, 0, 9999) : 0; }
+      return out;
     }
 
-    /* ===== Render: summary ===== */
-    function renderSummary(){
-      const wrap = qs('#summary'); wrap.innerHTML='';
-      const keys = [
-        'asari1','asari2','asari3','aurora_shell','luminous_shell','mystic_shell','wave_shell',
-        'flame_shell','night_sky_shell','rare_rainbow','rare_pearl'
-      ];
-      // 合算
-      const sum = document.createElement('span'); sum.className='pill';
-      sum.innerHTML = `<b>${asariTotal()}</b><span>アサリ合計</span>`;
-      wrap.appendChild(sum);
+    function saveInventory(inv) { const payload = { items: inv, updatedAt: new Date().toISOString(), schema: 'who_shells/v1' }; localStorage.setItem('who_shells', JSON.stringify(payload)); }
 
-      for(const id of keys){
-        const pill = document.createElement('span'); pill.className='pill';
-        const img = new Image(); setShellImg(img,id,0);
-        const n = document.createElement('b'); n.textContent = String(inv[id]||0);
-        const nm= document.createElement('span'); nm.textContent = SHELL_NAME[id]||id;
-        pill.append(img,n,nm); wrap.appendChild(pill);
+    function parseAddParam() {
+      const u = new URL(location.href);
+      const add = u.searchParams.get('add');
+      if (!add) return null;
+      const list = add.split(',').map(x => x.trim()).filter(Boolean);
+      const delta = {};
+      for (const item of list) {
+        const [id, n] = item.split(':');
+        if (!id) continue;
+        const num = Number(n || 1);
+        if (SHELLS.some(s => s.id === id) && Number.isFinite(num)) { delta[id] = (delta[id] || 0) + Math.max(0, Math.min(9999, num)); }
       }
+      return Object.keys(delta).length ? delta : null;
     }
 
-    /* ===== Render: equip panel ===== */
-    function costBadge(c){
-      const el = document.createElement('span'); el.className='badge';
-      const img = new Image();
-      if(c.id==='asari_any'){ setShellImg(img,'asari1',0); el.append(img, document.createTextNode(`×${c.qty}（合算）`)); }
-      else { setShellImg(img,c.id,0); el.append(img, document.createTextNode('×'+c.qty)); }
-      return el;
+    function mergeDelta(inv, delta) { const out = { ...inv }; for (const [id, n] of Object.entries(delta)) { out[id] = Math.max(0, Math.min(9999, (out[id] || 0) + n)); } return out; }
+
+    function fmtCount(n) { return `${n} 個`; }
+
+    function setShellImg(el, id, idx = 0) {
+      if (idx >= IMG_BASES.length) { el.style.opacity = '.3'; el.alt = 'no image'; return; }
+      el.onerror = () => setShellImg(el, id, idx + 1);
+      el.src = `${IMG_BASES[idx]}/${id}.png`;
     }
 
-    function renderEquipPanel(){
-      const wrap = qs('#equipPanel'); wrap.innerHTML='';
-      for(const [slot, label] of Object.entries(SLOTS)){
-        const box = document.createElement('div'); box.className='slot';
-        const h = document.createElement('h4'); h.textContent = `${label}（${slot}）`; box.appendChild(h);
+    // ===== Render =====
+    function renderGrid(filter = 'all', sort = 'rarity') {
+      const grid = qs('#grid');
+      grid.innerHTML = '';
+      const items = SHELLS.map(s => ({ ...s, count: inventory[s.id] || 0 })).filter(it => filter === 'all' ? true : it.rarity === filter);
 
-        const cur = equip[slot];
-        const curDiv = document.createElement('div'); curDiv.className='cur';
-        if(cur){
-          const p = CATALOG.find(x=>x.id===cur);
-          curDiv.textContent = p ? p.name : cur;
-          const row = document.createElement('div'); row.className='row';
-          const note = document.createElement('span'); note.className='tiny'; note.textContent='脱着コスト:';
-          row.appendChild(note);
-          (p.unequipCost||[]).forEach(c=> row.appendChild(costBadge(c)));
-          const btn = document.createElement('button'); btn.className='mini'; btn.textContent='外す';
-          btn.addEventListener('click', ()=> onUnequip(slot));
-          box.append(curDiv,row,btn);
-        }else{
-          curDiv.textContent = '— 装備なし —';
-          box.appendChild(curDiv);
-        }
-        wrap.appendChild(box);
-      }
-    }
+      items.sort((a,b) => {
+        if (sort === 'count') return (b.count - a.count) || (RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity]) || a.name.localeCompare(b.name, 'ja');
+        if (sort === 'name') return a.name.localeCompare(b.name, 'ja');
+        const r = (RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity]); if (r !== 0) return r; return a.name.localeCompare(b.name, 'ja');
+      });
 
-    /* ===== Render: product grid ===== */
-    function render(){
-      renderSummary();
-      renderEquipPanel();
+      if (!items.length) { grid.innerHTML = `<div class="empty">該当する貝がありません</div>`; return; }
 
-      const grid = qs('#grid'); grid.innerHTML='';
-      const text = qText.trim();
-
-      const list = CATALOG.filter(p => 
-        (filterCat==='all' || p.cat===filterCat) &&
-        (text==='' || p.name.includes(text))
-      );
-
-      for(const p of list){
-        const card = document.createElement('div'); card.className='card';
-
-        const own = owned[p.id]||0;
-        const ownTag = document.createElement('span'); ownTag.className='own'; ownTag.textContent = `所持 ${own}`;
-        card.appendChild(ownTag);
-
-        // 装備タグ
-        if(p.type==='gear'){
-          const tag = document.createElement('span'); tag.className='tag'; tag.textContent = `${SLOTS[p.slot] || '装備'}`;
-          card.appendChild(tag);
-        }
-
-        const iconWrap = document.createElement('div'); iconWrap.className='iconWrap';
-        const img = new Image(); img.className='icon';
-        let usedFallback = false;
-        img.onerror = ()=>{
-          if(usedFallback) return;
-          usedFallback = true;
-          const emoji =
-            p.cat==='acc' ? '🎀' :
-            p.cat==='tkt' ? '🎫' :
-            p.cat==='eff' ? '✨' :
-            p.cat==='spc' ? '🌈' :
-            '👟';
-          iconWrap.innerHTML='';
-          iconWrap.appendChild(genEmojiSVG(emoji, 'cat-'+(p.cat==='gear'?'gear':p.cat)));
-        };
-        img.src = `public/items/ex_${p.id}.png`;
-        iconWrap.appendChild(img);
-
-        const nm = document.createElement('div'); nm.className='nm'; nm.textContent = p.name;
-        const desc = document.createElement('div'); desc.className='desc'; desc.textContent = p.desc;
-
-        // 購入コスト
-        const cost = document.createElement('div'); cost.className='cost';
-        p.cost.forEach(c => cost.appendChild(costBadge(c)));
-
-        // アクション
-        const act = document.createElement('div'); act.className='act';
-        const buyBtn = document.createElement('button'); buyBtn.className='buy'; buyBtn.textContent='交換';
-        buyBtn.disabled = !canAfford(p.cost);
-        buyBtn.addEventListener('click', () => onBuy(p, buyBtn));
-        act.appendChild(buyBtn);
-
-        // 装備ボタン（gearのみ）
-        if(p.type==='gear'){
-          const equipBtn = document.createElement('button'); equipBtn.className='equipBtn';
-          const isEquipped = equip[p.slot] === p.id;
-          equipBtn.textContent = isEquipped ? '装備中' : '装備する';
-          if(!owned[p.id]) equipBtn.disabled = true;
-
-          equipBtn.addEventListener('click', () => onEquip(p));
-          act.appendChild(equipBtn);
-
-          // 装備/脱着コスト表示
-          const equipRow = document.createElement('div'); equipRow.className='cost';
-          const cap1 = document.createElement('span'); cap1.className='tiny'; cap1.textContent='装着:';
-          equipRow.appendChild(cap1);
-          (p.equipCost||[]).forEach(c=> equipRow.appendChild(costBadge(c)));
-          const equipRow2 = document.createElement('div'); equipRow2.className='cost';
-          const cap2 = document.createElement('span'); cap2.className='tiny'; cap2.textContent='外す:';
-          equipRow2.appendChild(cap2);
-          (p.unequipCost||[]).forEach(c=> equipRow2.appendChild(costBadge(c)));
-
-          card.append(iconWrap,nm,desc,cost,equipRow,equipRow2,act);
-        }else{
-          card.append(iconWrap,nm,desc,cost,act);
-        }
-
+      for (const it of items) {
+        const card = document.createElement('button');
+        card.className = `card r${it.rarity}`;
+        card.setAttribute('role', 'listitem');
+        card.innerHTML = `
+          <span class="rarity">${RARITY_LABEL[it.rarity] || it.rarity}</span>
+          <span class="badge">${fmtCount(it.count)}</span>
+          <img alt="${it.name}" />
+          <div class="nm">${it.name}</div>`;
+        const img = card.querySelector('img');
+        setShellImg(img, it.id, 0);
+        card.addEventListener('click', () => openDetail(it));
         grid.appendChild(card);
       }
+
+      const totalKinds = SHELLS.length;
+      const foundKinds = SHELLS.reduce((a,s) => a + ((inventory[s.id]||0)>0?1:0), 0);
+      qs('#total').textContent = String(totalKinds);
+      qs('#found').textContent = String(foundKinds);
+      qs('#bar').style.width = `${Math.round(foundKinds/totalKinds*100)}%`;
     }
 
-    /* ===== Actions ===== */
-    function onBuy(p, btn){
-      if(!canAfford(p.cost)) { btn.disabled=true; return; }
-      if(!confirm(`「${p.name}」を交換しますか？`)) return;
-      spend(p.cost);
-      owned[p.id] = (owned[p.id]||0) + 1; saveOwned();
-      btn.textContent = '交換しました！'; setTimeout(()=>{ btn.textContent='交換'; },900);
-      render();
+    function openDetail(it) {
+      const dlg = document.querySelector('#dlg');
+      const img = document.querySelector('#dlgImg');
+      setShellImg(img, it.id, 0);
+      img.alt = it.name;
+      document.querySelector('#dlgName').textContent = it.name;
+      const stars = {N:'★', M:'★★', H:'★★★', U:'★★★★'}[it.rarity] || '';
+      document.querySelector('#dlgMeta').textContent = `${RARITY_LABEL[it.rarity]} ${stars}・所持 ${fmtCount(inventory[it.id] || 0)}`;
+      document.querySelector('#dlgDesc').textContent = it.desc;
+
+      // 重要：バブリング/既定動作を止め、確実に交換所へ
+      const btn = document.querySelector('#dlgToExchange');
+      btn.onclick = null;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const url = new URL('exchange.html', location.href);
+        url.searchParams.set('want', it.id);
+        window.location.assign(url.toString());
+      }, { once:true });
+
+      document.querySelector('#dlgClose').onclick = () => dlg.close();
+      dlg.showModal();
     }
 
-    function onEquip(p){
-      if(!(owned[p.id]>0)) { alert('まずは交換してください。'); return; }
-      const curId = equip[p.slot];
-      let extra = [];
-      if(curId){
-        const cur = CATALOG.find(x=>x.id===curId);
-        extra = mergeCosts(extra, cur.unequipCost||[]);
-      }
-      const total = mergeCosts(p.equipCost||[], extra);
-
-      if(!canAfford(total)){
-        alert('装着に必要な貝が足りません。');
-        return;
-      }
-
-      const confirmText = [
-        `装備スロット: ${SLOTS[p.slot]}`,
-        curId ? `現在装備: ${CATALOG.find(x=>x.id===curId)?.name || curId}（外すコストあり）` : '現在装備: なし',
-        '消費予定:',
-      ].join('\n');
-      if(!confirm(confirmText)) return;
-
-      spend(total);
-      equip[p.slot] = p.id; saveEquip();
-      render();
+    function renderCharacter() {
+      const color = (localStorage.getItem(CHARACTER_KEY) || '').replace(/[^a-z]/g,'') || 'pink';
+      const img = document.querySelector('#charImg');
+      const candidates = [
+        `public/stage1/${color}_open.png`,
+        `public/assets/stage1/${color}_open.png`,
+        `./public/stage1/${color}_open.png`,
+        `public/items/character_${color}.png`,
+        `public/items/character.png`
+      ];
+      let i = 0; const next = () => { if (i < candidates.length) { img.onerror = () => { i++; next(); }; img.src = candidates[i]; img.alt = `character ${color}`; } else { img.alt = 'character'; img.style.opacity = '.3'; } }; next();
     }
 
-    function onUnequip(slot){
-      const curId = equip[slot];
-      if(!curId) return;
-      const cur = CATALOG.find(x=>x.id===curId);
-      const cost = cur.unequipCost||[];
-      if(!canAfford(cost)){ alert('外すための貝が足りません。'); return; }
-      if(!confirm(`「${cur.name}」を外しますか？`)) return;
-      spend(cost);
-      equip[slot] = null; saveEquip();
-      render();
-    }
+    // ===== Wire Up =====
+    function init() {
+      const ver = localStorage.getItem('who_stage_asari_version'); if (ver) document.querySelector('#ver').textContent = `（${ver}）`;
+      inventory = loadInventory();
+      const delta = parseAddParam(); if (delta) { inventory = mergeDelta(inventory, delta); saveInventory(inventory); }
+      renderCharacter();
+      renderGrid('all', 'rarity');
 
-    /* ===== Wire ===== */
-    function init(){
-      loadInventory(); loadOwned(); loadEquip(); render();
-
-      // Filters
-      qsa('.chip').forEach(ch => ch.addEventListener('click', () => {
-        qsa('.chip').forEach(b => b.setAttribute('aria-pressed','false'));
-        ch.setAttribute('aria-pressed','true');
-        filterCat = ch.dataset.cat || 'all';
-        render();
+      qsa('.chip').forEach(btn => btn.addEventListener('click', () => {
+        qsa('.chip').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        btn.setAttribute('aria-pressed', 'true');
+        const filter = btn.dataset.filter || 'all'; const sort = document.querySelector('#sort').value; renderGrid(filter, sort);
       }));
-      qs('#q').addEventListener('input', e => { qText = e.target.value; render(); });
 
-      // Buttons
-      qs('#btnBack').addEventListener('click', ()=> location.href='collection.html');
-      qs('#btnToStory').addEventListener('click', ()=> location.href='story.html');
-      qs('#btnHow').addEventListener('click', ()=> qs('#how').showModal());
-      qs('#btnResetOwn').addEventListener('click', ()=>{
-        if(!confirm('購入履歴（交換済み個数）をリセットします。よろしいですか？')) return;
-        owned = {}; saveOwned(); render();
+      document.querySelector('#sort').addEventListener('change', (e) => {
+        const filter = qsa('.chip').find(b => b.getAttribute('aria-pressed') === 'true')?.dataset.filter || 'all';
+        renderGrid(filter, e.target.value);
       });
-      qs('#btnResetEquip').addEventListener('click', ()=>{
-        if(!confirm('装備をすべて外します。よろしいですか？')) return;
-        for(const k of Object.keys(SLOTS)) equip[k]=null; saveEquip(); render();
+
+      document.querySelector('#btnBack').addEventListener('click', () => location.href = 'asari.html');
+      document.querySelector('#btnNext').addEventListener('click', () => location.href = 'exchange.html');
+      document.querySelector('#btnHow').addEventListener('click', () => document.querySelector('#how').showModal());
+      document.querySelector('#howOk').addEventListener('click', () => document.querySelector('#how').close());
+
+      document.querySelector('#btnReset').addEventListener('click', () => {
+        if (!confirm('貝のコレクションを全削除します。よろしいですか？')) return;
+        inventory = Object.fromEntries(SHELLS.map(s => [s.id, 0]));
+        saveInventory(inventory);
+        renderGrid();
       });
+
+      document.querySelector('#btnExport').addEventListener('click', () => exportCSV());
+    }
+
+    function exportCSV() {
+      const headers = ['id','name','rarity','count'];
+      const rows = SHELLS.map(s => [s.id, s.name, RARITY_LABEL[s.rarity], inventory[s.id] || 0]);
+      const csv = [headers.join(','), ...rows.map(r => r.map(v => String(v).replaceAll('"','\"')).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'shell_collection.csv'; a.click(); URL.revokeObjectURL(url);
     }
 
     document.addEventListener('DOMContentLoaded', init);
