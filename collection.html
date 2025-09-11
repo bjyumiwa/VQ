@@ -2,356 +2,226 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>WHO VQ — コレクション図鑑</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
-    a{color:inherit;text-decoration:none}
-    button{cursor:pointer}
+    /* ===== Base ===== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: #0b0f14; color: #e8f0f7; font-family: system-ui, "Noto Sans JP", sans-serif; }
+    a { color: inherit; text-decoration: none; }
 
-    /* Time-of-day background */
-    .bg{position:fixed;inset:0;z-index:0;pointer-events:none;transition:opacity .8s;
-        background-size:cover;background-position:center;background-repeat:no-repeat}
-    .bg.morning{
-      background:
-        radial-gradient(1200px 600px at 50% 10%, rgba(255,220,160,.45), transparent 55%),
-        linear-gradient(180deg,#87ceeb 0%,#bfe8ff 40%,#ffe2b3 100%);
+    /* ===== App Layout ===== */
+    .app { position: relative; min-height: 100vh; padding: 72px 16px 88px; }
+
+    /* Top Bar */
+    .topbar {
+      position: fixed; inset: 0 0 auto 0; height: 56px; padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+      background: linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,0)); z-index: 10;
     }
-    .bg.noon{
-      background:
-        radial-gradient(1200px 600px at 50% 10%, rgba(255,255,255,.25), transparent 55%),
-        linear-gradient(180deg,#63b3ff 0%,#8fd0ff 40%,#c2f0ff 100%);
+    .topbar .btn { padding: 8px 12px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.05); border-radius: 12px; backdrop-filter: blur(6px); cursor: pointer; }
+    .spacer { flex: 1; }
+
+    /* Header */
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .title { font-size: 20px; font-weight: 700; letter-spacing: .02em; }
+    .subtitle { opacity: .85; font-size: 12px; }
+
+    /* Character Preview */
+    .char-box { position: fixed; right: 12px; bottom: 100px; width: 140px; height: 140px; display: grid; place-items: center;
+      background: radial-gradient(120px 60px at 50% 30%, rgba(255,255,255,.12), rgba(255,255,255,0)); border: 1px solid rgba(255,255,255,.08); border-radius: 16px; }
+    .char-box img { max-width: 80%; height: auto; image-rendering: auto; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+
+    /* Filters */
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 16px; }
+    .chip { padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); cursor: pointer; font-size: 12px; }
+    .chip[aria-pressed="true"] { background: rgba(255,255,255,.2); }
+    select { padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #e8f0f7; }
+
+    /* Progress */
+    .progress { display: flex; align-items: center; gap: 10px; margin: 8px 0 12px; }
+    .bar { flex: 1; height: 8px; background: rgba(255,255,255,.08); border-radius: 8px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #8ee8ff, #7cf3c9); }
+    .progress .label { font-size: 12px; opacity: .9; }
+
+    /* Grid */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+
+    .card { position: relative; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04);
+      border-radius: 14px; padding: 10px; display: grid; justify-items: center; gap: 8px; cursor: pointer; transition: transform .1s ease;
     }
-    .bg.night{
-      background:
-        radial-gradient(900px 450px at 60% 8%, rgba(255,255,200,.15), transparent 50%),
-        linear-gradient(180deg,#0b172a 0%,#0e1e3a 40%,#03101f 100%);
+    .card:hover { transform: translateY(-2px); }
+    .card img { width: 72px; height: 72px; object-fit: contain; image-rendering: auto; filter: drop-shadow(0 4px 8px rgba(0,0,0,.35)); }
+    .card .nm { font-size: 12px; text-align: center; line-height: 1.25; }
+    .badge { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.18); }
+    .rarity { position: absolute; left: 6px; top: 6px; font-size: 11px; padding: 2px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); }
+
+    /* Rarity Colors */
+    .rN { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); }
+    .rM { background: linear-gradient(180deg, rgba(140,200,255,.25), rgba(255,255,255,.02)); }
+    .rH { background: linear-gradient(180deg, rgba(255,170,90,.25), rgba(255,255,255,.02)); }
+    .rU { background: linear-gradient(180deg, rgba(255,120,180,.28), rgba(255,255,255,.02)); }
+
+    /* Empty State */
+    .empty { text-align: center; padding: 40px 12px; opacity: .85; }
+
+    /* Bottom Bar */
+    .bottombar {
+      position: fixed; inset: auto 0 0 0; height: 72px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+      background: linear-gradient(0deg, rgba(0,0,0,.75), rgba(0,0,0,0)); z-index: 10;
     }
-
-    /* Topbar */
-    #topbar{position:fixed;left:0;right:0;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:linear-gradient(180deg,rgba(0,0,0,.65),rgba(0,0,0,0));backdrop-filter:blur(4px)}
-    #topbar .left,#topbar .right{display:flex;gap:8px;align-items:center}
-    .chip{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);border-radius:999px;padding:6px 12px;font-size:14px}
-    .btn{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);border-radius:10px;padding:8px 12px;font-size:14px}
-    .btn.primary{border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.14)}
-
-    /* Layout */
-    .wrap{position:relative;z-index:1;display:grid;grid-template-columns:2fr 1fr;gap:16px;padding:72px 16px 20px;min-height:100dvh}
-    @media (max-width:960px){.wrap{grid-template-columns:1fr;padding-top:112px}}
-    .card{background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
-    .card h2{font-size:18px;margin-bottom:8px;opacity:.95}
-    .subtle{opacity:.75;font-size:13px}
-
-    /* Filters & grid */
-    .filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-    .toggle{display:inline-flex;gap:6px;padding:4px;border-radius:999px;background:rgba(255,255,255,.08)}
-    .toggle button{padding:6px 10px;font-size:13px;border:none;border-radius:999px;background:transparent;opacity:.7}
-    .toggle button.active{background:rgba(255,255,255,.2);opacity:1}
-    .grid{--min:120px;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--min),1fr));gap:10px}
-    .tile{position:relative;padding:10px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:transform .16s,background .16s}
-    .tile:hover{transform:translateY(-2px);background:rgba(255,255,255,.1)}
-    .tile img{width:64px;height:64px;object-fit:contain}
-    .tile .name{font-size:13px;opacity:.9}
-    .tile .count{font-size:12px;opacity:.75}
-    .rarity{position:absolute;top:8px;left:8px;font-size:12px;opacity:.85}
+    .cta { flex: 1; padding: 10px 14px; border: 0; border-radius: 12px; font-weight: 700; cursor: pointer; color: #06251a;
+      background: linear-gradient(90deg, #7cf3c9, #8ee8ff); box-shadow: 0 8px 24px rgba(124,243,201,.25);
+    }
+    .ghost { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #e8f0f7; cursor: pointer; }
 
     /* Modal */
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:3}
-    .modal{width:min(520px,92vw);background:rgba(10,10,14,.95);border:1px solid rgba(255,255,255,.2);border-radius:18px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
-    .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-    .modal-body{display:grid;grid-template-columns:96px 1fr;gap:12px}
-    .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+    dialog { width: min(520px, 96vw); border: 1px solid rgba(255,255,255,.18); background: rgba(22,30,39,.95); color: inherit; border-radius: 16px; padding: 16px; }
+    dialog::backdrop { background: rgba(0,0,0,.6); }
+    .modal-hd { display: flex; align-items: center; gap: 12px; }
+    .modal-hd img { width: 72px; height: 72px; object-fit: contain; }
+    .modal-ttl { font-size: 18px; font-weight: 700; }
+    .modal-sub { font-size: 12px; opacity: .85; }
+    .modal-main { margin: 12px 0; line-height: 1.6; font-size: 14px; }
+    .modal-act { display: flex; gap: 8px; justify-content: flex-end; }
 
-    /* Character preview */
-    .char-card{position:sticky;top:76px}
-    .char-stage{height:380px;position:relative;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.12);border-radius:16px;margin-top:10px}
-    .char{position:absolute;left:50%;bottom:36px;transform:translateX(-50%);width:200px;height:auto;animation:floatY 4s ease-in-out infinite}
-    @keyframes floatY{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-10px)}}
-    .acc-layer{position:absolute;left:50%;transform:translateX(-50%);pointer-events:none}
-    .acc-thumb{width:40px;height:40px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);padding:6px}
-    .owned-acc{display:flex;gap:8px;flex-wrap:wrap}
-    .owned-acc button{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);padding:6px 8px;border-radius:10px;font-size:12px}
-    .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-    .row>*+*{margin-left:8px}
-    .muted{opacity:.6}
-    .small{font-size:12px}
-    .footer{margin-top:12px;opacity:.7;font-size:12px;text-align:right}
+    /* Background decoration */
+    .bg-glow { position: fixed; inset: auto; left: -20%; bottom: -20%; width: 70vmax; height: 70vmax; border-radius: 50%; filter: blur(60px);
+      background: radial-gradient(circle at 50% 50%, rgba(124,243,201,.12), rgba(0,0,0,0)); pointer-events: none; }
   </style>
 </head>
 <body>
-  <!-- background -->
-  <div id="bg" class="bg"></div>
-
-  <!-- topbar -->
-  <div id="topbar">
-    <div class="left">
-      <span class="chip">🗂️ コレクション図鑑</span>
-      <span class="chip" id="shellSummary">—</span>
-    </div>
-    <div class="right">
-      <button id="toAsari" class="btn">⛏️ 潮干狩りへ</button>
-      <button id="toExchange" class="btn">💎 交換所へ</button>
-      <button id="toStory" class="btn primary">📖 つづきへ</button>
-    </div>
+  <div class="topbar">
+    <button class="btn" id="btnBack">← 潮干狩りへ</button>
+    <button class="btn" id="btnReset" title="全削除">リセット</button>
+    <div class="spacer"></div>
+    <button class="btn" id="btnExport">CSV出力</button>
   </div>
 
-  <div class="wrap">
-    <!-- Shell collection -->
-    <section class="card">
-      <div class="row" style="margin-bottom:8px;">
-        <h2>🐚 貝コレクション</h2>
-        <div class="filters">
-          <div class="toggle">
-            <button class="active" data-filter="owned" id="filterOwned">所持のみ</button>
-            <button data-filter="all" id="filterAll">すべて</button>
-          </div>
-          <div class="toggle">
-            <button class="active" data-rarity="any" id="rarAny">レア度: すべて</button>
-            <button data-rarity="1" id="rar1">★1</button>
-            <button data-rarity="2" id="rar2">★2</button>
-            <button data-rarity="3" id="rar3">★3</button>
-            <button data-rarity="4" id="rar4">★4</button>
-            <button data-rarity="5" id="rar5">★5</button>
-          </div>
-        </div>
-      </div>
-      <div id="grid" class="grid"></div>
-      <div class="footer small muted">※タイルをタップすると詳細が開きます。</div>
-    </section>
-
-    <!-- Character & accessories -->
-    <aside class="card char-card">
-      <h2>🧸 キャラ & アクセサリー</h2>
-      <div class="subtle small" id="charNameRow" style="margin-top:4px;"></div>
-      <div class="char-stage" id="charStage">
-        <img id="charImg" class="char" alt="character" src="" />
-      </div>
-      <div style="margin-top:10px;">
-        <div class="row">
-          <div class="subtle small">所持アクセ</div>
-          <div class="row small muted">
-            <span>Scale</span>
-            <button class="btn small" id="scaleMinus">−</button>
-            <span id="scaleVal" class="small">0.50</span>
-            <button class="btn small" id="scalePlus">＋</button>
-            <button class="btn small" id="clearEquip">全て外す</button>
-          </div>
-        </div>
-        <div class="owned-acc" id="ownedAcc"></div>
-      </div>
-    </aside>
-  </div>
-
-  <!-- modal -->
-  <div id="modalWrap" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="row" style="gap:10px;">
-          <img id="mIcon" src="" alt="" style="width:48px;height:48px;object-fit:contain;">
-          <div>
-            <div id="mTitle" style="font-size:16px;font-weight:700;"></div>
-            <div id="mRarity" class="small muted"></div>
-          </div>
-        </div>
-        <button id="mClose" class="btn small">✕</button>
-      </div>
-      <div class="modal-body">
-        <div></div>
-        <div>
-          <div id="mDesc" style="font-size:14px;line-height:1.6;opacity:.9;margin-bottom:8px;"></div>
-          <div id="mOwned" class="small muted"></div>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button id="mOk" class="btn primary">OK</button>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">コレクション図鑑 <span id="ver" class="subtitle"></span></div>
+        <div class="subtitle">集めた貝を眺めて、説明やレア度をチェックできます</div>
       </div>
     </div>
+
+    <div class="controls">
+      <span class="subtitle">レア度:</span>
+      <button class="chip" data-filter="all" aria-pressed="true">すべて</button>
+      <button class="chip" data-filter="N">ノーマル</button>
+      <button class="chip" data-filter="M">ミドル</button>
+      <button class="chip" data-filter="H">ハイ</button>
+      <button class="chip" data-filter="U">ウルトラ</button>
+      <div class="spacer"></div>
+      <label class="subtitle" for="sort">並び替え:</label>
+      <select id="sort">
+        <option value="rarity">レア度 → 名前</option>
+        <option value="count">所持数 多い順</option>
+        <option value="name">名前 A→Z</option>
+      </select>
+    </div>
+
+    <div class="progress">
+      <div class="bar" aria-label="complete rate"><i id="bar"></i></div>
+      <div class="label"><span id="found">0</span>/<span id="total">0</span> 種コンプ</div>
+    </div>
+
+    <div id="grid" class="grid" role="list"></div>
   </div>
+
+  <div class="char-box" aria-label="選択中キャラ">
+    <img id="charImg" alt="character" />
+  </div>
+
+  <div class="bottombar">
+    <button class="ghost" id="btnHow">説明</button>
+    <button class="cta" id="btnNext">交換所へ →</button>
+  </div>
+
+  <div class="bg-glow"></div>
+
+  <!-- Modal: item detail -->
+  <dialog id="dlg">
+    <div class="modal-hd">
+      <img id="dlgImg" alt="shell" />
+      <div>
+        <div class="modal-ttl" id="dlgName">—</div>
+        <div class="modal-sub" id="dlgMeta">—</div>
+      </div>
+    </div>
+    <div class="modal-main" id="dlgDesc">—</div>
+    <div class="modal-act">
+      <button class="ghost" id="dlgClose">閉じる</button>
+      <button class="cta" id="dlgToExchange">この貝で交換する</button>
+    </div>
+  </dialog>
+
+  <!-- Modal: how to -->
+  <dialog id="how">
+    <div class="modal-ttl">コレクション図鑑について</div>
+    <div class="modal-main">
+      <p>潮干狩りで集めた貝がここに並びます。カードをタップすると説明とレア度が見られます。</p>
+      <ul>
+        <li>ノーマル（N）… 基本通貨。10個でアクセサリー交換に使えます。</li>
+        <li>ミドル（M）… 会話チケット用（aurora / luminous / mystic）。</li>
+        <li>ハイ（H）… 限定アクセ/演出解放（flame / night_sky）。</li>
+        <li>ウルトラ（U）… 特別演出とストーリー分岐キー（rainbow / pearl）。</li>
+      </ul>
+      <p>準備ができたら「交換所へ」ボタンで <code>exchange.html</code> に進みます。</p>
+    </div>
+    <div class="modal-act">
+      <button class="cta" id="howOk">OK</button>
+    </div>
+  </dialog>
 
   <script>
-    /* ===== config ===== */
-    const LS_KEYS = {
-      shells: "shell_inventory",
-      accOwned: "accessories_owned",
-      accEquipped: "accessories_equipped",
-      whoChar: "who_character",
-      lang: "who_lang",
-    };
+  ;(() => {
+    // ===== Config =====
+    const VERSION_KEY = 'who_stage_asari_version'; // asari.html 側で保存していると想定
+    const INVENTORY_KEYS = ['who_shells', 'who_shell_inventory', 'shells']; // フォールバック対応
+    const CHARACTER_KEY = 'who_character'; // 例: 'pink' | 'blue' | 'green' | 'purple'
 
-    // Shell master
+    // 画像パスは必ず public/ から開始（プロジェクトルール）
+    const IMG_BASE = 'public';
+
+    /** Shell Master */
     const SHELLS = [
-      { id:"asari1", rarity:1, img:"public/assets/shells/asari1.png", name_ja:"アサリ（白）", name_en:"Clam (white)", desc_ja:"基本のアサリ。10個でアクセ交換に使えます。", desc_en:"Basic clam. Exchangeable (10 pcs)." },
-      { id:"asari2", rarity:1, img:"public/assets/shells/asari2.png", name_ja:"アサリ（茶）",  name_en:"Clam (brown)",  desc_ja:"よく見かけるアサリ。", desc_en:"Common clam." },
-      { id:"asari3", rarity:1, img:"public/assets/shells/asari3.png", name_ja:"アサリ（縞）",  name_en:"Clam (striped)",desc_ja:"縞模様がきれい。", desc_en:"Striped pattern." },
-      { id:"aurora_shell",   rarity:2, img:"public/assets/shells/aurora_shell.png",   name_ja:"オーロラ貝", name_en:"Aurora Shell",  desc_ja:"会話チケットと交換できる。", desc_en:"Exchange for chat ticket." },
-      { id:"luminous_shell", rarity:2, img:"public/assets/shells/luminous_shell.png", name_ja:"光の貝",     name_en:"Luminous Shell",desc_ja:"夜でも見つけやすい。", desc_en:"Easy to find at night." },
-      { id:"mystic_shell",   rarity:2, img:"public/assets/shells/mystic_shell.png",   name_ja:"神秘の貝", name_en:"Mystic Shell",  desc_ja:"物語に小さな変化。", desc_en:"Subtle story effect." },
-      { id:"flame_shell",    rarity:3, img:"public/assets/shells/flame_shell.png",    name_ja:"炎の貝",   name_en:"Flame Shell",   desc_ja:"限定アクセの鍵。", desc_en:"Key to limited accessories." },
-      { id:"night_sky_shell",rarity:3, img:"public/assets/shells/night_sky_shell.png",name_ja:"夜空の貝", name_en:"Night Sky Shell",desc_ja:"夜の演出を解放。", desc_en:"Unlocks night effects." },
-      { id:"rare_rainbow",   rarity:4, img:"public/assets/shells/rare_rainbow.png",   name_ja:"虹色の貝", name_en:"Rainbow Shell", desc_ja:"特別演出のキー。", desc_en:"Key to special effects." },
-      { id:"rare_pearl",     rarity:5, img:"public/assets/shells/rare_pearl.png",     name_ja:"真珠",     name_en:"Pearl",         desc_ja:"物語分岐の鍵。", desc_en:"Story branching key." },
+      { id: 'asari1', name: 'アサリ（小）', rarity: 'N', img: `${IMG_BASE}/shells/asari1.png`, desc: '小粒のアサリ。集めやすく、基本通貨として使えます。' },
+      { id: 'asari2', name: 'アサリ（中）', rarity: 'N', img: `${IMG_BASE}/shells/asari2.png`, desc: '標準サイズのアサリ。10個集めるとアクセサリー交換に一歩前進。' },
+      { id: 'asari3', name: 'アサリ（大）', rarity: 'N', img: `${IMG_BASE}/shells/asari3.png`, desc: '大きめのアサリ。見つかるとちょっと嬉しい。' },
+
+      { id: 'aurora_shell',   name: 'オーロラ貝', rarity: 'M', img: `${IMG_BASE}/shells/aurora_shell.png`,   desc: '淡い光を放つ貝。会話チケットと交換可能。' },
+      { id: 'luminous_shell', name: 'ルミナス貝', rarity: 'M', img: `${IMG_BASE}/shells/luminous_shell.png`, desc: '夜でも輝く貝。会話チケットの材料。' },
+      { id: 'mystic_shell',   name: 'ミスティック貝', rarity: 'M', img: `${IMG_BASE}/shells/mystic_shell.png`,   desc: '神秘の模様が浮かぶ貝。会話チケット向け。' },
+
+      { id: 'flame_shell',    name: '炎の貝', rarity: 'H', img: `${IMG_BASE}/shells/flame_shell.png`,    desc: '燃えるような模様。限定アクセや演出のキー。' },
+      { id: 'night_sky_shell',name: '夜空の貝', rarity: 'H', img: `${IMG_BASE}/shells/night_sky_shell.png`,desc: '満天の星を閉じ込めたよう。限定演出の解放に。' },
+
+      { id: 'rare_rainbow',   name: 'レインボー貝', rarity: 'U', img: `${IMG_BASE}/shells/rare_rainbow.png`,   desc: '七色に輝く超レア貝。特別演出と分岐のキー。' },
+      { id: 'rare_pearl',     name: '真珠', rarity: 'U', img: `${IMG_BASE}/shells/rare_pearl.png`,     desc: '海の宝石。超レア。新たな物語を開く。' },
     ];
 
-    /* Accessories master
-       ※ 画像パスは public/accessories/<file>.png に変更済み
-       ※ base×accScale・dx/dy で大きさ＆位置を決定
-       ※ サングラスは目の位置にフィット（dy:-52）
-    */
-    const ACCESSORIES = [
-      { id:"sunglasses",    name_ja:"サングラス",   name_en:"Sunglasses",    img:"public/accessories/sunglasses.png",    dx:0,   dy:-52,  z:12, base:1.00 },
-      { id:"knit_hat",      name_ja:"ニット帽",     name_en:"Knit Hat",      img:"public/accessories/knit_hat.png",      dx:0,   dy:-98,  z:11, base:1.10 },
-      { id:"straw_hat",     name_ja:"麦わら帽子",   name_en:"Straw Hat",     img:"public/accessories/straw_hat.png",     dx:2,   dy:-100, z:11, base:1.10 },
-      { id:"ribbon_yellow", name_ja:"黄色リボン",   name_en:"Yellow Ribbon", img:"public/accessories/ribbon_yellow.png", dx:36,  dy:-66,  z:10, base:0.90 },
-      { id:"star_yellow",   name_ja:"星",           name_en:"Star",          img:"public/accessories/star_yellow.png",   dx:-40, dy:-32,  z:9,  base:0.75 },
-    ];
+    const RARITY_LABEL = { N: 'ノーマル', M: 'ミドル', H: 'ハイ', U: 'ウルトラ' };
+    const RARITY_ORDER = { U: 0, H: 1, M: 2, N: 3 }; // 表示優先: U→H→M→N
 
-    /* ===== utils ===== */
-    function setTimeBackground(){ const h=new Date().getHours(); const bg=document.getElementById("bg"); bg.className="bg "+(h>=5&&h<11?"morning":h<18?"noon":"night"); }
-    function loadJSON(key,fb){ try{ return JSON.parse(localStorage.getItem(key)) ?? fb } catch(e){ return fb } }
-    function saveJSON(key,v){ localStorage.setItem(key, JSON.stringify(v)) }
-    function getCharacterPath(){ const color=localStorage.getItem(LS_KEYS.whoChar)||"pink"; return `public/assets/stage1/${color}_open.png`; }
-    function sumShells(inv){ return Object.values(inv).reduce((a,b)=>a+(b||0),0); }
+    // ===== State =====
+    let inventory = Object.fromEntries(SHELLS.map(s => [s.id, 0]));
 
-    /* ===== state ===== */
-    let filterOwnedOnly=true, filterRarity="any";
-    let accScale=parseFloat(localStorage.getItem("accScale")||"0.5");
+    // ===== Utils =====
+    const qs = (sel, el = document) => el.querySelector(sel);
+    const qsa = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-    /* ===== render ===== */
-    function updateSummary(){ const shells=loadJSON(LS_KEYS.shells,{}); const total=sumShells(shells); document.getElementById("shellSummary").textContent=`🐚 総数: ${total} / ${SHELLS.length}種`; }
-
-    function renderGrid(){
-      const shells=loadJSON(LS_KEYS.shells,{});
-      const grid=document.getElementById("grid"); grid.innerHTML="";
-      SHELLS.filter(s=>{
-        const has=(shells[s.id]||0)>0;
-        if(filterOwnedOnly && !has) return false;
-        if(filterRarity!=="any" && String(s.rarity)!==String(filterRarity)) return false;
-        return true;
-      }).forEach(s=>{
-        const has=(shells[s.id]||0)||0;
-        const tile=document.createElement("button");
-        tile.className="tile";
-        tile.innerHTML=`
-          <div class="rarity">★${s.rarity}</div>
-          <img src="${s.img}" alt="">
-          <div class="name">${s.name_ja}</div>
-          <div class="count">${has>0? has+" 個":"なし"}</div>
-        `;
-        tile.addEventListener("click",()=>openModal(s.id));
-        grid.appendChild(tile);
-      });
+    function loadVersion() {
+      const v = localStorage.getItem(VERSION_KEY);
+      return v ? String(v) : '';
     }
 
-    function openModal(id){
-      const s=SHELLS.find(x=>x.id===id); const inv=loadJSON(LS_KEYS.shells,{});
-      if(!s) return;
-      document.getElementById("mIcon").src=s.img;
-      document.getElementById("mTitle").textContent=s.name_ja;
-      document.getElementById("mRarity").textContent=`レア度: ★${s.rarity}`;
-      document.getElementById("mDesc").textContent=s.desc_ja;
-      document.getElementById("mOwned").textContent=`所持: ${(inv[id]||0)} 個`;
-      const wrap=document.getElementById("modalWrap"); wrap.style.display="flex"; wrap.setAttribute("aria-hidden","false");
-    }
-    function closeModal(){ const wrap=document.getElementById("modalWrap"); wrap.style.display="none"; wrap.setAttribute("aria-hidden","true"); }
-
-    function renderCharacter(){
-      const charImg=document.getElementById("charImg");
-      charImg.src=getCharacterPath();
-      const color=localStorage.getItem(LS_KEYS.whoChar)||"pink";
-      document.getElementById("charNameRow").textContent=`キャラ: ${color}`;
-
-      const stage=document.getElementById("charStage");
-      stage.querySelectorAll(".acc-layer").forEach(n=>n.remove());
-
-      const charAdjust=({}[color])||{dx:0,dy:0}; // 色別微調整が必要ならここに {dx,dy}
-
-      const equipped=loadJSON(LS_KEYS.accEquipped,[]);
-      equipped.forEach(id=>{
-        const m=ACCESSORIES.find(a=>a.id===id); if(!m) return;
-        const img=document.createElement("img");
-        img.src=m.img; img.alt=id; img.className="acc-layer";
-
-        const scale=(m.base||1)*accScale;
-        const dx=((m.dx||0)+(charAdjust.dx||0))*scale;
-        const dy=((m.dy||0)+(charAdjust.dy||0))*scale;
-
-        img.style.bottom=(36+dy)+"px";
-        img.style.left=`calc(50% + ${dx}px)`;
-        img.style.transform=`translateX(-50%) scale(${scale})`;
-        img.style.zIndex=String(10+(m.z||0));
-        img.style.filter="drop-shadow(0 2px 2px rgba(0,0,0,.4))";
-        stage.appendChild(img);
-      });
-    }
-
-    function renderOwnedAccessories(){
-      const ownedBox=document.getElementById("ownedAcc"); ownedBox.innerHTML="";
-      const owned=loadJSON(LS_KEYS.accOwned,[]); const equipped=new Set(loadJSON(LS_KEYS.accEquipped,[]));
-      if(!owned || owned.length===0){
-        const span=document.createElement("div"); span.className="small muted"; span.textContent="※アクセサリーは未所持です（交換所で入手）"; ownedBox.appendChild(span); return;
+    function loadInventory() {
+      let data = null;
+      for (const k of INVENTORY_KEYS) {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        try { data = JSON.parse(raw); break; } catch { /* ignore */ }
       }
-      owned.forEach(id=>{
-        const m=ACCESSORIES.find(a=>a.id===id);
-        const btn=document.createElement("button"); btn.title=id;
-        btn.innerHTML=`<img class="acc-thumb" src="${m?.img||""}" alt=""><span>${m?.name_ja||id}</span><span class="small muted">${equipped.has(id)?"装着中":""}</span>`;
-        btn.addEventListener("click",()=>toggleEquip(id));
-        ownedBox.appendChild(btn);
-      });
-      document.getElementById("scaleVal").textContent=accScale.toFixed(2);
-    }
-
-    function toggleEquip(id){
-      let eq=loadJSON(LS_KEYS.accEquipped,[]);
-      if(eq.includes(id)) eq=eq.filter(x=>x!==id); else { if(eq.length>=3) eq.shift(); eq.push(id); }
-      saveJSON(LS_KEYS.accEquipped,eq);
-      renderOwnedAccessories(); renderCharacter();
-    }
-    function clearEquip(){ saveJSON(LS_KEYS.accEquipped,[]); renderOwnedAccessories(); renderCharacter(); }
-    function adjustScale(d){ accScale=Math.min(1.5,Math.max(0.3,accScale+d)); localStorage.setItem("accScale",String(accScale)); renderCharacter(); document.getElementById("scaleVal").textContent=accScale.toFixed(2); }
-
-    /* ===== events ===== */
-    function bindEvents(){
-      document.getElementById("toAsari").onclick=()=>location.href="asari.html";
-      document.getElementById("toExchange").onclick=()=>location.href="exchange.html";
-      document.getElementById("toStory").onclick=()=>location.href="story.html";
-      document.getElementById("mClose").onclick=closeModal;
-      document.getElementById("mOk").onclick=closeModal;
-      document.getElementById("modalWrap").addEventListener("click",e=>{if(e.target.id==="modalWrap") closeModal()});
-
-      const fOwned=document.getElementById("filterOwned");
-      const fAll=document.getElementById("filterAll");
-      fOwned.onclick=()=>{filterOwnedOnly=true; fOwned.classList.add("active"); fAll.classList.remove("active"); renderGrid();}
-      fAll.onclick=()=>{filterOwnedOnly=false; fAll.classList.add("active"); fOwned.classList.remove("active"); renderGrid();}
-
-      ["rarAny","rar1","rar2","rar3","rar4","rar5"].forEach(id=>{
-        const btn=document.getElementById(id);
-        btn.onclick=()=>{["rarAny","rar1","rar2","rar3","rar4","rar5"].forEach(x=>document.getElementById(x).classList.remove("active"));
-          btn.classList.add("active");
-          filterRarity=btn.dataset.rarity || (btn.id==="rarAny"?"any":btn.textContent.replace("★",""));
-          renderGrid();
-        };
-      });
-
-      document.getElementById("scaleMinus").onclick=()=>adjustScale(-0.05);
-      document.getElementById("scalePlus").onclick=()=>adjustScale(+0.05);
-      document.getElementById("clearEquip").onclick=clearEquip;
-    }
-
-    /* ===== seed (first-time only) ===== */
-    function seedIfEmpty(){
-      if(!localStorage.getItem(LS_KEYS.shells)) saveJSON(LS_KEYS.shells,{asari1:8,asari2:5,asari3:4,aurora_shell:1,luminous_shell:1,mystic_shell:0,flame_shell:1,night_sky_shell:0,rare_rainbow:0,rare_pearl:0});
-      if(!localStorage.getItem(LS_KEYS.accOwned)) saveJSON(LS_KEYS.accOwned,["ribbon_yellow","star_yellow"]);
-      if(!localStorage.getItem(LS_KEYS.accEquipped)) saveJSON(LS_KEYS.accEquipped,[]);
-      if(!localStorage.getItem(LS_KEYS.whoChar)) localStorage.setItem(LS_KEYS.whoChar,"pink");
-      if(!localStorage.getItem(LS_KEYS.lang)) localStorage.setItem(LS_KEYS.lang,"ja");
-      if(!localStorage.getItem("accScale")) localStorage.setItem("accScale","0.5");
-    }
-
-    (function init(){
-      setTimeBackground(); seedIfEmpty(); bindEvents();
-      updateSummary(); renderGrid(); renderCharacter(); renderOwnedAccessories();
-    })();
-  </script>
-</body>
-</html>
+      // 許容フォーマット: {id: count, ...} または { items: {id:
