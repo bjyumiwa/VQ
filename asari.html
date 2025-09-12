@@ -10,25 +10,12 @@
   html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif;overscroll-behavior:none}
   .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none;cursor:crosshair}
 
-  /* タップ青ハイライト・選択/ドラッグ・コールアウト全無効（特にiOS対策） */
+  /* タップ青ハイライト・選択/ドラッグ無効（iOS対策） */
   html, body, .game, img, .shell, button { -webkit-tap-highlight-color: transparent; }
-  img, .shell {
-    -webkit-user-drag: none; user-drag: none;
-    -webkit-user-select: none; user-select: none;
-    outline: none;
-  }
-  /* ←ここまでで大半の青い矩形は消えるが、friend周りはさらに強制で無効化 */
-  #friendWrap, #friend, .equip {
-    pointer-events: none;                 /* これで要素自体はクリック対象にならない */
-    -webkit-touch-callout: none;          /* 長押しの枠/メニュー禁止 */
-    -webkit-tap-highlight-color: transparent;
-    -webkit-user-drag: none; user-drag: none;
-    -webkit-user-select: none; user-select: none;
-    outline: 0 !important;
-    background: none;                     /* 念のため */
-  }
+  img, .shell { -webkit-user-drag:none; user-drag:none; -webkit-user-select:none; user-select:none; outline:none; }
+  #friendWrap, #friend, .equip, #accLayer { pointer-events:none; -webkit-touch-callout:none; }
 
-  /* 背景（2レイヤでクロスフェード） */
+  /* 背景（2レイヤ） */
   .bg, .bg2{
     position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;
     filter:brightness(var(--bg-brightness));transition:opacity .9s ease, filter .6s ease;opacity:1;
@@ -42,34 +29,24 @@
     position:absolute;left:0;right:0;top:0;z-index:10;display:flex;gap:8px;align-items:center;justify-content:space-between;
     padding:10px;background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,0))
   }
-  .pill{
-    background:var(--ui-bg);border:1px solid rgba(255,255,255,.15);
-    padding:6px 10px;border-radius:999px;backdrop-filter:blur(6px);display:inline-flex;gap:8px;align-items:center
-  }
-  .btn{
-    background:var(--card-bg);border:1px solid rgba(255,255,255,.15);
-    padding:8px 12px;border-radius:10px;color:#fff;cursor:pointer;user-select:none
-  }
+  .pill{background:var(--ui-bg);border:1px solid rgba(255,255,255,.15);padding:6px 10px;border-radius:999px;backdrop-filter:blur(6px);display:inline-flex;gap:8px;align-items:center}
+  .btn{background:var(--card-bg);border:1px solid rgba(255,255,255,.15);padding:8px 12px;border-radius:10px;color:#fff;cursor:pointer;user-select:none}
   .btn:hover{background:rgba(255,255,255,.08)}
   #counter b{font-variant-numeric:tabular-nums}
 
-  /* 砂レイヤ＆貝 */
+  /* 砂＆貝 */
   #shellLayer{position:absolute;inset:0;z-index:2}
   .shell{
-    position:absolute;width:52px;height:52px;object-fit:contain;image-rendering:auto;
+    position:absolute;width:52px;height:52px;object-fit:contain;
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));
     transition:transform .25s ease, opacity .25s ease; cursor:pointer; will-change:transform, opacity;
     background:transparent;
   }
   .shell.hidden{opacity:0;transform:scale(.6) translateY(-6px);pointer-events:none}
+  #sand{position:absolute;inset:0;z-index:3;pointer-events:none;transition:opacity .8s ease}
+  #sand.fadeout{opacity:0}
 
-  #sand{
-    position:absolute;inset:0;z-index:3;pointer-events:none;
-    transition:opacity .8s ease;
-  }
-  #sand.fadeout{ opacity:0; }
-
-  /* キャラ＋装備レイヤ */
+  /* キャラ＆装備 */
   #friendWrap{
     position:absolute;z-index:4;width:min(14vh,120px);min-width:80px;aspect-ratio:1/1;transform-origin:50% 80%;
     filter:drop-shadow(0 8px 12px rgba(0,0,0,.4))
@@ -80,34 +57,43 @@
   @keyframes jump{0%{transform:translateY(0)}40%{transform:translateY(-10px)}100%{transform:translateY(0)}}
   #friend{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain}
   .equip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain}
+  /* アクセ専用レイヤ（複数同時装着可） */
+  #accLayer{position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%);pointer-events:none}
+  #accLayer img.acc{position:absolute;left:50%;top:50%;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.25))}
 
   /* 吹き出し */
-  #bubble{
-    position:absolute;z-index:9;padding:6px 10px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);border-radius:12px;
-    transform:translate(-50%,-120%);white-space:nowrap;opacity:0;transition:opacity .2s, transform .2s;will-change:transform,opacity
-  }
+  #bubble{position:absolute;z-index:9;padding:6px 10px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);border-radius:12px;transform:translate(-50%,-120%);white-space:nowrap;opacity:0;transition:opacity .2s, transform .2s}
   #bubble.show{opacity:1;transform:translate(-50%,-140%)}
 
-  /* プレビュー時の幕 */
+  /* プレビュー幕 */
   #previewCurtain{position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.25);backdrop-filter:blur(1px);display:none}
   #previewCurtain.show{display:block}
-
-  /* 戻るボタン */
   #backBtn{display:none}
   body.preview #backBtn{display:inline-flex}
 
   /* クリアオーバーレイ */
-  #clearOverlay{
-    position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;
-    background:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.5))
-  }
+  #clearOverlay{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.5))}
   #clearOverlay.show{display:flex}
-  .clearCard{
-    background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);
-    padding:18px 20px;border-radius:14px;text-align:center;backdrop-filter:blur(6px)
-  }
+  .clearCard{background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);padding:18px 20px;border-radius:14px;text-align:center;backdrop-filter:blur(6px)}
   .clearCard h2{font-size:20px;margin-bottom:8px}
   .clearCard p{opacity:.9;margin-bottom:12px}
+
+  /* ===== アクセサリーパネル ===== */
+  .panel{
+    position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.45);backdrop-filter:blur(3px)
+  }
+  .panel.show{display:flex}
+  .panelCard{
+    width:min(900px,92vw);max-height:86vh;overflow:auto;background:rgba(0,0,0,.55);
+    border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:16px
+  }
+  .panelHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .gridAcc{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+  .accChoice{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px}
+  .accChoice img{width:88px;height:88px;object-fit:contain;display:block;margin:0 auto 6px}
+  .accChoice .t{font-size:13px;text-align:center}
+  .accChoice input{display:block;margin:8px auto 0}
 </style>
 </head>
 <body>
@@ -118,17 +104,18 @@
   <div id="topbar">
     <div class="pill" id="counter">貝：<b id="got">0</b>/<b id="total">0</b></div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn" id="backBtn" data-nav="exchange" type="button">交換所へ戻る</button>
+      <button class="btn" id="backBtn" type="button">交換所へ</button>
+      <button class="btn" id="accBtn"  type="button" title="アクセサリー">アクセ</button>
       <button class="btn" id="previewBtn" title="装備プレビュー（砂を隠す/操作不可）" type="button">プレビュー</button>
     </div>
   </div>
 
   <!-- シェル層 -->
-  <div id="shellLayer" aria-hidden="false"></div>
-  <!-- 砂キャンバス -->
+  <div id="shellLayer"></div>
+  <!-- 砂 -->
   <canvas id="sand"></canvas>
 
-  <!-- キャラ＆装備（pointer-events 無効なのでUIを邪魔しない） -->
+  <!-- キャラ＆装備 -->
   <div id="friendWrap" aria-label="friend">
     <img id="friend" alt="friend" />
     <img class="equip equip--style" data-slot="style" alt="" />
@@ -137,6 +124,7 @@
     <img class="equip equip--back"  data-slot="back"  alt="" />
     <img class="equip equip--hands" data-slot="hands" alt="" />
     <img class="equip equip--shoes" data-slot="shoes" alt="" />
+    <div id="accLayer" aria-hidden="true"></div>
   </div>
 
   <div id="bubble"></div>
@@ -149,23 +137,30 @@
       <button class="btn" id="goCollection" type="button">コレクションへ</button>
     </div>
   </div>
+
+  <!-- ===== アクセパネル ===== -->
+  <div class="panel" id="accessoryPanel" aria-modal="true">
+    <div class="panelCard">
+      <div class="panelHeader">
+        <h3>アクセサリー</h3>
+        <button class="btn" id="accClose" type="button">とじる</button>
+      </div>
+      <div class="gridAcc" id="accList"></div>
+    </div>
+  </div>
 </div>
 
 <script>
+/* ===== ストア（localStorage） ===== */
+const store = {
+  get(k, f){ try{ const v = localStorage.getItem(k); return v? JSON.parse(v): f; }catch(e){ return f; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
 /* ===== スマートナビ（404対策） ===== */
 const NAV_CANDIDATES = {
-  collection: [
-    'collection.html','./collection.html','../collection.html',
-    'scenes/collection.html','pages/collection.html',
-    'collection/index.html','./collection/index.html','../collection/index.html',
-    'Collection.html','Collections.html'
-  ],
-  exchange: [
-    'exchange.html','./exchange.html','../exchange.html',
-    'shop/exchange.html','pages/exchange.html',
-    'exchange/index.html','./exchange/index.html','../exchange/index.html',
-    'Exchange.html'
-  ]
+  collection: ['collection.html','./collection.html','../collection.html','scenes/collection.html','pages/collection.html','collection/index.html'],
+  exchange:   ['exchange.html','./exchange.html','../exchange.html','shop/exchange.html','pages/exchange.html','exchange/index.html']
 };
 async function smartNavigate(key){
   const list = NAV_CANDIDATES[key] || [];
@@ -173,56 +168,43 @@ async function smartNavigate(key){
     const href = new URL(rel, location.href).href;
     try{ const res = await fetch(href, { method:'HEAD', cache:'no-store' }); if(res.ok){ location.href = href; return; } }catch(e){}
   }
-  alert(`ページが見つかりません。\n探した候補:\n- ` + list.map(p=>new URL(p,location.href).href).join('\n- '));
+  alert('ページが見つかりませんでした。配置を確認してください。');
 }
 
-/* ===== ユーティリティ ===== */
-const $ = sel => document.querySelector(sel);
-const $$ = sel => Array.from(document.querySelectorAll(sel));
-const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+/* ===== 便利 ===== */
+const $ = s=>document.querySelector(s);
+const $$=(s,root=document)=>Array.from(root.querySelectorAll(s));
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const now = ()=>performance.now();
 
-/* 画像フォールバック（items系） */
-function loadIconWithFallback(id, preferEx=true){
-  const paths = [];
-  if(preferEx) paths.push(`public/items/ex_${id}.png`);
-  paths.push(`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`);
-  return new Promise(resolve=>{
-    const img = new Image(); let i = 0;
-    const tryNext = () => { if(i>=paths.length){ resolve(null); return; }
-      img.src = paths[i++]; img.onload = ()=>resolve(img); img.onerror = tryNext; };
-    tryNext();
-  });
+/* ===== 背景用画像フォールバック ===== */
+function loadIconWithFallback(id){
+  const paths=[`public/items/ex_${id}.png`,`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`];
+  return new Promise(res=>{ const img=new Image(); let i=0; const next=()=>{ if(i>=paths.length){res(null);return;} img.src=paths[i++]; img.onload=()=>res(img); img.onerror=next; }; next(); });
 }
 function emojiDataURI(emoji="🐚", size=128){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-/* アクセ画像フォールバック */
+/* ===== アクセ画像フォールバック ===== */
 function loadAccessoryWithFallback(id){
-  const paths = [
+  const paths=[
     `public/accessories/${id}.png`,
     `./public/accessories/${id}.png`,
     `/public/accessories/${id}.png`,
     `public/items/accessories/${id}.png`
   ];
-  return new Promise(resolve=>{
-    const img = new Image(); let i=0;
-    const next=()=>{ if(i>=paths.length){ resolve(null); return; }
-      img.src=paths[i++]; img.onload=()=>resolve(img); img.onerror=next; };
-    next();
-  });
+  return new Promise(res=>{ const img=new Image(); let i=0; const next=()=>{ if(i>=paths.length){res(null);return;} img.src=paths[i++]; img.onload=()=>res(img); img.onerror=next; }; next(); });
 }
 
-/* ===== ストレージ ===== */
-function readJSON(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
-function writeJSON(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
+/* ===== シェル保存 ===== */
 function ensureShells(){
-  let s = readJSON('who_shells', null);
-  if(!s || s.schema!=='who_shells/v1'){ s = { schema:'who_shells/v1', updatedAt:new Date().toISOString(), items:{} }; writeJSON('who_shells', s); }
+  let s = store.get('who_shells', null);
+  if(!s || s.schema!=='who_shells/v1'){ s = {schema:'who_shells/v1',updatedAt:new Date().toISOString(),items:{}}; store.set('who_shells', s); }
   return s;
 }
+function totalCollected(){ const s = ensureShells(); return Object.values(s.items).reduce((a,b)=>a+(b|0),0); }
 
 /* ===== クエリ・定数 ===== */
 const search = new URLSearchParams(location.search);
@@ -233,93 +215,49 @@ const FRIEND_OFFSET = { x: 36, y: 8 };
 const FLOAT_AMPL = 6;
 const FLOAT_SPEED = 0.0016;
 
-/* 装備アンカー */
+/* ===== 装備アンカー（基準） ===== */
 const ANCHOR = {
   head:{x:0, y:-38, scale:0.9},
   body:{x:0, y:-2,  scale:0.96},
   back:{x:-4,y:-8,  scale:0.94},
   hands:{x:10,y:4,  scale:0.95},
   shoes:{x:4, y:40, scale:0.92},
-  style:{x:2, y:-10,  scale:0.96}
+  style:{x:2, y:-10, scale:0.96}
 };
 
-/* ===== 画面・キャンバス準備 ===== */
-const game = $('#game');
-const sand = $('#sand');
-const shellLayer = $('#shellLayer');
-const bgDay = $('#bgDay');
+/* ===== アクセサリー定義（直選→即装着・サイズ/位置込み） ===== */
+const ACCESSORIES=[
+  {key:'straw_hat',   name:'麦わら帽子',  unlockAt:3,  fit:{x:0,  y:-40, scale:0.98}}, // 頭上
+  {key:'knit_hat',    name:'毛糸の帽子',  unlockAt:6,  fit:{x:0,  y:-40, scale:0.98}},
+  {key:'sunglasses',  name:'サングラス',  unlockAt:10, fit:{x:0,  y:-18, scale:0.68}}, // 目の位置
+  {key:'ribbon_yellow',name:'黄色いリボン',unlockAt:15, fit:{x:22, y:-28, scale:0.74}}, // 耳横
+  {key:'star_yellow', name:'黄色のスター', unlockAt:20, fit:{x:28, y:-6,  scale:0.92}}  // 体の右側
+];
+
+/* ===== 画面準備 ===== */
+const game = $('#game'), sand = $('#sand'), shellLayer = $('#shellLayer');
 const bgClear = $('#bgClear');
-
-let cw=0,ch=0, ctx=null;
-
-function resize(){
-  cw = game.clientWidth; ch = game.clientHeight;
-  sand.width = cw; sand.height = ch;
-  ctx = sand.getContext('2d');
-  drawSand();
-}
+const friendWrap = $('#friendWrap'), friendImg = $('#friend'), accLayer = $('#accLayer');
+let cw=0, ch=0, ctx=null;
+function resize(){ cw=game.clientWidth; ch=game.clientHeight; sand.width=cw; sand.height=ch; ctx=sand.getContext('2d'); drawSand(); }
 window.addEventListener('resize', resize);
-
-/* 砂キャンバス：単色＋ノイズ風 */
 function drawSand(){
   if(!ctx) return;
   ctx.clearRect(0,0,cw,ch);
   ctx.fillStyle = '#D9C7A1'; ctx.fillRect(0,0,cw,ch);
   const density = Math.floor((cw*ch)/9000);
-  ctx.globalAlpha = 0.15; ctx.fillStyle = '#bca67e';
-  for(let i=0;i<density;i++){
-    const x = Math.random()*cw, y=Math.random()*ch;
-    const r = Math.random()*1.8;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha=.15; ctx.fillStyle='#bca67e';
+  for(let i=0;i<density;i++){ const x=Math.random()*cw, y=Math.random()*ch, r=Math.random()*1.8; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+  ctx.globalAlpha=1;
 }
 
-/* ===== キャラ表示・装備レイヤ ===== */
-const friendWrap = $('#friendWrap');
-const friendImg = $('#friend');
-const equipImgs = {
-  head: $('.equip--head'), body: $('.equip--body'), back: $('.equip--back'),
-  hands: $('.equip--hands'), shoes: $('.equip--shoes'), style: $('.equip--style')
-};
+/* ===== キャラ画像 ===== */
 function resolveFriendSrc(){
   const color = (localStorage.getItem('who_character') || 'pink').replace(/[^a-z]/g,'') || 'pink';
   return `public/assets/stage1/${color}_open.png`;
 }
-async function setEquipLayer(slot, productId){
-  const el = equipImgs[slot]; if(!el) return;
-  if(!productId){ el.style.display='none'; el.removeAttribute('src'); el.style.background=''; return; }
-  const img = await loadAccessoryWithFallback(productId);
-  const a = ANCHOR[slot] || {x:0,y:0,scale:1};
-  if(img){
-    el.src = img.src; el.style.display='block'; el.style.background='';
-    el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
-  }else{
-    el.removeAttribute('src'); el.style.display='block';
-    el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
-    el.style.background = 'radial-gradient(rgba(255,255,255,.25), rgba(255,255,255,0))';
-  }
-}
-function applyEquipment(){
-  const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
-  Object.entries(eq).forEach(([slot, pid]) => setEquipLayer(slot, pid));
-}
 
-/* ===== フォロー挙動 ===== */
-let mx=0, my=0, fx=0, fy=0, t0 = now();
-function onPointerPos(e){ const p = e.touches ? e.touches[0] : e; mx = p.clientX + FRIEND_OFFSET.x; my = p.clientY + FRIEND_OFFSET.y; }
-['pointerdown','pointermove','touchstart','touchmove'].forEach(ev=>{ game.addEventListener(ev, onPointerPos, {passive:true, capture:true}); });
-function loop(){
-  const t = now(), dt = t - t0; t0 = t;
-  const f = Math.min(1, dt/1000*6);
-  const bob = Math.sin(performance.now()*FLOAT_SPEED) * FLOAT_AMPL;
-  fx += (mx - fx) * f * 0.22; fy += (my - fy) * f * 0.22;
-  friendWrap.style.left = `${clamp(fx, 40, cw-40)}px`;
-  friendWrap.style.top  = `${clamp(fy + bob, 40, ch-40)}px`;
-  requestAnimationFrame(loop);
-}
-
-/* ===== 新しい貝セット ===== */
+/* ===== 貝の種類（新セット） ===== */
 const SHELL_DEFS = [
   {id:'asari1',         label:'アサリ（白）',         weight: 9},
   {id:'asari2',         label:'アサリ（橙）',         weight: 7},
@@ -332,165 +270,189 @@ const SHELL_DEFS = [
   {id:'rare_pearl',     label:'真珠',                 weight: 1},
   {id:'rare_rainbow',   label:'虹色の貝殻',           weight: 1}
 ];
-let totalShells = 0, gotShells = 0;
-
-function weightedPick(list){
-  const sum = list.reduce((a,b)=>a+b.weight,0);
-  let r = Math.random()*sum;
-  for(const it of list){ if((r-=it.weight)<=0) return it; }
-  return list[list.length-1];
-}
-
+let totalShells=0, gotShells=0;
+function weightedPick(list){ const sum=list.reduce((a,b)=>a+b.weight,0); let r=Math.random()*sum; for(const it of list){ if((r-=it.weight)<=0) return it; } return list[list.length-1]; }
 function placeShells(nTotal=18){
-  shellLayer.innerHTML = '';
-  const margin = 64; const items = [];
-  for(let i=0;i<nTotal;i++){
-    const pick = weightedPick(SHELL_DEFS);
-    const x = margin + Math.random()*(cw - margin*2);
-    const y = margin + Math.random()*(ch - margin*2);
-    items.push({...pick, x,y});
-  }
-  totalShells = items.length; $('#total').textContent = totalShells;
-
+  shellLayer.innerHTML=''; const margin=64; const items=[];
+  for(let i=0;i<nTotal;i++){ const p=weightedPick(SHELL_DEFS); const x=margin+Math.random()*(cw-margin*2), y=margin+Math.random()*(ch-margin*2); items.push({...p,x,y}); }
+  totalShells=items.length; $('#total').textContent=totalShells;
   items.forEach(it=>{
-    const el = document.createElement('img');
-    el.className = 'shell'; el.alt = it.label;
-    el.style.left = `${Math.round(it.x - 26)}px`; el.style.top  = `${Math.round(it.y - 26)}px`;
-    el.dataset.cx = String(it.x); el.dataset.cy = String(it.y);
-    el.draggable = false; el.setAttribute('draggable','false'); el.tabIndex = -1;
-
-    loadIconWithFallback(it.id).then(img=>{ el.src = img ? img.src : emojiDataURI('🐚',128); });
-    el.addEventListener('click', (ev)=>{
-      const cx = parseFloat(el.dataset.cx), cy = parseFloat(el.dataset.cy);
-      if(isUncovered(cx, cy, 28, 0.55)){ collectShell(it.id, it.label, el); }
-      else{ showBubble('まだ砂が残っているよ'); }
+    const el=document.createElement('img'); el.className='shell'; el.alt=it.label;
+    el.style.left=`${Math.round(it.x-26)}px`; el.style.top=`${Math.round(it.y-26)}px`;
+    el.dataset.cx=String(it.x); el.dataset.cy=String(it.y);
+    el.draggable=false; el.setAttribute('draggable','false'); el.tabIndex=-1;
+    loadIconWithFallback(it.id).then(img=>{ el.src=img?img.src:emojiDataURI('🐚',128); });
+    el.addEventListener('click',ev=>{
+      const cx=parseFloat(el.dataset.cx), cy=parseFloat(el.dataset.cy);
+      if(isUncovered(cx,cy,28,0.55)){ collectShell(it.id,it.label,el); } else { showBubble('まだ砂が残っているよ'); }
       ev.stopPropagation();
     });
     shellLayer.appendChild(el);
   });
 }
 
+/* ===== 吹き出し ===== */
 function showBubble(text){
-  const b = $('#bubble'); const rect = friendWrap.getBoundingClientRect();
-  b.style.left = `${rect.left + rect.width*0.5}px`; b.style.top  = `${rect.top}px`;
-  b.textContent = text; b.classList.add('show'); setTimeout(()=>b.classList.remove('show'), 700);
+  const b=$('#bubble'), rect=friendWrap.getBoundingClientRect();
+  b.style.left=`${rect.left+rect.width*.5}px`; b.style.top=`${rect.top}px`; b.textContent=text;
+  b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),700);
 }
-function brightenBackground(boost=0.1){
-  const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bg-brightness')) || 1;
-  document.documentElement.style.setProperty('--bg-brightness', String(Math.min(1.35, cur + boost)));
-}
-/* 露出率判定 */
-function uncoverRatioAt(x, y, r=24, step=4){
+
+/* ===== 露出判定 ===== */
+function uncoverRatioAt(x,y,r=24,step=4){
   if(!ctx) return 0;
-  let uncovered = 0, total = 0;
-  const rx = Math.max(0, Math.floor(x - r)), ry = Math.max(0, Math.floor(y - r));
-  const rw = Math.min(cw - rx, Math.ceil(r*2)); const rh = Math.min(ch - ry, Math.ceil(r*2));
+  let u=0,t=0; const rx=Math.max(0,Math.floor(x-r)), ry=Math.max(0,Math.floor(y-r));
+  const rw=Math.min(cw-rx,Math.ceil(r*2)), rh=Math.min(ch-ry,Math.ceil(r*2));
   try{
-    const img = ctx.getImageData(rx, ry, rw, rh).data;
-    for(let j=0;j<rh;j+=step){
-      for(let i=0;i<rw;i+=step){
-        const dx = i - r, dy = j - r;
-        if(dx*dx + dy*dy <= r*r){
-          const a = img[(j*rw + i)*4 + 3]; if(a===0) uncovered++; total++;
-        }
-      }
-    }
-    return total>0 ? (uncovered/total) : 0;
+    const data=ctx.getImageData(rx,ry,rw,rh).data;
+    for(let j=0;j<rh;j+=step){ for(let i=0;i<rw;i+=step){ const dx=i-r, dy=j-r; if(dx*dx+dy*dy<=r*r){ const a=data[(j*rw+i)*4+3]; if(a===0) u++; t++; }}}
+    return t? u/t : 0;
   }catch(e){ return 0; }
 }
-function isUncovered(x,y,r=24,th=0.5){ return uncoverRatioAt(x,y,r,4) >= th; }
+function isUncovered(x,y,r=24,th=0.5){ return uncoverRatioAt(x,y,r,4)>=th; }
 
-function collectShell(id, label, el){
+/* ===== 収集処理 ===== */
+function collectShell(id,label,el){
   if(el.classList.contains('hidden')) return;
-  el.classList.add('hidden'); gotShells++; $('#got').textContent = gotShells;
-
-  const st = ensureShells(); st.items[id] = (st.items[id]||0) + 1; st.updatedAt = new Date().toISOString(); writeJSON('who_shells', st);
-
-  friendWrap.classList.remove('spin'); friendWrap.classList.remove('jump'); void friendWrap.offsetWidth;
-  friendWrap.classList.add('spin'); friendWrap.classList.add('jump');
-  showBubble(`GET! ${label}`); brightenBackground(0.08);
-
-  if(gotShells>=totalShells){ onAllCollected(); }
+  el.classList.add('hidden'); gotShells++; $('#got').textContent=gotShells;
+  const st=ensureShells(); st.items[id]=(st.items[id]||0)+1; st.updatedAt=new Date().toISOString(); store.set('who_shells',st);
+  friendWrap.classList.remove('spin'); friendWrap.classList.remove('jump'); void friendWrap.offsetWidth; friendWrap.classList.add('spin'); friendWrap.classList.add('jump');
+  showBubble(`GET! ${label}`);
+  refreshAccessoryLocks(); // 取得数でアンロック更新
+  if(gotShells>=totalShells) onAllCollected();
 }
 
 /* ===== 砂消しゴム ===== */
-let erasing = false;
-function startErase(){ if(isPreview) return; erasing = true; }
-function endErase(){ erasing = false; }
+let erasing=false;
+function startErase(){ if(isPreview) return; erasing=true; }
+function endErase(){ erasing=false; }
 function eraseAt(x,y){
-  if(!ctx || isPreview) return;
-  ctx.save(); ctx.globalCompositeOperation = 'destination-out';
-  const r = 24; const g = ctx.createRadialGradient(x,y,0,x,y,r);
+  if(!ctx||isPreview) return;
+  ctx.save(); ctx.globalCompositeOperation='destination-out';
+  const r=24,g=ctx.createRadialGradient(x,y,0,x,y,r);
   g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
 }
-game.addEventListener('pointerdown', (e)=>{ startErase(); eraseAt(e.clientX,e.clientY); }, {capture:true});
-game.addEventListener('pointermove', (e)=>{ if(erasing) eraseAt(e.clientX,e.clientY); }, {capture:true});
-window.addEventListener('pointerup', endErase, {capture:true});
-game.addEventListener('touchstart', (e)=>{ const p=e.touches[0]; startErase(); eraseAt(p.clientX,p.clientY); }, {passive:true, capture:true});
-game.addEventListener('touchmove',  (e)=>{ const p=e.touches[0]; if(erasing) eraseAt(p.clientX,p.clientY); }, {passive:true, capture:true});
-window.addEventListener('touchend', endErase, {capture:true});
+game.addEventListener('pointerdown',e=>{ startErase(); eraseAt(e.clientX,e.clientY); },{capture:true});
+game.addEventListener('pointermove',e=>{ if(erasing) eraseAt(e.clientX,e.clientY); },{capture:true});
+window.addEventListener('pointerup',endErase,{capture:true});
+game.addEventListener('touchstart',e=>{ const p=e.touches[0]; startErase(); eraseAt(p.clientX,p.clientY); },{passive:true,capture:true});
+game.addEventListener('touchmove',e=>{ const p=e.touches[0]; if(erasing) eraseAt(p.clientX,p.clientY); },{passive:true,capture:true});
+window.addEventListener('touchend',endErase,{capture:true});
 
-/* ===== プレビュー ===== */
-$('#previewBtn').addEventListener('click', ()=>{ if(!isPreview) location.href = 'asari.html?preview=1'; });
+/* ===== 追従モーション ===== */
+let mx=0,my=0,fx=0,fy=0,t0=now();
+function onPointerPos(e){ const p=e.touches?e.touches[0]:e; mx=p.clientX+FRIEND_OFFSET.x; my=p.clientY+FRIEND_OFFSET.y; }
+['pointerdown','pointermove','touchstart','touchmove'].forEach(ev=>game.addEventListener(ev,onPointerPos,{passive:true,capture:true}));
+function loop(){ const t=now(),dt=t-t0; t0=t; const f=Math.min(1,dt/1000*6); const bob=Math.sin(performance.now()*FLOAT_SPEED)*FLOAT_AMPL; fx+=(mx-fx)*f*.22; fy+=(my-fy)*f*.22;
+  friendWrap.style.left=`${clamp(fx,40,cw-40)}px`; friendWrap.style.top=`${clamp(fy+bob,40,ch-40)}px`; requestAnimationFrame(loop); }
 
 /* ===== クリア処理 ===== */
 function onAllCollected(){
-  bgClear.classList.add('show');
-  document.documentElement.style.setProperty('--bg-brightness', '1.35');
-  sand.classList.add('fadeout');
-  setTimeout(()=>{ sand.style.display='none'; }, 820);
-  $('#clearOverlay').classList.add('show');
-  if(!isPreview){ setTimeout(()=>{ smartNavigate('collection'); }, 1800); }
+  $('#sand').classList.add('fadeout'); setTimeout(()=>{ $('#sand').style.display='none'; },820);
+  bgClear.classList.add('show'); $('#clearOverlay').classList.add('show');
+  if(!isPreview){ setTimeout(()=>smartNavigate('collection'), 1800); }
 }
-document.getElementById('goCollection').addEventListener('click', ()=> smartNavigate('collection'));
+$('#goCollection').addEventListener('click',()=>smartNavigate('collection'));
 
-/* ===== クリア背景の存在チェック（代替処理） ===== */
-(function preloadClear(){
-  const test = new Image();
-  test.onload = ()=>{};
-  test.onerror = ()=>{
-    document.documentElement.style.setProperty('--bg-brightness','1.0');
-    onAllCollected = function(){
-      document.documentElement.style.setProperty('--bg-brightness','1.55');
-      sand.classList.add('fadeout'); setTimeout(()=>{ sand.style.display='none'; }, 820);
-      $('#clearOverlay').classList.add('show');
-      if(!isPreview){ setTimeout(()=>{ smartNavigate('collection'); }, 1800); }
-    };
-  };
-  test.src = 'public/items/bg/beach_clear.jpg';
-})();
+/* ===== プレビュー切替 ===== */
+$('#previewBtn').addEventListener('click',()=>{ if(!isPreview) location.href='asari.html?preview=1'; });
 
-/* ===== 交換所ボタン ===== */
-document.getElementById('backBtn').addEventListener('click', ()=> smartNavigate('exchange'));
+/* ===== 交換所へ ===== */
+$('#backBtn').addEventListener('click',()=>smartNavigate('exchange'));
+
+/* ===== アクセ：状態管理 ===== */
+function getActiveAcc(){ return new Set(store.get('whoai.accessories',[])); }
+function setActiveAcc(s){ store.set('whoai.accessories', Array.from(s)); }
+
+/* アクセ画像を friend に追加（サイズ/位置を自動フィット） */
+async function addAccImg(a){
+  removeAccImg(a.key);
+  const img = document.createElement('img');
+  img.alt = a.name; img.className='acc'; img.dataset.key=a.key;
+  const loaded = await loadAccessoryWithFallback(a.key);
+  if(loaded) img.src = loaded.src;
+  // 位置合わせ
+  const base = a.fit || {x:0,y:0,scale:1};
+  img.style.transform = `translate(calc(-50% + ${base.x}px), calc(-50% + ${base.y}px)) scale(${base.scale})`;
+  accLayer.appendChild(img);
+}
+function removeAccImg(key){
+  const el = accLayer.querySelector(`img.acc[data-key="${key}"]`);
+  if(el) el.remove();
+}
+function restoreAccessories(){
+  const active = getActiveAcc(); ACCESSORIES.forEach(a=>{ if(active.has(a.key)) addAccImg(a); });
+}
+
+/* ===== アクセ：UI（直接選択→即装着） ===== */
+const accessoryPanel = $('#accessoryPanel'), accList = $('#accList');
+function openPanel(el){ el.classList.add('show'); }
+function closePanel(el){ el.classList.remove('show'); }
+$('#accClose').onclick = ()=>closePanel(accessoryPanel);
+$('#accBtn').onclick   = ()=>openAccessory();
+
+function openAccessory(){
+  const total = totalCollected();
+  if(!accList.dataset.ready){
+    ACCESSORIES.forEach(a=>{
+      const div = document.createElement('div'); div.className='accChoice'; div.dataset.key=a.key;
+      div.innerHTML = `
+        <img src="${(loadAccessoryWithFallback(a.key).then(()=>{}), `public/accessories/${a.key}.png`)}" alt="${a.name}">
+        <div class="t">
+          <div style="font-weight:700">${a.name}</div>
+          <div class="hint" style="font-size:12px;opacity:.8">タップで装着/解除</div>
+        </div>
+        <input type="checkbox">
+      `;
+      const cb=div.querySelector('input');
+      cb.addEventListener('change',()=>toggleAccessory(a,cb.checked));
+      div.addEventListener('click',e=>{ if(e.target.tagName!=='INPUT'){ cb.checked=!cb.checked; cb.dispatchEvent(new Event('change')); }});
+      accList.appendChild(div);
+    });
+    accList.dataset.ready = '1';
+  }
+  const active = getActiveAcc();
+  $$('.accChoice',accList).forEach(div=>{
+    const a = ACCESSORIES.find(x=>x.key===div.dataset.key);
+    const cb = div.querySelector('input'); const hint = div.querySelector('.hint');
+    const locked = total < a.unlockAt;
+    div.style.opacity = locked ? .5 : 1;
+    cb.disabled = locked;
+    hint.textContent = locked ? `あと ${a.unlockAt-total} 個で解放` : 'タップで装着/解除';
+    cb.checked = active.has(a.key);
+  });
+  openPanel(accessoryPanel);
+}
+function toggleAccessory(a,on){
+  const total=totalCollected();
+  if(total<a.unlockAt){ showBubble(`あと ${a.unlockAt-total} 個で解放`); return; }
+  const s=getActiveAcc();
+  if(on){ s.add(a.key); addAccImg(a); } else { s.delete(a.key); removeAccImg(a.key); }
+  setActiveAcc(s);
+}
+function refreshAccessoryLocks(){
+  if(!accList.dataset.ready) return;
+  const total=totalCollected();
+  $$('.accChoice',accList).forEach(div=>{
+    const a=ACCESSORIES.find(x=>x.key===div.dataset.key); const cb=div.querySelector('input'); const hint=div.querySelector('.hint');
+    const locked=total<a.unlockAt; div.style.opacity=locked?.5:1; cb.disabled=locked; hint.textContent=locked?`あと ${a.unlockAt-total} 個で解放`:'タップで装着/解除';
+  });
+}
 
 /* ===== 起動 ===== */
-(async function init(){
+(function init(){
   resize();
-
   if(isPreview){
-    document.getElementById('previewCurtain').classList.add('show');
-    sand.style.opacity = 0.15;
-    document.getElementById('shellLayer').style.display = 'none';
+    $('#previewCurtain').classList.add('show');
+    sand.style.opacity=.15; shellLayer.style.display='none';
   }else{
     placeShells(18);
   }
-
-  // 画像のドラッグ不可を明示（念のため）
-  [document.getElementById('friend'), ...Object.values({
-    head: document.querySelector('.equip--head'),
-    body: document.querySelector('.equip--body'),
-    back: document.querySelector('.equip--back'),
-    hands: document.querySelector('.equip--hands'),
-    shoes: document.querySelector('.equip--shoes'),
-    style: document.querySelector('.equip--style')
-  })].forEach(el=>{ if(el){ el.draggable=false; el.setAttribute('draggable','false'); } });
-
   friendImg.src = resolveFriendSrc();
-  applyEquipment();
-
-  document.getElementById('got').textContent = '0';
-  mx = cw*0.5; my = ch*0.65; fx = mx; fy = my;
+  restoreAccessories(); // ← 直接選んだ装着状態を反映
+  $('#got').textContent='0';
+  mx=cw*.5; my=ch*.65; fx=mx; fy=my;
   requestAnimationFrame(loop);
 })();
 </script>
