@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>WHO VQ — 交換所</title>
+<style>
+  :root{ --ui-font: clamp(12px, 2.2vmin, 16px); --icon: clamp(40px, 7vmin, 72px); }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+  .wrap{min-height:100%;padding:14px;display:flex;flex-direction:column;gap:12px;background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,.2))}
+  header{display:flex;justify-content:space-between;align-items:center}
+  .btn{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);padding:.55em .8em;border-radius:10px;color:#fff;cursor:pointer;font:inherit}
+  .cols{display:grid;grid-template-columns:1fr 320px;gap:14px}
+  @media (max-width: 880px){ .cols{grid-template-columns:1fr} }
+  h2{font-size:1rem;margin:.4em 0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+  .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center}
+  .card img{width:var(--icon);height:var(--icon);object-fit:contain;flex:0 0 auto}
+  .card .name{font-weight:600}
+  .tiny{font-size:calc(var(--ui-font) * .9);opacity:.9}
+  .panel{position:sticky;top:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+  .equip-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center}
+  .equip-row .slot{opacity:.85}
+  .equip-row .pid{opacity:.9;word-break:break-all}
+  .money{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.2);padding:.3em .6em;border-radius:999px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 style="font-size:1.1rem">交換所</h1>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="location.href='../game/asari.html?preview=1'">見た目プレビュー</button>
+      <button class="btn" onclick="location.href='../dex/collection.html'">図鑑へ</button>
+    </div>
+  </header>
+
+  <div class="cols">
+    <main>
+      <section id="cat-accessory">
+        <h2>アクセ</h2>
+        <div class="grid" id="list-accessory"></div>
+      </section>
+      <section id="cat-style">
+        <h2>スタイル</h2>
+        <div class="grid" id="list-style"></div>
+      </section>
+      <section id="cat-gear">
+        <h2>装備（靴/服/帽子/杖/手）</h2>
+        <div class="grid" id="list-gear"></div>
+      </section>
+    </main>
+
+    <aside class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>所持シェル</div>
+        <button class="btn" onclick="refresh()">更新</button>
+      </div>
+      <div class="money" id="wallet"></div>
+      <hr style="border-color:rgba(255,255,255,.2)">
+      <div>現在装備</div>
+      <div id="equipPanel"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ==== 基本 ==== */
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+function readJSON(k,f){ try{const v=localStorage.getItem(k); return v?JSON.parse(v):f;}catch(_){return f;} }
+function writeJSON(k,o){ try{localStorage.setItem(k,JSON.stringify(o));}catch(_){ } }
+function emojiDataURI(emoji='✨', size=128){ const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`; return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`; }
+function loadIcon(id, preferEx=true){
+  const paths=[]; if(preferEx) paths.push(`public/items/ex_${id}.png`);
+  paths.push(`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`);
+  return new Promise(r=>{ const img=new Image(); img.crossOrigin='anonymous'; let i=0; const next=()=>{ if(i>=paths.length){ r(null); return; } img.src=paths[i++]; img.onload=()=>r(img); img.onerror=next; }; next(); });
+}
+
+/* ==== カタログ（例） ==== */
+const PRODUCTS=[
+  // アクセ（サングラスなど） slot=head
+  {id:'gear_glasses_sunglasses', name:'サングラス', slot:'head', price:{asari_any:12}, cat:'accessory', emoji:'🕶️'},
+  {id:'gear_glasses_round',      name:'丸メガネ',   slot:'head', price:{asari_any:10}, cat:'accessory', emoji:'👓'},
+
+  // スタイル（上レイヤ演出） slot:style
+  {id:'style_adventurer', name:'スタイル：アドベンチャー', slot:'style', price:{asari_any:8}, cat:'style', emoji:'✨'},
+
+  // 装備（例）
+  {id:'gear_hat_explorer', name:'探検帽', slot:'head', price:{asari_any:9}, cat:'gear', emoji:'👒'},
+  {id:'gear_robe_star',    name:'星ローブ', slot:'body', price:{asari_any:14}, cat:'gear', emoji:'🧥'},
+  {id:'gear_shoes_beach',  name:'ビーチサンダル', slot:'shoes', price:{asari_any:7}, cat:'gear', emoji:'🩴'}
+];
+
+/* ==== 所持/購入 ==== */
+function wallet(){ const w=readJSON('who_shells',{items:{}}).items||{}; return {asari1:w.asari1||0, asari2:w.asari2||0, asari3:w.asari3||0}; }
+function sumAsari(w){ return (w.asari1||0)+(w.asari2||0)+(w.asari3||0); }
+function canPay(price){ if(price.asari_any) return sumAsari(wallet())>=price.asari_any; return false; }
+function pay(price){
+  if(!canPay(price)) return false;
+  const st=readJSON('who_shells',{schema:'who_shells/v1',updatedAt:'',items:{}}); const it=st.items;
+  let need=price.asari_any;
+  // 大→中→小の順で消費
+  const order=['asari3','asari2','asari1'];
+  for(const k of order){ const use=Math.min(it[k]||0, need); if(use>0){ it[k]-=use; need-=use; } }
+  st.updatedAt=new Date().toISOString(); writeJSON('who_shells',st);
+  return true;
+}
+
+/* ==== 装備 ==== */
+const SLOTS=['head','body','back','hands','shoes','style'];
+function getEquip(){ return readJSON('who_equipment',{head:null,body:null,back:null,hands:null,shoes:null,style:null}); }
+function setEquipSlot(slot,pid){ const eq=getEquip(); eq[slot]=pid||null; writeJSON('who_equipment',eq); refreshEquipPanel(); }
+
+/* ==== UI ==== */
+function walletView(){
+  const w=wallet(); const el=$('#wallet'); el.innerHTML='';
+  [['asari1','小'],['asari2','中'],['asari3','大']].forEach(([id,label])=>{
+    const pill=document.createElement('div'); pill.className='pill'; pill.textContent=`${label}:${w[id]||0}`; el.appendChild(pill);
+  });
+}
+
+function productCard(p){
+  const card=document.createElement('div'); card.className='card';
+  const img=document.createElement('img');
+  loadIcon('ex_'+p.id,false).then(icon=>{
+    if(icon) img.src=icon.src;
+    else img.src=emojiDataURI(p.emoji||'🟦');
+  });
+  const meta=document.createElement('div'); meta.style.flex='1 1 auto';
+  const name=document.createElement('div'); name.className='name'; name.textContent=p.name;
+  const price=document.createElement('div'); price.className='tiny'; price.textContent=`価格: アサリ合算 ${p.price.asari_any}`;
+  const owned=readJSON('who_exchange_owned',{})[p.id]>0;
+
+  const btnBuy=document.createElement('button'); btnBuy.className='btn'; btnBuy.textContent=owned?'購入済み':'購入';
+  btnBuy.addEventListener('click', ()=>{
+    if(owned){ alert('すでに購入済みです'); return; }
+    if(!canPay(p.price)){ alert('アサリが足りません'); return; }
+    if(pay(p.price)){
+      const o=readJSON('who_exchange_owned',{}); o[p.id]=(o[p.id]||0)+1; writeJSON('who_exchange_owned',o);
+      walletView(); btnBuy.textContent='購入済み';
+      alert('購入しました！');
+    }
+  });
+
+  const btnWear=document.createElement('button'); btnWear.className='btn'; btnWear.textContent='装着';
+  btnWear.addEventListener('click', ()=>{ const o=readJSON('who_exchange_owned',{}); if(!(o[p.id]>0)){ alert('未購入です'); return; } setEquipSlot(p.slot,p.id); alert('装着しました！'); });
+
+  meta.appendChild(name); meta.appendChild(price);
+  card.appendChild(img); card.appendChild(meta);
+  const btns=document.createElement('div'); btns.style.display='flex'; btns.style.flexDirection='column'; btns.style.gap='6px';
+  btns.appendChild(btnBuy); btns.appendChild(btnWear);
+  card.appendChild(btns);
+  return card;
+}
+
+function mountCategory(catId, listId){
+  const cont=$(listId); cont.innerHTML='';
+  PRODUCTS.filter(p=>p.cat===catId).forEach(p=>cont.appendChild(productCard(p)));
+}
+
+function refreshEquipPanel(){
+  const eq=getEquip(); const el=$('#equipPanel'); el.innerHTML='';
+  SLOTS.forEach(slot=>{
+    const row=document.createElement('div'); row.className='equip-row';
+    const slotName={head:'頭',body:'体',back:'背中',hands:'手',shoes:'靴',style:'演出'}[slot]||slot;
+    const pid=eq[slot]; const pidEl=document.createElement('div'); pidEl.className='pid'; pidEl.textContent=pid||'(なし)';
+    const btnOff=document.createElement('button'); btnOff.className='btn'; btnOff.textContent='外す';
+    btnOff.addEventListener('click', ()=>{ if(pid){ setEquipSlot(slot,null); alert(`${slotName}を外しました`);} });
+    row.innerHTML=`<div class="slot">${slotName}</div>`;
+    row.appendChild(pidEl); row.appendChild(btnOff); el.appendChild(row);
+  });
+}
+
+function refresh(){
+  walletView();
+  mountCategory('accessory','#list-accessory');
+  mountCategory('style','#list-style');
+  mountCategory('gear','#list-gear');
+  refreshEquipPanel();
+}
+
+/* want=<id> でスクロール */
+(function init(){
+  refresh();
+  const want=new URLSearchParams(location.search).get('want');
+  if(want){
+    const t=[...document.querySelectorAll('.card .name')].find(n=>n.textContent.includes(want));
+    if(t) t.scrollIntoView({behavior:'smooth',block:'center'});
+  }
+})();
+</script>
+</body>
+</html>
