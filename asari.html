@@ -10,11 +10,24 @@
   html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif;overscroll-behavior:none}
   .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none;cursor:crosshair}
 
+  /* ▼▼ ここが追加（タップ青ハイライト&選択/ドラッグ無効） ▼▼ */
+  html, body, .game, img, .shell, button {
+    -webkit-tap-highlight-color: transparent; /* iOS/Android ブルー矩形無効 */
+  }
+  img, .shell {
+    -webkit-user-drag: none;
+    user-drag: none;
+    -webkit-user-select: none;
+    user-select: none;
+    outline: none;
+  }
+  .shell:focus { outline: none; }
+  /* ▲▲ 追加ここまで ▲▲ */
+
   /* 背景（2レイヤでクロスフェード） */
   .bg, .bg2{
     position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;
-    filter:brightness(var(--bg-brightness));transition:opacity .9s ease, filter .6s ease;
-    opacity:1;
+    filter:brightness(var(--bg-brightness));transition:opacity .9s ease, filter .6s ease;opacity:1;
   }
   .bg{ background-image:url("public/items/bg/beach_day.jpg"); }
   .bg2{ background-image:url("public/items/bg/beach_clear.jpg"); opacity:0; }
@@ -41,13 +54,13 @@
   .shell{
     position:absolute;width:48px;height:48px;object-fit:contain;image-rendering:auto;
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));
-    transition:transform .25s ease, opacity .25s ease; cursor:pointer;
-    will-change:transform, opacity;
+    transition:transform .25s ease, opacity .25s ease; cursor:pointer; will-change:transform, opacity;
+    background:transparent; /* 念のため */
   }
   .shell.hidden{opacity:0;transform:scale(.6) translateY(-6px);pointer-events:none}
 
   #sand{
-    position:absolute;inset:0;z-index:3;pointer-events:none; /* 見た目は上、イベントはゲーム全体で拾う */
+    position:absolute;inset:0;z-index:3;pointer-events:none;
     transition:opacity .8s ease;
   }
   #sand.fadeout{ opacity:0; }
@@ -91,8 +104,6 @@
   }
   .clearCard h2{font-size:20px;margin-bottom:8px}
   .clearCard p{opacity:.9;margin-bottom:12px}
-
-  .text-white{color:#fff}
 </style>
 </head>
 <body>
@@ -103,17 +114,14 @@
   <div id="topbar">
     <div class="pill" id="counter">貝：<b id="got">0</b>/<b id="total">0</b></div>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn" id="backBtn" onclick="location.href='exchange.html'">交換所へ戻る</button>
-      <button class="btn" id="previewBtn" title="装備プレビュー（砂を隠す/操作不可）">プレビュー</button>
+      <button class="btn" id="backBtn" data-nav="exchange" type="button">交換所へ戻る</button>
+      <button class="btn" id="previewBtn" title="装備プレビュー（砂を隠す/操作不可）" type="button">プレビュー</button>
     </div>
   </div>
 
-  <!-- シェル層 -->
   <div id="shellLayer" aria-hidden="false"></div>
-  <!-- 砂キャンバス -->
   <canvas id="sand"></canvas>
 
-  <!-- キャラ＆装備 -->
   <div id="friendWrap" aria-label="friend">
     <img id="friend" alt="friend" />
     <img class="equip equip--style" data-slot="style" alt="" />
@@ -131,30 +139,50 @@
     <div class="clearCard">
       <h2>コンプリート！</h2>
       <p>きれいな浜辺が姿をあらわしたよ。</p>
-      <button class="btn" id="goCollection">コレクションへ</button>
+      <button class="btn" id="goCollection" type="button">コレクションへ</button>
     </div>
   </div>
 </div>
 
 <script>
+/* ===== スマートナビ（404対策） ===== */
+const NAV_CANDIDATES = {
+  collection: [
+    'collection.html','./collection.html','../collection.html',
+    'scenes/collection.html','pages/collection.html',
+    'collection/index.html','./collection/index.html','../collection/index.html',
+    'Collection.html','Collections.html'
+  ],
+  exchange: [
+    'exchange.html','./exchange.html','../exchange.html',
+    'shop/exchange.html','pages/exchange.html',
+    'exchange/index.html','./exchange/index.html','../exchange/index.html',
+    'Exchange.html'
+  ]
+};
+async function smartNavigate(key){
+  const list = NAV_CANDIDATES[key] || [];
+  for(const rel of list){
+    const href = new URL(rel, location.href).href;
+    try{ const res = await fetch(href, { method:'HEAD', cache:'no-store' }); if(res.ok){ location.href = href; return; } }catch(e){}
+  }
+  alert(`ページが見つかりません。\n探した候補:\n- ` + list.map(p=>new URL(p,location.href).href).join('\n- '));
+}
+
 /* ===== ユーティリティ ===== */
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
 const now = ()=>performance.now();
 
-/* 画像フォールバック（items系） */
+/* 画像フォールバック */
 function loadIconWithFallback(id, preferEx=true){
-  const paths = [];
-  if(preferEx) paths.push(`public/items/ex_${id}.png`);
+  const paths = []; if(preferEx) paths.push(`public/items/ex_${id}.png`);
   paths.push(`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`);
   return new Promise(resolve=>{
-    const img = new Image();
-    let i = 0;
-    const tryNext = () => {
-      if(i>=paths.length){ resolve(null); return; }
-      img.src = paths[i++]; img.onload = ()=>resolve(img); img.onerror = tryNext;
-    };
+    const img = new Image(); let i = 0;
+    const tryNext = () => { if(i>=paths.length){ resolve(null); return; }
+      img.src = paths[i++]; img.onload = ()=>resolve(img); img.onerror = tryNext; };
     tryNext();
   });
 }
@@ -163,7 +191,7 @@ function emojiDataURI(emoji="🐚", size=128){
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-/* ===== ローカルストレージ ===== */
+/* ===== ストレージ ===== */
 function readJSON(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
 function writeJSON(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
 function ensureShells(){
@@ -208,7 +236,7 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 
-/* 砂キャンバス：単色＋ノイズ風 */
+/* 砂キャンバス */
 function drawSand(){
   if(!ctx) return;
   ctx.clearRect(0,0,cw,ch);
@@ -223,7 +251,7 @@ function drawSand(){
   ctx.globalAlpha = 1;
 }
 
-/* ===== キャラ表示・装備レイヤ ===== */
+/* ===== キャラ・装備 ===== */
 const friendWrap = $('#friendWrap');
 const friendImg = $('#friend');
 const equipImgs = {
@@ -251,7 +279,7 @@ function applyEquipment(){
   Object.entries(eq).forEach(([slot, pid]) => setEquipLayer(slot, pid));
 }
 
-/* ===== フォロー挙動 ===== */
+/* ===== 追従挙動 ===== */
 let mx=0, my=0, fx=0, fy=0, t0 = now();
 function onPointerPos(e){ const p = e.touches ? e.touches[0] : e; mx = p.clientX + FRIEND_OFFSET.x; my = p.clientY + FRIEND_OFFSET.y; }
 ['pointerdown','pointermove','touchstart','touchmove'].forEach(ev=>{ game.addEventListener(ev, onPointerPos, {passive:true, capture:true}); });
@@ -284,6 +312,13 @@ function placeShells(nEach=4){
     el.className = 'shell'; el.alt = it.label;
     el.style.left = `${Math.round(it.x - 24)}px`; el.style.top  = `${Math.round(it.y - 24)}px`;
     el.dataset.cx = String(it.x); el.dataset.cy = String(it.y);
+
+    /* ▼ 追加：タップ青枠対策（要素側でも無効化） */
+    el.draggable = false;
+    el.setAttribute('draggable','false');
+    el.tabIndex = -1; // フォーカス輪郭を出さない
+    /* ▲ 追加ここまで */
+
     loadIconWithFallback(it.id).then(img=>{ el.src = img ? img.src : emojiDataURI('🐚',128); });
     el.addEventListener('click', (ev)=>{
       const cx = parseFloat(el.dataset.cx), cy = parseFloat(el.dataset.cy);
@@ -338,7 +373,7 @@ function collectShell(id, label, el){
   if(gotShells>=totalShells){ onAllCollected(); }
 }
 
-/* ===== 砂消しゴム（ゲーム全体でキャプチャ） ===== */
+/* ===== 砂消しゴム ===== */
 let erasing = false;
 function startErase(){ if(isPreview) return; erasing = true; }
 function endErase(){ erasing = false; }
@@ -356,52 +391,47 @@ game.addEventListener('touchstart', (e)=>{ const p=e.touches[0]; startErase(); e
 game.addEventListener('touchmove',  (e)=>{ const p=e.touches[0]; if(erasing) eraseAt(p.clientX,p.clientY); }, {passive:true, capture:true});
 window.addEventListener('touchend', endErase, {capture:true});
 
-/* ===== プレビュー切替 ===== */
+/* ===== プレビュー ===== */
 $('#previewBtn').addEventListener('click', ()=>{ if(!isPreview) location.href = 'asari.html?preview=1'; });
 
 /* ===== クリア処理 ===== */
 function onAllCollected(){
-  // 背景：クリア海へクロスフェード
   bgClear.classList.add('show');
   document.documentElement.style.setProperty('--bg-brightness', '1.35');
-
-  // 砂：フェードアウトしてから非表示
   sand.classList.add('fadeout');
   setTimeout(()=>{ sand.style.display='none'; }, 820);
-
-  // オーバーレイ表示
   $('#clearOverlay').classList.add('show');
-
-  // 自動遷移（プレビュー時はしない）
-  if(!isPreview){ setTimeout(()=>{ location.href = 'collection.html'; }, 1800); }
+  if(!isPreview){ setTimeout(()=>{ smartNavigate('collection'); }, 1800); }
 }
-$('#goCollection').addEventListener('click', ()=> location.href='collection.html');
+document.getElementById('goCollection').addEventListener('click', ()=> smartNavigate('collection'));
 
-/* ===== 画像の事前検証（clear 背景が無い場合は day を明るくして代替） ===== */
+/* ===== クリア背景の存在チェック（代替処理） ===== */
 (function preloadClear(){
   const test = new Image();
-  test.onload = ()=>{/* あるので何もしない */};
+  test.onload = ()=>{};
   test.onerror = ()=>{
-    // クリア画像が無い：代替として day を強めに明るくする
     document.documentElement.style.setProperty('--bg-brightness','1.0');
     onAllCollected = function(){
       document.documentElement.style.setProperty('--bg-brightness','1.55');
       sand.classList.add('fadeout'); setTimeout(()=>{ sand.style.display='none'; }, 820);
       $('#clearOverlay').classList.add('show');
-      if(!isPreview){ setTimeout(()=>{ location.href = 'collection.html'; }, 1800); }
+      if(!isPreview){ setTimeout(()=>{ smartNavigate('collection'); }, 1800); }
     };
   };
   test.src = 'public/items/bg/beach_clear.jpg';
 })();
 
+/* ===== 交換所ボタン ===== */
+document.getElementById('backBtn').addEventListener('click', ()=> smartNavigate('exchange'));
+
 /* ===== 起動 ===== */
-(async function init(){
+(function init(){
   resize();
 
   if(isPreview){
-    $('#previewCurtain').classList.add('show');
+    document.getElementById('previewCurtain').classList.add('show');
     sand.style.opacity = 0.15;
-    $('#shellLayer').style.display = 'none';
+    document.getElementById('shellLayer').style.display = 'none';
   }else{
     placeShells(4);
   }
@@ -409,9 +439,9 @@ $('#goCollection').addEventListener('click', ()=> location.href='collection.html
   friendImg.src = resolveFriendSrc();
   applyEquipment();
 
-  $('#got').textContent = '0';
-
-  mx = cw*0.5; my = ch*0.65; fx = mx; fy = my;
+  document.getElementById('got').textContent = '0';
+  let mx0 = cw*0.5, my0 = ch*0.65; // 初期位置
+  window.mx = mx0; window.my = my0; window.fx = mx0; window.fy = my0;
   requestAnimationFrame(loop);
 })();
 </script>
