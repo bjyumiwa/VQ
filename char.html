@@ -1,120 +1,181 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
-  <title>WHO VQ — キャラクター選択</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: "Hiragino Sans","Meiryo",sans-serif;
-      background: linear-gradient(180deg,#87ceeb 0%,#f0f8ff 100%);
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-    header {
-      text-align: center;
-      padding: 20px 10px;
-      background: rgba(255,255,255,0.6);
-      backdrop-filter: blur(6px);
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: #222;
-    }
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .char-list {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .char {
-      cursor: pointer;
-      text-align: center;
-      transition: transform .2s ease, box-shadow .2s ease;
-      border-radius: 12px;
-      padding: 10px;
-      background: rgba(255,255,255,0.6);
-      backdrop-filter: blur(4px);
-    }
-    .char:hover {
-      transform: translateY(-5px) scale(1.05);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-    }
-    .char img {
-      width: 120px;
-      height: auto;
-      display: block;
-      margin: 0 auto 8px;
-    }
-    .char p {
-      margin: 0;
-      font-weight: 600;
-      font-size: 1rem;
-    }
-    footer {
-      text-align: center;
-      padding: 14px;
-      font-size: 0.9rem;
-      color: #666;
-      background: rgba(255,255,255,0.6);
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHO VQ — キャラ選択</title>
+<style>
+  :root{ --ui: rgba(255,255,255,.08); --bd: rgba(255,255,255,.18); }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; background:#000; color:#fff; font-family:system-ui,"Noto Sans JP",sans-serif; }
+  .wrap{ min-height:100%; display:flex; flex-direction:column; }
+  header{
+    position:sticky; top:0; z-index:5;
+    padding:14px 16px; background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,0));
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+  }
+  header h1{ font-size:16px; font-weight:700; opacity:.95; }
+  .lang{ opacity:.85; font-size:12px; }
+
+  main{ flex:1; display:grid; grid-template-rows:auto 1fr auto; gap:16px; padding:12px 16px 18px; }
+  .hint{ opacity:.9; font-size:14px; margin-bottom:6px; }
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(4, minmax(140px,1fr));
+    gap:12px;
+  }
+  @media (max-width:860px){ .grid{ grid-template-columns: repeat(2, minmax(140px,1fr)); } }
+
+  .card{
+    position:relative; background:var(--ui); border:1px solid var(--bd); border-radius:14px;
+    padding:12px; cursor:pointer; user-select:none; transition:transform .15s ease, box-shadow .15s ease, background .2s ease;
+  }
+  .card:hover{ transform:translateY(-2px); box-shadow:0 8px 18px rgba(0,0,0,.35); background:rgba(255,255,255,.12); }
+  .card.selected{ outline:2px solid #7dd3fc; background:rgba(125,211,252,.15); }
+  .thumb{
+    width:100%; aspect-ratio:1/1; border-radius:10px; background:rgba(255,255,255,.06); display:grid; place-items:center;
+    overflow:hidden; border:1px solid rgba(255,255,255,.1);
+  }
+  .thumb img{ width:82%; height:82%; object-fit:contain; image-rendering:auto; }
+  .label{ text-align:center; padding-top:8px; font-size:14px; opacity:.95; }
+
+  .bar{
+    display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:8px;
+  }
+  .btn{
+    background:rgba(255,255,255,.12); border:1px solid var(--bd); color:#fff; padding:10px 14px; border-radius:12px; cursor:pointer;
+  }
+  .btn:hover{ background:rgba(255,255,255,.18); }
+  .btn[disabled]{ opacity:.45; cursor:not-allowed; }
+  .ghost{ background:transparent; }
+  footer{ display:flex; justify-content:space-between; align-items:center; padding:0 2px; }
+  .note{ font-size:12px; opacity:.75; }
+</style>
 </head>
 <body>
+<div class="wrap">
   <header>
-    <h1>キャラクターを選んでください</h1>
+    <h1>キャラを選んでね</h1>
+    <div class="lang">日本語 / EN</div>
   </header>
+
   <main>
-    <div class="char-list">
-      <div class="char" data-char="pink">
-        <img src="public/assets/stage1/pink_open.png" alt="ピンクキャラ">
-        <p>Mi</p>
-      </div>
-      <div class="char" data-char="blue">
-        <img src="public/assets/stage1/blue_open.png" alt="ブルーキャラ">
-        <p>Be</p>
-      </div>
-      <div class="char" data-char="green">
-        <img src="public/assets/stage1/green_open.png" alt="グリーンキャラ">
-        <p>Co</p>
-      </div>
-      <div class="char" data-char="purple">
-        <img src="public/assets/stage1/purple_open.png" alt="パープルキャラ">
-        <p>Su</p>
-      </div>
+    <div>
+      <p class="hint">好きな色を選んで「はじめる」を押すと、<b>潮干狩り（asari）</b>が始まります。</p>
     </div>
+
+    <section class="grid" id="grid">
+      <!-- カードは JS で生成 -->
+    </section>
+
+    <footer>
+      <div class="note">※ 画像パスは <code>public/</code> から始まります（表示のためのルール）。</div>
+      <div class="bar">
+        <button class="btn ghost" id="backBtn" type="button">戻る</button>
+        <button class="btn" id="startBtn" type="button" disabled>はじめる</button>
+      </div>
+    </footer>
   </main>
-  <footer>
-    © WHO VQ Project
-  </footer>
+</div>
 
-  <script>
-    const LS_KEYS = {
-      character: "who_character",
-      last: "who_lastPage"
-    };
+<script>
+/* ===== 設定 ===== */
+const COLORS = [
+  { id:'pink',  name:'ピンク'  },
+  { id:'blue',  name:'ブルー'  },
+  { id:'green', name:'グリーン'},
+  { id:'purple',name:'パープル'},
+];
 
-    document.querySelectorAll(".char").forEach(c => {
-      c.addEventListener("click", () => {
-        const selected = c.dataset.char;
-        localStorage.setItem(LS_KEYS.character, selected);
-        localStorage.setItem(LS_KEYS.last, "asari.html"); // 次は潮干狩りゲームへ
-        location.href = "asari.html";
-      });
+/* ===== DOM 参照 ===== */
+const grid = document.getElementById('grid');
+const startBtn = document.getElementById('startBtn');
+const backBtn = document.getElementById('backBtn');
+
+let selected = null;
+
+/* ===== ユーティリティ ===== */
+function imgSrc(color){
+  // 画像は必ず public/ から
+  return `public/assets/stage1/${color}_open.png`;
+}
+function el(tag, attrs={}, children=[]){
+  const e = document.createElement(tag);
+  Object.entries(attrs).forEach(([k,v])=>{
+    if(k==='class') e.className = v;
+    else if(k==='dataset') Object.assign(e.dataset, v);
+    else if(k in e) e[k] = v;
+    else e.setAttribute(k, v);
+  });
+  children.forEach(c=> e.appendChild(c));
+  return e;
+}
+
+/* ===== カード生成 ===== */
+function render(){
+  grid.innerHTML = '';
+  COLORS.forEach(c=>{
+    const image = el('img', { alt:c.name, src: imgSrc(c.id) });
+    const thumb = el('div', { class:'thumb' }, [image]);
+    const label = el('div', { class:'label', textContent: c.name });
+    const card  = el('button', {
+      class:'card',
+      type:'button',
+      'aria-pressed':'false',
+      dataset:{ color:c.id }
+    }, [thumb,label]);
+
+    card.addEventListener('click', ()=>{
+      selected = c.id;
+      for(const btn of grid.querySelectorAll('.card')){
+        btn.classList.toggle('selected', btn.dataset.color===selected);
+        btn.setAttribute('aria-pressed', btn.dataset.color===selected ? 'true' : 'false');
+      }
+      startBtn.disabled = false;
     });
-  </script>
+
+    grid.appendChild(card);
+  });
+}
+
+/* ===== 遷移（相対 URL で 404 回避） ===== */
+function goToAsari(){
+  // 必須キーを保存
+  const color = selected || 'pink';
+  localStorage.setItem('who_character', color);
+  // 初期装備が無ければ空を入れておく（asari 側の期待キー）
+  if(!localStorage.getItem('who_equipment')){
+    localStorage.setItem('who_equipment', JSON.stringify({head:null,body:null,back:null,hands:null,shoes:null,style:null}));
+  }
+  // 「続きから」用の最後のページを記録（任意）
+  try{ localStorage.setItem('who_last_page','asari.html'); }catch(e){}
+
+  // 相対遷移（GitHub Pages の /<repo>/ 下でも壊れない）
+  try{
+    const next = new URL('asari.html', location.href); // ./asari.html と同義
+    location.href = next.href;
+  }catch(e){
+    // 念のためのフォールバック
+    location.href = './asari.html';
+  }
+}
+
+/* ===== イベント ===== */
+startBtn.addEventListener('click', goToAsari);
+backBtn.addEventListener('click', ()=> history.length>1 ? history.back() : (location.href = './index.html'));
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !startBtn.disabled){ goToAsari(); }
+});
+
+/* ===== 起動 ===== */
+render();
+// 前回の選択があれば復元
+const prev = (localStorage.getItem('who_character')||'').trim();
+if(prev){
+  const btn = grid.querySelector(`.card[data-color="${prev}"]`);
+  if(btn){ btn.click(); }
+}
+</script>
 </body>
 </html>
