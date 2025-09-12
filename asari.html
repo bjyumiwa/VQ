@@ -10,16 +10,15 @@
   html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif;overscroll-behavior:none}
   .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none;cursor:crosshair}
 
-  /* 背景 */
-  .bg{
+  /* 背景（2レイヤでクロスフェード） */
+  .bg, .bg2{
     position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;
-    background-image:url("public/items/bg/beach_day.jpg");
-    filter:brightness(var(--bg-brightness));
-    transition:filter .6s ease, opacity .9s ease;
+    filter:brightness(var(--bg-brightness));transition:opacity .9s ease, filter .6s ease;
+    opacity:1;
   }
-  .bg.clear{
-    background-image:url("public/items/bg/beach_clear.jpg");
-  }
+  .bg{ background-image:url("public/items/bg/beach_day.jpg"); }
+  .bg2{ background-image:url("public/items/bg/beach_clear.jpg"); opacity:0; }
+  .bg2.show{ opacity:1; }
 
   /* UI */
   #topbar{
@@ -46,11 +45,12 @@
     will-change:transform, opacity;
   }
   .shell.hidden{opacity:0;transform:scale(.6) translateY(-6px);pointer-events:none}
+
   #sand{
-    position:absolute;inset:0;z-index:3;
-    /* 砂は上にあるが、イベントはゲーム全体でキャプチャするので pointer-events は無効化 */
-    pointer-events:none;
+    position:absolute;inset:0;z-index:3;pointer-events:none; /* 見た目は上、イベントはゲーム全体で拾う */
+    transition:opacity .8s ease;
   }
+  #sand.fadeout{ opacity:0; }
 
   /* キャラ＋装備レイヤ */
   #friendWrap{
@@ -60,16 +60,9 @@
   #friendWrap.spin{animation:spin .5s ease}
   #friendWrap.jump{animation:jump .45s ease}
   @keyframes spin{from{transform:rotate(0deg)}50%{transform:rotate(18deg)}to{transform:rotate(0deg)}}
-  @keyframes jump{
-    0%{transform:translateY(0)}
-    40%{transform:translateY(-10px)}
-    100%{transform:translateY(0)}
-  }
+  @keyframes jump{0%{transform:translateY(0)}40%{transform:translateY(-10px)}100%{transform:translateY(0)}}
   #friend{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain}
-  .equip{
-    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    width:100%;height:100%;object-fit:contain;pointer-events:none
-  }
+  .equip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain;pointer-events:none}
 
   /* 吹き出し */
   #bubble{
@@ -79,9 +72,7 @@
   #bubble.show{opacity:1;transform:translate(-50%,-140%)}
 
   /* プレビュー時の幕 */
-  #previewCurtain{
-    position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.25);backdrop-filter:blur(1px);display:none
-  }
+  #previewCurtain{position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.25);backdrop-filter:blur(1px);display:none}
   #previewCurtain.show{display:block}
 
   /* 戻るボタン */
@@ -106,7 +97,8 @@
 </head>
 <body>
 <div class="game" id="game">
-  <div class="bg" id="bg"></div>
+  <div class="bg"  id="bgDay"></div>
+  <div class="bg2" id="bgClear"></div>
 
   <div id="topbar">
     <div class="pill" id="counter">貝：<b id="got">0</b>/<b id="total">0</b></div>
@@ -116,15 +108,14 @@
     </div>
   </div>
 
-  <!-- シェル層（画像DOM） -->
+  <!-- シェル層 -->
   <div id="shellLayer" aria-hidden="false"></div>
-  <!-- 砂キャンバス（見た目は上、イベントはキャプチャ方式で拾う） -->
+  <!-- 砂キャンバス -->
   <canvas id="sand"></canvas>
 
   <!-- キャラ＆装備 -->
   <div id="friendWrap" aria-label="friend">
     <img id="friend" alt="friend" />
-    <!-- 装備レイヤ（slot固定） -->
     <img class="equip equip--style" data-slot="style" alt="" />
     <img class="equip equip--head"  data-slot="head"  alt="" />
     <img class="equip equip--body"  data-slot="body"  alt="" />
@@ -152,7 +143,7 @@ const $$ = sel => Array.from(document.querySelectorAll(sel));
 const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
 const now = ()=>performance.now();
 
-/* 画像フォールバック（items系）：public/items/<id>.png → ./public/items/ → /public/items/ */
+/* 画像フォールバック（items系） */
 function loadIconWithFallback(id, preferEx=true){
   const paths = [];
   if(preferEx) paths.push(`public/items/ex_${id}.png`);
@@ -162,33 +153,22 @@ function loadIconWithFallback(id, preferEx=true){
     let i = 0;
     const tryNext = () => {
       if(i>=paths.length){ resolve(null); return; }
-      img.src = paths[i++];
-      img.onload = ()=>resolve(img);
-      img.onerror = tryNext;
+      img.src = paths[i++]; img.onload = ()=>resolve(img); img.onerror = tryNext;
     };
     tryNext();
   });
 }
-
-/* 絵文字SVGデータURI（代替） */
 function emojiDataURI(emoji="🐚", size=128){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 /* ===== ローカルストレージ ===== */
-function readJSON(key, fallback){
-  try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; }
-}
-function writeJSON(key, obj){
-  try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){}
-}
+function readJSON(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
+function writeJSON(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
 function ensureShells(){
   let s = readJSON('who_shells', null);
-  if(!s || s.schema!=='who_shells/v1'){
-    s = { schema:'who_shells/v1', updatedAt:new Date().toISOString(), items:{} };
-    writeJSON('who_shells', s);
-  }
+  if(!s || s.schema!=='who_shells/v1'){ s = { schema:'who_shells/v1', updatedAt:new Date().toISOString(), items:{} }; writeJSON('who_shells', s); }
   return s;
 }
 
@@ -201,7 +181,7 @@ const FRIEND_OFFSET = { x: 36, y: 8 };
 const FLOAT_AMPL = 6;
 const FLOAT_SPEED = 0.0016;
 
-/* 装備アンカー（ざっくり基準） */
+/* 装備アンカー */
 const ANCHOR = {
   head:{x:0, y:-38, scale:0.88},
   body:{x:0, y:-2,  scale:0.96},
@@ -215,7 +195,9 @@ const ANCHOR = {
 const game = $('#game');
 const sand = $('#sand');
 const shellLayer = $('#shellLayer');
-const bg = $('#bg');
+const bgDay = $('#bgDay');
+const bgClear = $('#bgClear');
+
 let cw=0,ch=0, ctx=null;
 
 function resize(){
@@ -230,13 +212,9 @@ window.addEventListener('resize', resize);
 function drawSand(){
   if(!ctx) return;
   ctx.clearRect(0,0,cw,ch);
-  // 下地
-  ctx.fillStyle = '#D9C7A1';
-  ctx.fillRect(0,0,cw,ch);
-  // ノイズ
+  ctx.fillStyle = '#D9C7A1'; ctx.fillRect(0,0,cw,ch);
   const density = Math.floor((cw*ch)/9000);
-  ctx.globalAlpha = 0.15;
-  ctx.fillStyle = '#bca67e';
+  ctx.globalAlpha = 0.15; ctx.fillStyle = '#bca67e';
   for(let i=0;i<density;i++){
     const x = Math.random()*cw, y=Math.random()*ch;
     const r = Math.random()*1.8;
@@ -249,37 +227,25 @@ function drawSand(){
 const friendWrap = $('#friendWrap');
 const friendImg = $('#friend');
 const equipImgs = {
-  head: $('.equip--head'),
-  body: $('.equip--body'),
-  back: $('.equip--back'),
-  hands: $('.equip--hands'),
-  shoes: $('.equip--shoes'),
-  style: $('.equip--style')
+  head: $('.equip--head'), body: $('.equip--body'), back: $('.equip--back'),
+  hands: $('.equip--hands'), shoes: $('.equip--shoes'), style: $('.equip--style')
 };
-
 function resolveFriendSrc(){
   const color = (localStorage.getItem('who_character') || 'pink').replace(/[^a-z]/g,'') || 'pink';
   return `public/assets/stage1/${color}_open.png`;
 }
-
-/* 装備PNGのロード（存在しなければ非表示） */
 function setEquipLayer(slot, productId){
-  const el = equipImgs[slot];
-  if(!el) return;
+  const el = equipImgs[slot]; if(!el) return;
   if(!productId){ el.style.display='none'; el.removeAttribute('src'); return; }
   const src = `public/accessories/${productId}.png`;
   const img = new Image();
-  img.onload = ()=>{
-    el.src = src; el.style.display='block';
+  img.onload = ()=>{ el.src = src; el.style.display='block';
     const a = ANCHOR[slot] || {x:0,y:0,scale:1};
     el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
   };
-  img.onerror = ()=>{
-    el.style.display='none'; el.removeAttribute('src');
-  };
+  img.onerror = ()=>{ el.style.display='none'; el.removeAttribute('src'); };
   img.src = src;
 }
-
 function applyEquipment(){
   const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
   Object.entries(eq).forEach(([slot, pid]) => setEquipLayer(slot, pid));
@@ -287,24 +253,13 @@ function applyEquipment(){
 
 /* ===== フォロー挙動 ===== */
 let mx=0, my=0, fx=0, fy=0, t0 = now();
-function onPointerPos(e){
-  const p = e.touches ? e.touches[0] : e;
-  mx = p.clientX + FRIEND_OFFSET.x;
-  my = p.clientY + FRIEND_OFFSET.y;
-}
-
-/* ゲーム全体でキャプチャしてポインタを拾う（砂canvasは pointer-events:none） */
-['pointerdown','pointermove','touchstart','touchmove'].forEach(ev=>{
-  game.addEventListener(ev, onPointerPos, {passive:true, capture:true});
-});
-
+function onPointerPos(e){ const p = e.touches ? e.touches[0] : e; mx = p.clientX + FRIEND_OFFSET.x; my = p.clientY + FRIEND_OFFSET.y; }
+['pointerdown','pointermove','touchstart','touchmove'].forEach(ev=>{ game.addEventListener(ev, onPointerPos, {passive:true, capture:true}); });
 function loop(){
-  const t = now();
-  const dt = t - t0; t0 = t;
+  const t = now(), dt = t - t0; t0 = t;
   const f = Math.min(1, dt/1000*6);
   const bob = Math.sin(performance.now()*FLOAT_SPEED) * FLOAT_AMPL;
-  fx += (mx - fx) * f * 0.22;
-  fy += (my - fy) * f * 0.22;
+  fx += (mx - fx) * f * 0.22; fy += (my - fy) * f * 0.22;
   friendWrap.style.left = `${clamp(fx, 40, cw-40)}px`;
   friendWrap.style.top  = `${clamp(fy + bob, 40, ch-40)}px`;
   requestAnimationFrame(loop);
@@ -320,38 +275,20 @@ let totalShells = 0, gotShells = 0;
 
 function placeShells(nEach=4){
   shellLayer.innerHTML = '';
-  const margin = 64;
-  const items = [];
-  SHELL_POOL.forEach(s=>{
-    for(let i=0;i<nEach;i++){
-      const x = margin + Math.random()*(cw - margin*2);
-      const y = margin + Math.random()*(ch - margin*2);
-      items.push({...s, x,y});
-    }
-  });
-  totalShells = items.length;
-  $('#total').textContent = totalShells;
+  const margin = 64; const items = [];
+  SHELL_POOL.forEach(s=>{ for(let i=0;i<nEach;i++){ const x = margin + Math.random()*(cw - margin*2); const y = margin + Math.random()*(ch - margin*2); items.push({...s, x,y}); }});
+  totalShells = items.length; $('#total').textContent = totalShells;
 
   items.forEach(it=>{
     const el = document.createElement('img');
-    el.className = 'shell';
-    el.alt = it.label;
-    el.style.left = `${Math.round(it.x - 24)}px`;
-    el.style.top  = `${Math.round(it.y - 24)}px`;
-    el.dataset.cx = String(it.x);
-    el.dataset.cy = String(it.y);
-    // アイコンロード
-    loadIconWithFallback(it.id).then(img=>{
-      el.src = img ? img.src : emojiDataURI('🐚',128);
-    });
-    // クリックで取得（露出率チェック）
+    el.className = 'shell'; el.alt = it.label;
+    el.style.left = `${Math.round(it.x - 24)}px`; el.style.top  = `${Math.round(it.y - 24)}px`;
+    el.dataset.cx = String(it.x); el.dataset.cy = String(it.y);
+    loadIconWithFallback(it.id).then(img=>{ el.src = img ? img.src : emojiDataURI('🐚',128); });
     el.addEventListener('click', (ev)=>{
       const cx = parseFloat(el.dataset.cx), cy = parseFloat(el.dataset.cy);
-      if(isUncovered(cx, cy, 28, 0.55)){  // 半径28px 周囲55%以上露出でOK
-        collectShell(it.id, it.label, el);
-      }else{
-        showBubble('まだ砂が残っているよ');
-      }
+      if(isUncovered(cx, cy, 28, 0.55)){ collectShell(it.id, it.label, el); }
+      else{ showBubble('まだ砂が残っているよ'); }
       ev.stopPropagation();
     });
     shellLayer.appendChild(el);
@@ -359,72 +296,46 @@ function placeShells(nEach=4){
 }
 
 function showBubble(text){
-  const b = $('#bubble');
-  const rect = friendWrap.getBoundingClientRect();
-  b.style.left = `${rect.left + rect.width*0.5}px`;
-  b.style.top  = `${rect.top}px`;
-  b.textContent = text;
-  b.classList.add('show');
-  setTimeout(()=>b.classList.remove('show'), 700);
+  const b = $('#bubble'); const rect = friendWrap.getBoundingClientRect();
+  b.style.left = `${rect.left + rect.width*0.5}px`; b.style.top  = `${rect.top}px`;
+  b.textContent = text; b.classList.add('show'); setTimeout(()=>b.classList.remove('show'), 700);
 }
-
 function brightenBackground(boost=0.1){
   const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bg-brightness')) || 1;
   document.documentElement.style.setProperty('--bg-brightness', String(Math.min(1.35, cur + boost)));
 }
-
-/* 周囲の露出率判定：半径 r 内のアルファ=0 の割合を返す */
+/* 露出率判定 */
 function uncoverRatioAt(x, y, r=24, step=4){
   if(!ctx) return 0;
   let uncovered = 0, total = 0;
   const rx = Math.max(0, Math.floor(x - r)), ry = Math.max(0, Math.floor(y - r));
-  const rw = Math.min(cw - rx, Math.ceil(r*2));
-  const rh = Math.min(ch - ry, Math.ceil(r*2));
+  const rw = Math.min(cw - rx, Math.ceil(r*2)); const rh = Math.min(ch - ry, Math.ceil(r*2));
   try{
-    const img = ctx.getImageData(rx, ry, rw, rh).data; // RGBA
+    const img = ctx.getImageData(rx, ry, rw, rh).data;
     for(let j=0;j<rh;j+=step){
       for(let i=0;i<rw;i+=step){
         const dx = i - r, dy = j - r;
         if(dx*dx + dy*dy <= r*r){
-          const idx = (j*rw + i)*4 + 3; // alpha
-          const a = img[idx]; // 0..255
-          if(a===0) uncovered++;
-          total++;
+          const a = img[(j*rw + i)*4 + 3]; if(a===0) uncovered++; total++;
         }
       }
     }
     return total>0 ? (uncovered/total) : 0;
-  }catch(e){
-    return 0;
-  }
+  }catch(e){ return 0; }
 }
-function isUncovered(x,y,r=24,th=0.5){
-  return uncoverRatioAt(x,y,r,4) >= th;
-}
+function isUncovered(x,y,r=24,th=0.5){ return uncoverRatioAt(x,y,r,4) >= th; }
 
 function collectShell(id, label, el){
   if(el.classList.contains('hidden')) return;
-  el.classList.add('hidden');
-  gotShells++;
-  $('#got').textContent = gotShells;
+  el.classList.add('hidden'); gotShells++; $('#got').textContent = gotShells;
 
-  // カウント保存（who_shells）
-  const st = ensureShells();
-  const before = st.items[id] || 0;
-  st.items[id] = before + 1;
-  st.updatedAt = new Date().toISOString();
-  writeJSON('who_shells', st);
+  const st = ensureShells(); st.items[id] = (st.items[id]||0) + 1; st.updatedAt = new Date().toISOString(); writeJSON('who_shells', st);
 
-  // 演出
-  friendWrap.classList.remove('spin'); friendWrap.classList.remove('jump');
-  void friendWrap.offsetWidth;
+  friendWrap.classList.remove('spin'); friendWrap.classList.remove('jump'); void friendWrap.offsetWidth;
   friendWrap.classList.add('spin'); friendWrap.classList.add('jump');
-  showBubble(`GET! ${label}`);
-  brightenBackground(0.08);
+  showBubble(`GET! ${label}`); brightenBackground(0.08);
 
-  if(gotShells>=totalShells){
-    onAllCollected();
-  }
+  if(gotShells>=totalShells){ onAllCollected(); }
 }
 
 /* ===== 砂消しゴム（ゲーム全体でキャプチャ） ===== */
@@ -433,70 +344,74 @@ function startErase(){ if(isPreview) return; erasing = true; }
 function endErase(){ erasing = false; }
 function eraseAt(x,y){
   if(!ctx || isPreview) return;
-  ctx.save();
-  ctx.globalCompositeOperation = 'destination-out';
-  const r = 24;
-  const grad = ctx.createRadialGradient(x,y,0,x,y,r);
-  grad.addColorStop(0,'rgba(0,0,0,1)');
-  grad.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  ctx.restore();
+  ctx.save(); ctx.globalCompositeOperation = 'destination-out';
+  const r = 24; const g = ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
 }
-/* キャプチャ段階でイベントを受けるので、canvas が pointer-events:none でも動く */
 game.addEventListener('pointerdown', (e)=>{ startErase(); eraseAt(e.clientX,e.clientY); }, {capture:true});
 game.addEventListener('pointermove', (e)=>{ if(erasing) eraseAt(e.clientX,e.clientY); }, {capture:true});
 window.addEventListener('pointerup', endErase, {capture:true});
 game.addEventListener('touchstart', (e)=>{ const p=e.touches[0]; startErase(); eraseAt(p.clientX,p.clientY); }, {passive:true, capture:true});
-game.addEventListener('touchmove', (e)=>{ const p=e.touches[0]; if(erasing) eraseAt(p.clientX,p.clientY); }, {passive:true, capture:true});
+game.addEventListener('touchmove',  (e)=>{ const p=e.touches[0]; if(erasing) eraseAt(p.clientX,p.clientY); }, {passive:true, capture:true});
 window.addEventListener('touchend', endErase, {capture:true});
 
 /* ===== プレビュー切替 ===== */
-$('#previewBtn').addEventListener('click', ()=>{
-  if(isPreview) return;
-  location.href = 'asari.html?preview=1';
-});
+$('#previewBtn').addEventListener('click', ()=>{ if(!isPreview) location.href = 'asari.html?preview=1'; });
 
 /* ===== クリア処理 ===== */
 function onAllCollected(){
-  // 背景を明るく＆クリア背景に
-  bg.classList.add('clear');
+  // 背景：クリア海へクロスフェード
+  bgClear.classList.add('show');
   document.documentElement.style.setProperty('--bg-brightness', '1.35');
+
+  // 砂：フェードアウトしてから非表示
+  sand.classList.add('fadeout');
+  setTimeout(()=>{ sand.style.display='none'; }, 820);
 
   // オーバーレイ表示
   $('#clearOverlay').classList.add('show');
 
   // 自動遷移（プレビュー時はしない）
-  if(!isPreview){
-    setTimeout(()=>{ location.href = 'collection.html'; }, 1800);
-  }
+  if(!isPreview){ setTimeout(()=>{ location.href = 'collection.html'; }, 1800); }
 }
 $('#goCollection').addEventListener('click', ()=> location.href='collection.html');
 
+/* ===== 画像の事前検証（clear 背景が無い場合は day を明るくして代替） ===== */
+(function preloadClear(){
+  const test = new Image();
+  test.onload = ()=>{/* あるので何もしない */};
+  test.onerror = ()=>{
+    // クリア画像が無い：代替として day を強めに明るくする
+    document.documentElement.style.setProperty('--bg-brightness','1.0');
+    onAllCollected = function(){
+      document.documentElement.style.setProperty('--bg-brightness','1.55');
+      sand.classList.add('fadeout'); setTimeout(()=>{ sand.style.display='none'; }, 820);
+      $('#clearOverlay').classList.add('show');
+      if(!isPreview){ setTimeout(()=>{ location.href = 'collection.html'; }, 1800); }
+    };
+  };
+  test.src = 'public/items/bg/beach_clear.jpg';
+})();
+
 /* ===== 起動 ===== */
 (async function init(){
-  // 背景・サイズ
   resize();
 
-  // プレビュー時：砂と貝は無効・非表示
   if(isPreview){
     $('#previewCurtain').classList.add('show');
-    sand.style.opacity = 0.15; // 砂の雰囲気だけ残す
+    sand.style.opacity = 0.15;
     $('#shellLayer').style.display = 'none';
   }else{
     placeShells(4);
   }
 
-  // キャラ
   friendImg.src = resolveFriendSrc();
   applyEquipment();
 
-  // カウンタ初期値
   $('#got').textContent = '0';
 
-  // 追従ループ開始（初期位置は画面中央下寄り）
-  mx = cw*0.5; my = ch*0.65;
-  fx = mx; fy = my;
+  mx = cw*0.5; my = ch*0.65; fx = mx; fy = my;
   requestAnimationFrame(loop);
 })();
 </script>
