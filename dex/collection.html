@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>WHO VQ — コレクション図鑑</title>
+<style>
+  :root{ --icon: clamp(36px, 6.5vmin, 64px); --ui-font: clamp(12px, 2.2vmin, 16px); --card-bg: rgba(0,0,0,.5); }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+  .wrap{min-height:100%;padding:14px;display:flex;flex-direction:column;gap:12px;background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,.2))}
+  header{display:flex;justify-content:space-between;align-items:center}
+  .btn{background:var(--card-bg);border:1px solid rgba(255,255,255,.2);padding:.55em .8em;border-radius:10px;color:#fff;cursor:pointer;font:inherit}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+  .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center}
+  .card img{width:var(--icon);height:var(--icon);object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+  .name{font-size:var(--ui-font);font-weight:600}
+  .count{opacity:.8;font-size:calc(var(--ui-font) * .9)}
+  dialog{border:none;border-radius:14px;background:rgba(0,0,0,.75);color:#fff;padding:16px;max-width:min(92vw,480px)}
+  dialog::backdrop{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+  .row{display:flex;gap:10px;align-items:center}
+  .row img{width:calc(var(--icon) * 1.2);height:calc(var(--icon) * 1.2)}
+  .actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 style="font-size:1.1rem">図鑑</h1>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="location.href='../shop/exchange.html'">交換所へ</button>
+      <button class="btn" onclick="location.href='../game/asari.html'">潮干狩り</button>
+    </div>
+  </header>
+
+  <div class="grid" id="list"></div>
+</div>
+
+<dialog id="dlg">
+  <div class="row">
+    <img id="dlgImg" alt="">
+    <div>
+      <div id="dlgName" class="name"></div>
+      <div id="dlgCount" class="count"></div>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn" id="toExchange">この貝で交換する</button>
+    <button class="btn" onclick="closeDlg()">閉じる</button>
+  </div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const SHELL_POOL=[{id:'asari1',label:'アサリ(小)'},{id:'asari2',label:'アサリ(中)'},{id:'asari3',label:'アサリ(大)'},
+                  {id:'aurora_shell',label:'オーロラ貝'},{id:'luminous_shell',label:'ルミナス貝'},
+                  {id:'mystic_shell',label:'ミスティック貝'},{id:'wave_shell',label:'ウェーブ貝'},
+                  {id:'flame_shell',label:'焔貝'},{id:'night_sky_shell',label:'夜空貝'},
+                  {id:'rare_rainbow',label:'虹特級'},{id:'rare_pearl',label:'真珠特級'}];
+
+function emojiDataURI(emoji='🐚', size=128){
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+function loadIcon(id){
+  const paths=[`public/items/ex_${id}.png`,`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`];
+  return new Promise(res=>{ const img=new Image(); img.crossOrigin='anonymous'; let i=0;
+    const next=()=>{ if(i>=paths.length){ res(null); return; } img.src=paths[i++]; img.onload=()=>res(img); img.onerror=next; };
+    next(); });
+}
+function readJSON(k,f){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):f; }catch(_){ return f; } }
+
+const listEl=$('#list');
+const inv=readJSON('who_shells',{items:{}}).items||{};
+(async function render(){
+  for(const s of SHELL_POOL){
+    const card=document.createElement('button'); card.className='card'; card.type='button'; card.addEventListener('click',()=>openDlg(s));
+    const img=document.createElement('img'); const l=document.createElement('div'); const name=document.createElement('div'); const count=document.createElement('div');
+    const got=inv[s.id]||0;
+    const icon=await loadIcon(s.id); img.src=icon?icon.src:emojiDataURI('🐚');
+    name.className='name'; name.textContent=s.label; count.className='count'; count.textContent=`所持：${got}`;
+    l.appendChild(name); l.appendChild(count);
+    card.appendChild(img); card.appendChild(l); listEl.appendChild(card);
+  }
+})();
+
+const dlg=$('#dlg'), dlgImg=$('#dlgImg'), dlgName=$('#dlgName'), dlgCount=$('#dlgCount'); let currentId=null;
+async function openDlg(item){
+  currentId=item.id;
+  const icon=await loadIcon(item.id); dlgImg.src=icon?icon.src:emojiDataURI('🐚'); dlgName.textContent=item.label;
+  const inv=readJSON('who_shells',{items:{}}).items||{}; dlgCount.textContent=`所持：${inv[item.id]||0}`;
+  dlg.showModal();
+}
+function closeDlg(){ dlg.close(); }
+$('#toExchange').addEventListener('click', (e)=>{ e.stopPropagation(); if(!currentId) return; location.href=`../shop/exchange.html?want=${encodeURIComponent(currentId)}`; });
+</script>
+</body>
+</html>
