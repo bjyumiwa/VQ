@@ -94,7 +94,6 @@
   #backBtn{display:none}
   body.preview #backBtn{display:inline-flex}
 
-  /* 片手端末でUI詰まりを緩和 */
   @media (max-width: 420px){
     #topbar{gap:6px}
     .btn{padding:.5em .7em}
@@ -315,28 +314,35 @@ function placeShells(nEach=4){
   totalShells = shells.length; $('#total').textContent = totalShells;
 }
 
-/* 露出判定（周辺サンプル） */
+/* 露出判定：領域平均α（緩やかなしきい値） */
 function isRevealedAt(x,y){
-  const px = Math.round(x * DPR), py = Math.round(y * DPR);
-  const R = Math.round(Math.max(10, BRUSH*0.6) * DPR);
-  const pts = [
-    [px,py],[px+R,py],[px-R,py],[px,py+R],[px,py-R],
-    [px+R/Math.SQRT2,py+R/Math.SQRT2],[px-R/Math.SQRT2,py+R/Math.SQRT2],
-    [px+R/Math.SQRT2,py-R/Math.SQRT2],[px-R/Math.SQRT2,py-R/Math.SQRT2]
-  ];
-  let rev=0, tot=0;
-  for(const [sx,sy] of pts){
-    if(sx<0||sy<0||sx>=sand.width||sy>=sand.height) continue;
-    const a = ctx.getImageData(sx,sy,1,1).data[3];
-    tot++; if(a<=16) rev++;
+  // x,y は CSS座標。getImageData は物理px基準なので DPR を掛ける
+  const cx = Math.round(x * DPR), cy = Math.round(y * DPR);
+  // 中心半径：貝サイズの ~0.36 or ブラシの ~0.8 を採用（広めに見る）
+  const radiusCss = Math.max(SHELL_SIZE * 0.36, BRUSH * 0.8);
+  const rpx = Math.max(6, Math.round(radiusCss * DPR)); // 最低 6px
+  const x0 = clampV(cx - rpx, 0, sand.width  - 1);
+  const y0 = clampV(cy - rpx, 0, sand.height - 1);
+  const w  = Math.min(rpx*2 + 1, sand.width  - x0);
+  const h  = Math.min(rpx*2 + 1, sand.height - y0);
+  if(w<=0 || h<=0) return false;
+
+  let transparent = 0, total = 0;
+  try{
+    const data = ctx.getImageData(x0, y0, w, h).data;
+    // α<=64 を「透明寄り」とみなし、領域の28%以上が透明寄りならOK
+    for(let i=3;i<data.length;i+=4){ total++; if(data[i] <= 64) transparent++; }
+    return total>0 && (transparent/total) >= 0.28;
+  }catch(e){
+    // 稀にセキュリティ例外などが起きた場合は厳しめに false
+    return false;
   }
-  return tot>0 && (rev/tot)>=0.5;
 }
 
 /* 取得判定（クリック/離し/タップ） */
 function tryCollectAtCanvasXY(cx,cy){
   if(isPreview) return false;
-  const R = SHELL_SIZE*0.5;
+  const R = SHELL_SIZE * 0.5;
   for(const it of shells){
     if(it.collected) continue;
     const dx = cx - it.x, dy = cy - it.y;
@@ -376,8 +382,19 @@ function collectShell(it){
 /* ===== 砂消しゴム ===== */
 let erasing=false, lastClientX=0, lastClientY=0;
 function clientToCanvasXY(cx,cy){ const r=sand.getBoundingClientRect(); return { x: cx - r.left, y: cy - r.top }; }
-function startErase(){ if(isPreview) return; erasing=true; }
-function endErase(){ if(isPreview) return; erasing=false; const {x,y}=clientToCanvasXY(lastClientX,lastClientY); tryCollectAtCanvasXY(x,y); }
+function startErase(e){
+  if(isPreview) return;
+  erasing = true;
+  try{ sand.setPointerCapture && sand.setPointerCapture(e.pointerId); }catch(_){}
+}
+function endErase(e){
+  if(isPreview) return;
+  erasing = false;
+  const clientX = (e && 'clientX' in e) ? e.clientX : lastClientX;
+  const clientY = (e && 'clientY' in e) ? e.clientY : lastClientY;
+  const {x,y}=clientToCanvasXY(clientX,clientY);
+  tryCollectAtCanvasXY(x,y);
+}
 function eraseAt(cx,cy){
   if(!ctx || isPreview) return;
   const {x,y}=clientToCanvasXY(cx,cy);
@@ -387,11 +404,16 @@ function eraseAt(cx,cy){
   ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
 }
 
-/* 入力イベント：PC/モバイル */
-sand.addEventListener('pointerdown', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; startErase(); eraseAt(e.clientX,e.clientY); });
+/* 入力イベント：PC/モバイル（確実に拾う） */
+sand.addEventListener('pointerdown', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; startErase(e); eraseAt(e.clientX,e.clientY); e.preventDefault(); });
 sand.addEventListener('pointermove', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; if(erasing) eraseAt(e.clientX,e.clientY); });
-window.addEventListener('pointerup', endErase);
+sand.addEventListener('pointerup',   e=>{ endErase(e); });
+sand.addEventListener('pointercancel', endErase);
+sand.addEventListener('mouseleave',   endErase);
+/* クリックでも取得試行（保険） */
 sand.addEventListener('click', e=>{ const {x,y}=clientToCanvasXY(e.clientX,e.clientY); tryCollectAtCanvasXY(x,y); });
+/* 右クリック長押し等のメニュー無効化（誤爆防止） */
+sand.addEventListener('contextmenu', e=>e.preventDefault(), {passive:false});
 
 /* プレビュー切替・スナップショット */
 $('#previewBtn').addEventListener('click', ()=>{ if(!isPreview) location.href='asari.html?preview=1'; });
