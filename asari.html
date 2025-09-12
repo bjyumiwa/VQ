@@ -10,10 +10,23 @@
   html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif;overscroll-behavior:none}
   .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none;cursor:crosshair}
 
-  /* タップ青ハイライト&選択/ドラッグ無効 */
+  /* タップ青ハイライト・選択/ドラッグ・コールアウト全無効（特にiOS対策） */
   html, body, .game, img, .shell, button { -webkit-tap-highlight-color: transparent; }
-  img, .shell { -webkit-user-drag: none; user-drag: none; -webkit-user-select: none; user-select: none; outline: none; }
-  .shell:focus { outline: none; }
+  img, .shell {
+    -webkit-user-drag: none; user-drag: none;
+    -webkit-user-select: none; user-select: none;
+    outline: none;
+  }
+  /* ←ここまでで大半の青い矩形は消えるが、friend周りはさらに強制で無効化 */
+  #friendWrap, #friend, .equip {
+    pointer-events: none;                 /* これで要素自体はクリック対象にならない */
+    -webkit-touch-callout: none;          /* 長押しの枠/メニュー禁止 */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-drag: none; user-drag: none;
+    -webkit-user-select: none; user-select: none;
+    outline: 0 !important;
+    background: none;                     /* 念のため */
+  }
 
   /* 背景（2レイヤでクロスフェード） */
   .bg, .bg2{
@@ -51,7 +64,7 @@
   .shell.hidden{opacity:0;transform:scale(.6) translateY(-6px);pointer-events:none}
 
   #sand{
-    position:absolute;inset:0;z-index:3;pointer-events:none; /* 見た目は上、イベントはゲーム全体で拾う */
+    position:absolute;inset:0;z-index:3;pointer-events:none;
     transition:opacity .8s ease;
   }
   #sand.fadeout{ opacity:0; }
@@ -66,7 +79,7 @@
   @keyframes spin{from{transform:rotate(0deg)}50%{transform:rotate(18deg)}to{transform:rotate(0deg)}}
   @keyframes jump{0%{transform:translateY(0)}40%{transform:translateY(-10px)}100%{transform:translateY(0)}}
   #friend{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain}
-  .equip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain;pointer-events:none}
+  .equip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain}
 
   /* 吹き出し */
   #bubble{
@@ -115,7 +128,7 @@
   <!-- 砂キャンバス -->
   <canvas id="sand"></canvas>
 
-  <!-- キャラ＆装備 -->
+  <!-- キャラ＆装備（pointer-events 無効なのでUIを邪魔しない） -->
   <div id="friendWrap" aria-label="friend">
     <img id="friend" alt="friend" />
     <img class="equip equip--style" data-slot="style" alt="" />
@@ -173,18 +186,11 @@ const now = ()=>performance.now();
 function loadIconWithFallback(id, preferEx=true){
   const paths = [];
   if(preferEx) paths.push(`public/items/ex_${id}.png`);
-  paths.push(
-    `public/items/${id}.png`,
-    `./public/items/${id}.png`,
-    `/public/items/${id}.png`
-  );
+  paths.push(`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`);
   return new Promise(resolve=>{
-    const img = new Image();
-    let i = 0;
-    const tryNext = () => {
-      if(i>=paths.length){ resolve(null); return; }
-      img.src = paths[i++]; img.onload = ()=>resolve(img); img.onerror = tryNext;
-    };
+    const img = new Image(); let i = 0;
+    const tryNext = () => { if(i>=paths.length){ resolve(null); return; }
+      img.src = paths[i++]; img.onload = ()=>resolve(img); img.onerror = tryNext; };
     tryNext();
   });
 }
@@ -193,13 +199,13 @@ function emojiDataURI(emoji="🐚", size=128){
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-/* ===== アクセ画像フォールバック（装着不具合対策：複数パス探索） ===== */
+/* アクセ画像フォールバック */
 function loadAccessoryWithFallback(id){
   const paths = [
     `public/accessories/${id}.png`,
     `./public/accessories/${id}.png`,
     `/public/accessories/${id}.png`,
-    `public/items/accessories/${id}.png` // 置き場所が違っても拾う
+    `public/items/accessories/${id}.png`
   ];
   return new Promise(resolve=>{
     const img = new Image(); let i=0;
@@ -280,20 +286,16 @@ function resolveFriendSrc(){
   const color = (localStorage.getItem('who_character') || 'pink').replace(/[^a-z]/g,'') || 'pink';
   return `public/assets/stage1/${color}_open.png`;
 }
-/* 装着不具合：存在チェックを強化し、パス違いにも対応 */
 async function setEquipLayer(slot, productId){
   const el = equipImgs[slot]; if(!el) return;
-  if(!productId){ el.style.display='none'; el.removeAttribute('src'); return; }
+  if(!productId){ el.style.display='none'; el.removeAttribute('src'); el.style.background=''; return; }
   const img = await loadAccessoryWithFallback(productId);
-  if(img){ 
-    el.src = img.src; el.style.display='block';
-    const a = ANCHOR[slot] || {x:0,y:0,scale:1};
+  const a = ANCHOR[slot] || {x:0,y:0,scale:1};
+  if(img){
+    el.src = img.src; el.style.display='block'; el.style.background='';
     el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
   }else{
-    // 画像が無くても「装着された」ことが判るよう薄い丸印を置く（デバッグ向け）
-    el.removeAttribute('src');
-    el.style.display='block';
-    const a = ANCHOR[slot] || {x:0,y:0,scale:1};
+    el.removeAttribute('src'); el.style.display='block';
     el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
     el.style.background = 'radial-gradient(rgba(255,255,255,.25), rgba(255,255,255,0))';
   }
@@ -317,12 +319,7 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-/* ===== 新しい貝セット =====
-   画像例: public/items/asari1.png, asari2.png, asari3.png,
-          aurora_shell.png, flame_shell.png, luminous_shell.png,
-          mystic_shell.png, night_sky_shell.png,
-          rare_pearl.png, rare_rainbow.png
-*/
+/* ===== 新しい貝セット ===== */
 const SHELL_DEFS = [
   {id:'asari1',         label:'アサリ（白）',         weight: 9},
   {id:'asari2',         label:'アサリ（橙）',         weight: 7},
@@ -479,11 +476,20 @@ document.getElementById('backBtn').addEventListener('click', ()=> smartNavigate(
     placeShells(18);
   }
 
+  // 画像のドラッグ不可を明示（念のため）
+  [document.getElementById('friend'), ...Object.values({
+    head: document.querySelector('.equip--head'),
+    body: document.querySelector('.equip--body'),
+    back: document.querySelector('.equip--back'),
+    hands: document.querySelector('.equip--hands'),
+    shoes: document.querySelector('.equip--shoes'),
+    style: document.querySelector('.equip--style')
+  })].forEach(el=>{ if(el){ el.draggable=false; el.setAttribute('draggable','false'); } });
+
   friendImg.src = resolveFriendSrc();
   applyEquipment();
 
   document.getElementById('got').textContent = '0';
-
   mx = cw*0.5; my = ch*0.65; fx = mx; fy = my;
   requestAnimationFrame(loop);
 })();
