@@ -11,7 +11,6 @@
   .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none}
   .bg{
     position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;
-    /* 初期はdayだが、JSで時間帯に差し替え */
     background-image:url("public/items/bg/beach_day.jpg");
     filter:brightness(var(--bg-brightness));
     transition:filter .6s ease, background-image .8s ease;
@@ -35,11 +34,11 @@
   #shellLayer{position:absolute;inset:0;z-index:2;pointer-events:none} /* クリックはキャンバス側で判定 */
   .shell{
     position:absolute;width:56px;image-rendering:auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));
-    transition:transform .25s ease, opacity .25s ease; pointer-events:none; /* ここも無効化（全てキャンバスで処理） */
+    transition:transform .25s ease, opacity .25s ease; pointer-events:none;
   }
   .shell.hidden{opacity:0;transform:scale(.6) translateY(-6px)}
   #sand{
-    position:absolute;inset:0;z-index:3;touch-action:none;cursor:crosshair; /* 最上：消しゴム&クリック判定 */
+    position:absolute;inset:0;z-index:3;touch-action:none;cursor:crosshair;
   }
   /* キャラ＋装備レイヤ */
   #friendWrap{
@@ -64,11 +63,22 @@
     position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.25);backdrop-filter:blur(1px);display:none
   }
   #previewCurtain.show{display:block}
+  /* 完了オーバーレイ */
+  #complete{
+    position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.45);backdrop-filter:blur(4px)
+  }
+  #complete.show{display:flex}
+  .complete-card{
+    width:min(92vw,520px);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);
+    border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.4)
+  }
+  .complete-card h2{margin-bottom:8px}
+  .complete-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .hint{opacity:.9;font-size:13px;margin-top:6px}
   /* 戻るボタン */
   #backBtn{display:none}
   body.preview #backBtn{display:inline-flex}
-  /* 主要テキスト */
-  .text-white{color:#fff}
 </style>
 </head>
 <body>
@@ -84,9 +94,9 @@
     </div>
   </div>
 
-  <!-- シェル層（見た目用。クリックはキャンバスで処理） -->
+  <!-- 見た目用シェル（クリックはキャンバス側） -->
   <div id="shellLayer" aria-hidden="true"></div>
-  <!-- 砂キャンバス（消しゴム＆クリック判定） -->
+  <!-- 砂キャンバス（消しゴム＆クリック判定。DPR対応） -->
   <canvas id="sand"></canvas>
 
   <!-- キャラ＆装備 -->
@@ -102,6 +112,20 @@
 
   <div id="bubble"></div>
   <div id="previewCurtain"></div>
+
+  <!-- 全回収オーバーレイ -->
+  <div id="complete">
+    <div class="complete-card">
+      <h2>全部見つけた！</h2>
+      <p class="hint">次の行き先を選んでください。</p>
+      <div class="complete-actions">
+        <button class="btn" id="toExchange">交換所へ</button>
+        <button class="btn" id="toCollection">図鑑へ</button>
+        <button class="btn" id="toSnap">写真を保存</button>
+        <button class="btn" id="toPreview">見た目プレビュー</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -110,8 +134,9 @@ const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
 const now = ()=>performance.now();
+const DPR = Math.max(1, window.devicePixelRatio || 1);
 
-/* 画像フォールバック（items系） */
+/* 画像フォールバック */
 function loadIconWithFallback(id, preferEx=true){
   const paths = [];
   if(preferEx) paths.push(`public/items/ex_${id}.png`);
@@ -129,8 +154,6 @@ function loadIconWithFallback(id, preferEx=true){
     tryNext();
   });
 }
-
-/* 絵文字SVGデータURI（カテゴリ代替） */
 function emojiDataURI(emoji="🟦", size=128){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -160,8 +183,7 @@ function pickBgByTime(){
   return "public/items/bg/night_beach.jpg";                       // 18:00-04:59
 }
 function applyTimeBackground(){
-  const bg = $('#bg');
-  bg.style.backgroundImage = `url("${pickBgByTime()}")`;
+  $('#bg').style.backgroundImage = `url("${pickBgByTime()}")`;
 }
 
 /* ===== 初期データ ===== */
@@ -169,8 +191,8 @@ const search = new URLSearchParams(location.search);
 const isPreview = search.get('preview') === '1';
 if(isPreview) document.body.classList.add('preview');
 
-const FRIEND_OFFSET = { x: 40, y: 10 }; // マウスから少し離す
-const FLOAT_AMPL = 6; // ふわふわ
+const FRIEND_OFFSET = { x: 40, y: 10 };
+const FLOAT_AMPL = 6;
 const FLOAT_SPEED = 0.0016;
 
 const ANCHOR = {
@@ -182,7 +204,7 @@ const ANCHOR = {
   style:{x:0, y:0,  scale:1.0}
 };
 
-/* ===== 画面・キャンバス準備 ===== */
+/* ===== 画面・キャンバス（DPR対応） ===== */
 const game = $('#game');
 const sand = $('#sand');
 const shellLayer = $('#shellLayer');
@@ -190,8 +212,19 @@ let cw=0,ch=0, ctx=null;
 
 function resize(){
   cw = game.clientWidth; ch = game.clientHeight;
-  sand.width = cw; sand.height = ch;
-  ctx = sand.getContext('2d');
+
+  // CSSサイズ
+  sand.style.width = cw + 'px';
+  sand.style.height = ch + 'px';
+
+  // 物理解像度（DPR）
+  sand.width = Math.floor(cw * DPR);
+  sand.height = Math.floor(ch * DPR);
+
+  ctx = sand.getContext('2d', { willReadFrequently: true });
+  // CSS座標系で描けるように変換
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
   drawSand();
 }
 window.addEventListener('resize', resize);
@@ -200,10 +233,8 @@ window.addEventListener('resize', resize);
 function drawSand(){
   if(!ctx) return;
   ctx.clearRect(0,0,cw,ch);
-  // 砂下地
   ctx.fillStyle = '#D9C7A1';
   ctx.fillRect(0,0,cw,ch);
-  // ランダムドットで砂目
   const density = Math.floor((cw*ch)/9000);
   ctx.globalAlpha = 0.15;
   ctx.fillStyle = '#bca67e';
@@ -231,8 +262,6 @@ function resolveFriendSrc(){
   const color = (localStorage.getItem('who_character') || 'pink').replace(/[^a-z]/g,'') || 'pink';
   return `public/assets/stage1/${color}_open.png`;
 }
-
-/* 装備PNGのロード（存在しなければ非表示） */
 function setEquipLayer(slot, productId){
   const el = equipImgs[slot];
   if(!el) return;
@@ -247,7 +276,6 @@ function setEquipLayer(slot, productId){
   img.onerror = ()=>{ el.style.display='none'; el.removeAttribute('src'); };
   img.src = src;
 }
-
 function applyEquipment(){
   const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
   Object.entries(eq).forEach(([slot, pid]) => setEquipLayer(slot, pid));
@@ -282,7 +310,7 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-/* ===== シェル配置・取得（クリックはキャンバスで） ===== */
+/* ===== シェル配置・取得（キャンバスで判定） ===== */
 const SHELL_POOL = [
   {id:'asari1', label:'アサリ(小)'},
   {id:'asari2', label:'アサリ(中)'},
@@ -316,24 +344,38 @@ function placeShells(nEach=4){
   $('#total').textContent = totalShells;
 }
 
-/* キャンバスの透明度で「露出」判定（αが低ければ露出） */
-function isRevealedAt(x,y, alphaThresh=10){
-  try{
-    const d = ctx.getImageData(Math.round(x), Math.round(y), 1, 1).data;
-    return d[3] <= alphaThresh; // 0=完全透明
-  }catch(_){ return false; }
+/* 露出判定（周辺サンプル複数点） */
+function isRevealedAt(x,y){
+  // x,y は CSS座標。getImageData は物理ピクセルなのでDPRを掛ける
+  const px = Math.round(x * DPR), py = Math.round(y * DPR);
+  const R = Math.round(12 * DPR); // 半径サンプル
+  const points = [
+    [px,py],
+    [px+R,py],[px-R,py],[px,py+R],[px,py-R],
+    [px+R/Math.SQRT2,py+R/Math.SQRT2],
+    [px-R/Math.SQRT2,py+R/Math.SQRT2],
+    [px+R/Math.SQRT2,py-R/Math.SQRT2],
+    [px-R/Math.SQRT2,py-R/Math.SQRT2],
+  ];
+  let revealed = 0, total = 0;
+  for(const [sx,sy] of points){
+    if(sx<0||sy<0||sx>=sand.width||sy>=sand.height) continue;
+    const d = ctx.getImageData(sx, sy, 1, 1).data; // [r,g,b,a]
+    total++;
+    if(d[3] <= 16) revealed++; // αが低い＝削れている
+  }
+  // 50%以上が透明寄りなら露出とみなす
+  return total>0 && (revealed/total) >= 0.5;
 }
 
 /* 近いシェルを取得試行（キャンバスclick/pointerupで呼ぶ） */
 function tryCollectAtCanvasXY(cx, cy){
   if(isPreview) return false;
-  // 半径ヒット判定（見た目56px ⇒ 半径28px）
-  const R = 28;
+  const R = 28; // CSS半径
   for(const it of shells){
     if(it.collected) continue;
     const dx = cx - it.x, dy = cy - it.y;
     if((dx*dx + dy*dy) <= R*R){
-      // 露出している？（中心で判定：必要ならサンプル点を増やす）
       if(isRevealedAt(it.x, it.y)){
         collectShell(it);
         return true;
@@ -359,10 +401,10 @@ function brightenBackground(){
 }
 
 function revealTimeScene(){
-  // 全回収時：時間帯の背景を明示的に再適用（演出のため再セット）
-  const bg = $('#bg');
-  bg.style.backgroundImage = `url("${pickBgByTime()}")`;
+  $('#bg').style.backgroundImage = `url("${pickBgByTime()}")`;
   brightenBackground();
+  // 案内オーバーレイ
+  setTimeout(()=>$('#complete').classList.add('show'), 500);
 }
 
 function collectShell(it){
@@ -371,18 +413,21 @@ function collectShell(it){
   it.el.classList.add('hidden');
   gotShells++;
   $('#got').textContent = gotShells;
+
   // who_shells に加算
   const st = ensureShells();
   st.items[it.id] = (st.items[it.id]||0) + 1;
   st.updatedAt = new Date().toISOString();
   writeJSON('who_shells', st);
+
   // 演出
   friendWrap.classList.remove('spin'); void friendWrap.offsetWidth; friendWrap.classList.add('spin');
   showBubble(`GET! ${it.label}`);
+
   if(gotShells>=totalShells) revealTimeScene();
 }
 
-/* ===== 砂消しゴム ===== */
+/* ===== 砂消しゴム（DPR対応座標） ===== */
 let erasing = false;
 let lastClientX = 0, lastClientY = 0;
 
@@ -391,9 +436,8 @@ function clientToCanvasXY(clientX, clientY){
   return { x: clientX - r.left, y: clientY - r.top };
 }
 
-function startErase(e){ if(isPreview) return; erasing = true; }
-function endErase(e){
-  // 指を離した位置でクリック取得も試行
+function startErase(){ if(isPreview) return; erasing = true; }
+function endErase(){
   if(isPreview) return;
   erasing = false;
   const {x,y} = clientToCanvasXY(lastClientX, lastClientY);
@@ -413,10 +457,14 @@ function eraseAt(clientX, clientY){
   ctx.restore();
 }
 
+/* PC/モバイル両対応の入力 */
 sand.addEventListener('pointerdown', (e)=>{ lastClientX=e.clientX; lastClientY=e.clientY; startErase(); eraseAt(e.clientX,e.clientY); });
 sand.addEventListener('pointermove', (e)=>{ lastClientX=e.clientX; lastClientY=e.clientY; if(erasing) eraseAt(e.clientX,e.clientY); });
 window.addEventListener('pointerup', endErase);
+/* クリックでも取得試行（PCで「カチッ」で反応しない問題対策） */
+sand.addEventListener('click', (e)=>{ const {x,y}=clientToCanvasXY(e.clientX,e.clientY); tryCollectAtCanvasXY(x,y); });
 
+/* タッチ用（念のため） */
 sand.addEventListener('touchstart', (e)=>{ const p=e.touches[0]; lastClientX=p.clientX; lastClientY=p.clientY; startErase(); eraseAt(p.clientX,p.clientY); }, {passive:true});
 sand.addEventListener('touchmove', (e)=>{ const p=e.touches[0]; lastClientX=p.clientX; lastClientY=p.clientY; if(erasing) eraseAt(p.clientX,p.clientY); }, {passive:true});
 window.addEventListener('touchend', endErase);
@@ -429,29 +477,24 @@ $('#previewBtn').addEventListener('click', ()=>{
 
 /* ===== 📸 記録（スナップショット） ===== */
 function getBgSrc(){
-  // 現在の#bgのbackground-imageから抽出
-  const s = getComputedStyle($('#bg')).backgroundImage; // e.g., url(".../beach_day.jpg")
+  const s = getComputedStyle($('#bg')).backgroundImage;
   const m = s && s.match(/url\(["']?(.*?)["']?\)/);
   return m ? m[1] : 'public/items/bg/beach_day.jpg';
 }
-
-function drawImageFit(ctx, img, x, y, w, h){
-  ctx.drawImage(img, x, y, w, h);
-}
-
+function drawImageFit(ctx2, img, x, y, w, h){ ctx2.drawImage(img, x, y, w, h); }
 async function snapshotScene(){
   const W = cw, H = ch;
   const cvs = document.createElement('canvas');
   cvs.width = W; cvs.height = H;
   const c = cvs.getContext('2d');
 
-  // 1) 背景
+  // 背景
   const bgImg = new Image(); bgImg.crossOrigin='anonymous';
   bgImg.src = getBgSrc();
   await new Promise(res=>{ bgImg.onload=res; bgImg.onerror=res; });
   if(bgImg.width) drawImageFit(c, bgImg, 0, 0, W, H);
 
-  // 2) シェル（見えているものだけ）
+  // シェル（見えているものだけ）
   const gameRect = game.getBoundingClientRect();
   $$('#shellLayer .shell').forEach(el=>{
     if(el.classList.contains('hidden')) return;
@@ -460,19 +503,15 @@ async function snapshotScene(){
     try{ c.drawImage(el, x, y, r.width, r.height); }catch(_){}
   });
 
-  // 3) 砂
-  try{ c.drawImage(sand, 0, 0); }catch(_){}
+  // 砂
+  try{ c.drawImage(sand, 0, 0, W, H); }catch(_){}
 
-  // 4) キャラ＋装備
+  // キャラ＋装備
   const fwRect = friendWrap.getBoundingClientRect();
   const fx = fwRect.left - gameRect.left;
   const fy = fwRect.top  - gameRect.top;
   const fw = fwRect.width, fh = fwRect.height;
-
-  const drawEl = (el)=>{
-    if(!el || !el.src) return;
-    try{ c.drawImage(el, fx, fy, fw, fh); }catch(_){}
-  };
+  const drawEl = (el)=>{ if(el && el.src){ try{ c.drawImage(el, fx, fy, fw, fh); }catch(_){}} };
   drawEl(friendImg);
   drawEl(equipImgs.style);
   drawEl(equipImgs.head);
@@ -481,17 +520,10 @@ async function snapshotScene(){
   drawEl(equipImgs.hands);
   drawEl(equipImgs.shoes);
 
-  // 保存
   const url = cvs.toDataURL('image/png');
   const list = readJSON('who_snaps', []);
   const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
-  list.unshift({
-    ts: new Date().toISOString(),
-    mode: isPreview ? 'preview' : 'play',
-    got: gotShells, total: totalShells,
-    equip: eq,
-    dataUrl: url
-  });
+  list.unshift({ ts:new Date().toISOString(), mode:isPreview?'preview':'play', got:gotShells, total:totalShells, equip:eq, dataUrl:url });
   if(list.length>12) list.length = 12;
   writeJSON('who_snaps', list);
 
@@ -501,12 +533,17 @@ async function snapshotScene(){
 
   showBubble('写真を保存しました');
 }
-
 $('#snapBtn').addEventListener('click', snapshotScene);
+
+/* ===== 完了オーバーレイの遷移ボタン ===== */
+$('#toExchange').addEventListener('click', ()=>location.href='exchange.html');
+$('#toCollection').addEventListener('click', ()=>location.href='collection.html');
+$('#toSnap').addEventListener('click', snapshotScene);
+$('#toPreview').addEventListener('click', ()=>location.href='asari.html?preview=1');
 
 /* ===== 起動 ===== */
 (async function init(){
-  applyTimeBackground();       // ← 時間帯背景を適用
+  applyTimeBackground();
   resize(); initPointer();
 
   if(isPreview){
@@ -517,15 +554,12 @@ $('#snapBtn').addEventListener('click', snapshotScene);
     placeShells(4);
   }
 
-  // キャラ
   friendImg.src = resolveFriendSrc();
   friendImg.crossOrigin = 'anonymous';
   applyEquipment();
 
-  // カウンタ初期値
   $('#got').textContent = '0';
 
-  // 追従ループ開始
   requestAnimationFrame(loop);
 })();
 </script>
