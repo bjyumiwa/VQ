@@ -77,8 +77,9 @@
   <div id="topbar">
     <div class="pill" id="counter">貝：<b id="got">0</b>/<b id="total">0</b></div>
     <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn" id="snapBtn" title="写真を撮って記録">📸 記録</button>
       <button class="btn" id="backBtn" onclick="location.href='exchange.html'">交換所へ戻る</button>
-      <button class="btn" id="previewBtn" title="装備プレビュー（砂を隠す/操作不可）">プレビュー</button>
+      <button class="btn" id="previewBtn" title="装備プレビュー（砂を隠す/操作不可）">見た目プレビュー</button>
     </div>
   </div>
 
@@ -117,6 +118,7 @@ function loadIconWithFallback(id, preferEx=true){
   paths.push(`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`);
   return new Promise(resolve=>{
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     let i = 0;
     const tryNext = () => {
       if(i>=paths.length){ resolve(null); return; }
@@ -128,7 +130,7 @@ function loadIconWithFallback(id, preferEx=true){
   });
 }
 
-/* 絵文字SVGデータURI（カテゴリ色） */
+/* 絵文字SVGデータURI（カテゴリ代替） */
 function emojiDataURI(emoji="🟦", size=128){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -139,8 +141,7 @@ function readJSON(key, fallback){
   try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; }
 }
 function writeJSON(key, obj){
-  const payload = {...obj, ...(obj && typeof obj==='object' ? {} : {})};
-  try{ localStorage.setItem(key, JSON.stringify(payload)); }catch(e){}
+  try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){}
 }
 function ensureShells(){
   let s = readJSON('who_shells', null);
@@ -160,7 +161,7 @@ const FRIEND_OFFSET = { x: 40, y: 10 }; // マウスから少し離す
 const FLOAT_AMPL = 6; // ふわふわ
 const FLOAT_SPEED = 0.0016;
 
-const ANCHOR = { // レイヤ簡易オフセット（px, scaleは使い回し余地）
+const ANCHOR = {
   head:{x:0, y:-42, scale:1.0},
   body:{x:0, y:-2,  scale:1.0},
   back:{x:-6,y:-6,  scale:1.0},
@@ -225,17 +226,13 @@ function setEquipLayer(slot, productId){
   if(!el) return;
   if(!productId){ el.style.display='none'; el.removeAttribute('src'); return; }
   const src = `public/stage1/equip/${slot}/${productId}.png`;
-  const img = new Image();
+  const img = new Image(); img.crossOrigin='anonymous';
   img.onload = ()=>{
     el.src = src; el.style.display='block';
-    // アンカー補正
     const a = ANCHOR[slot] || {x:0,y:0,scale:1};
     el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
   };
-  img.onerror = ()=>{
-    // 素材なし → レイヤ非表示（将来SVG演出差替可）
-    el.style.display='none'; el.removeAttribute('src');
-  };
+  img.onerror = ()=>{ el.style.display='none'; el.removeAttribute('src'); };
   img.src = src;
 }
 
@@ -245,8 +242,14 @@ function applyEquipment(){
 }
 
 /* ===== フォロー挙動 ===== */
-let mx=cw*0.5, my=ch*0.6, fx=mx, fy=my;
+let mx=0, my=0, fx=0, fy=0;
 let t0 = now();
+function initPointer(){
+  const rect = game.getBoundingClientRect();
+  mx = rect.left + rect.width*0.5 + FRIEND_OFFSET.x;
+  my = rect.top + rect.height*0.6 + FRIEND_OFFSET.y;
+  fx = mx; fy = my;
+}
 function onPointer(e){
   const p = e.touches ? e.touches[0] : e;
   mx = p.clientX + FRIEND_OFFSET.x;
@@ -257,8 +260,7 @@ function onPointer(e){
 function loop(){
   const t = now();
   const dt = t - t0; t0 = t;
-  const f = Math.min(1, dt/1000*6); // 追従の滑らかさ
-  // ふわふわ
+  const f = Math.min(1, dt/1000*6);
   const bob = Math.sin(performance.now()*FLOAT_SPEED) * FLOAT_AMPL;
   fx += (mx - fx) * f * 0.2;
   fy += (my - fy) * f * 0.2;
@@ -272,8 +274,6 @@ const SHELL_POOL = [
   {id:'asari1', label:'アサリ(小)'},
   {id:'asari2', label:'アサリ(中)'},
   {id:'asari3', label:'アサリ(大)'},
-  // 例：レアは露出していてもクリック無効（このページではカウントしない／チケット用など）
-  // {id:'rare_pearl', label:'真珠', rare:true}
 ];
 
 let totalShells = 0, gotShells = 0;
@@ -297,12 +297,11 @@ function placeShells(nEach=4){
     el.alt = it.label;
     el.style.left = `${it.x-28}px`;
     el.style.top  = `${it.y-28}px`;
-    // アイコンロード
     loadIconWithFallback(it.id).then(img=>{
       el.src = img ? img.src : emojiDataURI('🐚');
     });
-    // クリックで取得（砂が十分消えている前提でOK：簡易に許可）
     el.addEventListener('click', ()=>{
+      if(isPreview) return; // プレビュー中は取得不可
       collectShell(it.id, it.label, el);
     }, {passive:true});
     shellLayer.appendChild(el);
@@ -329,7 +328,7 @@ function collectShell(id, label, el){
   el.classList.add('hidden');
   gotShells++;
   $('#got').textContent = gotShells;
-  // カウント保存（who_shells）
+  // who_shells に加算
   const st = ensureShells();
   const before = st.items[id] || 0;
   st.items[id] = before + 1;
@@ -370,10 +369,89 @@ $('#previewBtn').addEventListener('click', ()=>{
   location.href = 'asari.html?preview=1';
 });
 
+/* ===== 📸 記録（スナップショット） ===== */
+function getBgSrc(){
+  // CSSのbackground-imageから抽出（固定パスでもOK）
+  return 'public/items/bg/beach_day.jpg';
+}
+
+function drawImageFit(ctx, img, x, y, w, h){
+  ctx.drawImage(img, x, y, w, h);
+}
+
+async function snapshotScene(){
+  const W = cw, H = ch;
+  const cvs = document.createElement('canvas');
+  cvs.width = W; cvs.height = H;
+  const c = cvs.getContext('2d');
+
+  // 1) 背景
+  const bgImg = new Image(); bgImg.crossOrigin='anonymous';
+  bgImg.src = getBgSrc();
+  await new Promise(res=>{ bgImg.onload=res; bgImg.onerror=res; });
+  if(bgImg.width) drawImageFit(c, bgImg, 0, 0, W, H);
+
+  // 2) シェル（見えているものだけ）
+  const gameRect = game.getBoundingClientRect();
+  $$('#shellLayer .shell').forEach(el=>{
+    if(el.classList.contains('hidden')) return;
+    const img = el;
+    const r = el.getBoundingClientRect();
+    const x = r.left - gameRect.left, y = r.top - gameRect.top;
+    try{ c.drawImage(img, x, y, r.width, r.height); }catch(_){}
+  });
+
+  // 3) 砂
+  try{ c.drawImage(sand, 0, 0); }catch(_){}
+
+  // 4) キャラ＋装備
+  const fwRect = friendWrap.getBoundingClientRect();
+  const fx = fwRect.left - gameRect.left;
+  const fy = fwRect.top  - gameRect.top;
+  const fw = fwRect.width, fh = fwRect.height;
+
+  const drawEl = (el)=>{
+    if(!el || !el.src) return;
+    try{ c.drawImage(el, fx, fy, fw, fh); }catch(_){}
+  };
+  drawEl(friendImg);
+  drawEl(equipImgs.style);
+  drawEl(equipImgs.head);
+  drawEl(equipImgs.body);
+  drawEl(equipImgs.back);
+  drawEl(equipImgs.hands);
+  drawEl(equipImgs.shoes);
+
+  // 保存
+  const url = cvs.toDataURL('image/png');
+  // localStorageへ履歴保存（最新12件）
+  const list = readJSON('who_snaps', []);
+  const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
+  list.unshift({
+    ts: new Date().toISOString(),
+    mode: isPreview ? 'preview' : 'play',
+    got: gotShells, total: totalShells,
+    equip: eq,
+    dataUrl: url
+  });
+  if(list.length>12) list.length = 12;
+  writeJSON('who_snaps', list);
+
+  // ダウンロード
+  const a = document.createElement('a');
+  a.href = url; a.download = `who_asari_${isPreview?'preview':'play'}_${Date.now()}.png`;
+  document.body.appendChild(a); a.click(); a.remove();
+
+  showBubble('写真を保存しました');
+}
+
+$('#snapBtn').addEventListener('click', snapshotScene);
+
 /* ===== 起動 ===== */
 (async function init(){
   // 背景・サイズ
-  resize();
+  resize(); initPointer();
+
   // プレビュー時：砂と貝は無効・非表示
   if(isPreview){
     $('#previewCurtain').classList.add('show');
@@ -385,12 +463,11 @@ $('#previewBtn').addEventListener('click', ()=>{
 
   // キャラ
   friendImg.src = resolveFriendSrc();
+  friendImg.crossOrigin = 'anonymous';
   applyEquipment();
 
   // カウンタ初期値
   $('#got').textContent = '0';
-
-  // プレビュー時は右上「戻る」表示済み（CSS）
 
   // 追従ループ開始
   requestAnimationFrame(loop);
