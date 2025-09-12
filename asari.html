@@ -6,7 +6,6 @@
 <title>WHO VQ — 潮干狩り（asari）</title>
 <style>
   :root{
-    /* レスポンシブ基準（小さすぎず大きすぎない） */
     --friend-size: clamp(84px, 16vmin, 160px);
     --shell-size:  clamp(36px, 7.5vmin, 56px);
     --brush:       clamp(14px, 3.6vmin, 28px);
@@ -15,12 +14,11 @@
     --ui-bg: rgba(0,0,0,.35);
     --card-bg: rgba(0,0,0,.5);
   }
-
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif;overscroll-behavior:none}
 
-  /* iOSのアドレスバー高さ変動に強いsvh */
-  .game{position:relative;width:100vw;height:100svh;overflow:hidden;touch-action:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .game{position:relative;width:100vw;height:100svh;overflow:hidden;touch-action:none;
+        padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 
   .bg{
     position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;
@@ -29,24 +27,16 @@
     transition:filter .6s ease, background-image .8s ease;
   }
 
-  /* UI */
   #topbar{
     position:absolute;left:0;right:0;top:0;z-index:10;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;
     padding:10px env(safe-area-inset-right) 10px env(safe-area-inset-left);
     background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,0)); font-size:var(--ui-font);
   }
-  .pill{
-    background:var(--ui-bg);border:1px solid rgba(255,255,255,.15);
-    padding:.45em .7em;border-radius:999px;backdrop-filter:blur(6px);display:inline-flex;gap:.5em;align-items:center
-  }
-  .btn{
-    background:var(--card-bg);border:1px solid rgba(255,255,255,.15);
-    padding:.55em .8em;border-radius:10px;color:#fff;cursor:pointer;user-select:none;font:inherit
-  }
+  .pill{background:var(--ui-bg);border:1px solid rgba(255,255,255,.15);padding:.45em .7em;border-radius:999px;backdrop-filter:blur(6px);display:inline-flex;gap:.5em;align-items:center}
+  .btn{background:var(--card-bg);border:1px solid rgba(255,255,255,.15);padding:.55em .8em;border-radius:10px;color:#fff;cursor:pointer;user-select:none;font:inherit}
   .btn:hover{background:rgba(255,255,255,.08)}
   #counter b{font-variant-numeric:tabular-nums}
 
-  /* シェル層（見た目用） */
   #shellLayer{position:absolute;inset:0;z-index:2;pointer-events:none}
   .shell{
     position:absolute;left:0;top:0;transform:translate(-50%,-50%);
@@ -56,10 +46,11 @@
   }
   .shell.hidden{opacity:0;transform:translate(-50%,-50%) scale(.6) translateY(-6px)}
 
-  /* 砂キャンバス（最前面：消しゴム＆クリック判定） */
-  #sand{position:absolute;inset:0;z-index:3;touch-action:none;cursor:crosshair}
+  #sand{
+    position:absolute;inset:0;z-index:3;cursor:crosshair; /* ← 明示 */
+    pointer-events:auto; touch-action:none; background:rgba(0,0,0,0.0001); /* 透過でもヒットさせるため極小α */
+  }
 
-  /* キャラ＋装備（サイズはCSS変数） */
   #friendWrap{
     position:absolute;z-index:4;width:var(--friend-size);aspect-ratio:1/1;transform-origin:50% 80%;
     filter:drop-shadow(0 8px 12px rgba(0,0,0,.4))
@@ -69,35 +60,25 @@
   #friend{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain}
   .equip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain;pointer-events:none}
 
-  /* 吹き出し */
   #bubble{
     position:absolute;z-index:9;padding:.45em .7em;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);border-radius:12px;
     transform:translate(-50%,-120%);white-space:nowrap;opacity:0;transition:opacity .2s, transform .2s; font-size:var(--ui-font);
   }
   #bubble.show{opacity:1;transform:translate(-50%,-140%)}
 
-  /* プレビュー幕 */
   #previewCurtain{position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.25);backdrop-filter:blur(1px);display:none}
   #previewCurtain.show{display:block}
 
-  /* 完了オーバーレイ */
   #complete{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
   #complete.show{display:flex}
-  .complete-card{
-    width:min(92vw,520px);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);
-    border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.4);font-size:var(--ui-font)
-  }
+  .complete-card{width:min(92vw,520px);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.2);border-radius:16px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.4);font-size:var(--ui-font)}
   .complete-card h2{margin-bottom:.4em}
   .complete-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:.6em}
 
-  /* 戻るボタン */
   #backBtn{display:none}
   body.preview #backBtn{display:inline-flex}
 
-  @media (max-width: 420px){
-    #topbar{gap:6px}
-    .btn{padding:.5em .7em}
-  }
+  @media (max-width: 420px){ #topbar{gap:6px} .btn{padding:.5em .7em} }
 </style>
 </head>
 <body>
@@ -113,12 +94,9 @@
     </div>
   </div>
 
-  <!-- 見た目用シェル（クリックはキャンバス側で判定） -->
   <div id="shellLayer" aria-hidden="true"></div>
-  <!-- 砂キャンバス -->
   <canvas id="sand"></canvas>
 
-  <!-- キャラ＆装備 -->
   <div id="friendWrap" aria-label="friend">
     <img id="friend" alt="friend" />
     <img class="equip equip--style" data-slot="style" alt="" />
@@ -132,7 +110,6 @@
   <div id="bubble"></div>
   <div id="previewCurtain"></div>
 
-  <!-- 全回収オーバーレイ -->
   <div id="complete">
     <div class="complete-card">
       <h2>全部見つけた！</h2>
@@ -148,6 +125,10 @@
 </div>
 
 <script>
+/* ============ 定数 ============ */
+const REVEAL_ALPHA_THRESHOLD = 64;   // α<=閾値 を「透明寄り」
+const REVEAL_RATIO = 0.28;           // 領域のこの割合以上が透明寄りなら露出OK
+
 /* ===== ユーティリティ ===== */
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
@@ -158,11 +139,7 @@ const csspx = name => parseFloat(getComputedStyle(document.documentElement).getP
 
 /* レスポンシブ連動サイズ */
 let FRIEND_SIZE = 0, SHELL_SIZE = 0, BRUSH = 0;
-function syncSizesFromCSS(){
-  FRIEND_SIZE = csspx('--friend-size');
-  SHELL_SIZE  = csspx('--shell-size');
-  BRUSH       = csspx('--brush');
-}
+function syncSizesFromCSS(){ FRIEND_SIZE=csspx('--friend-size'); SHELL_SIZE=csspx('--shell-size'); BRUSH=csspx('--brush'); }
 
 /* 画像フォールバック */
 function loadIconWithFallback(id, preferEx=true){
@@ -170,13 +147,13 @@ function loadIconWithFallback(id, preferEx=true){
   if(preferEx) paths.push(`public/items/ex_${id}.png`);
   paths.push(`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`);
   return new Promise(resolve=>{
-    const img = new Image(); img.crossOrigin = 'anonymous';
-    let i = 0;
-    const tryNext = () => { if(i>=paths.length){ resolve(null); return; } img.src = paths[i++]; img.onload=()=>resolve(img); img.onerror=tryNext; };
+    const img = new Image(); img.crossOrigin='anonymous';
+    let i=0; const tryNext=()=>{ if(i>=paths.length){ resolve(null); return; }
+      img.src=paths[i++]; img.onload=()=>resolve(img); img.onerror=tryNext; };
     tryNext();
   });
 }
-function emojiDataURI(emoji="🟦", size=128){
+function emojiDataURI(emoji="🐚", size=128){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
@@ -191,12 +168,7 @@ function ensureShells(){
 }
 
 /* ===== 背景：時間帯 ===== */
-function pickBgByTime(){
-  const h = new Date().getHours();
-  if(h>=5 && h<=8)  return "public/items/bg/sunrise.jpg";
-  if(h>=9 && h<=17) return "public/items/bg/beach_day.jpg";
-  return "public/items/bg/night_beach.jpg";
-}
+function pickBgByTime(){ const h=new Date().getHours(); if(h>=5 && h<=8) return "public/items/bg/sunrise.jpg"; if(h>=9 && h<=17) return "public/items/bg/beach_day.jpg"; return "public/items/bg/night_beach.jpg"; }
 function applyTimeBackground(){ $('#bg').style.backgroundImage = `url("${pickBgByTime()}")`; }
 
 /* ===== 初期設定 ===== */
@@ -218,10 +190,8 @@ function resize(){
   syncSizesFromCSS();
   cw = game.clientWidth; ch = game.clientHeight;
 
-  // CSSサイズ
   sand.style.width = cw + 'px';
   sand.style.height = ch + 'px';
-  // 物理解像度（DPR）
   sand.width = Math.floor(cw * DPR);
   sand.height = Math.floor(ch * DPR);
 
@@ -293,13 +263,13 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-/* ===== シェル配置・取得（中央座標） ===== */
+/* ===== シェル配置・取得 ===== */
 const SHELL_POOL = [{id:'asari1',label:'アサリ(小)'},{id:'asari2',label:'アサリ(中)'},{id:'asari3',label:'アサリ(大)'}];
 let totalShells=0, gotShells=0, shells=[]; // {id,label,x,y,el,collected:false}
 
 function placeShells(nEach=4){
   shellLayer.innerHTML=''; shells=[];
-  const margin = Math.max(40, SHELL_SIZE); // 端から少し空ける
+  const margin = Math.max(40, SHELL_SIZE);
   SHELL_POOL.forEach(s=>{
     for(let i=0;i<nEach;i++){
       const x = margin + Math.random()*(cw - margin*2);
@@ -314,32 +284,26 @@ function placeShells(nEach=4){
   totalShells = shells.length; $('#total').textContent = totalShells;
 }
 
-/* 露出判定：領域平均α（緩やかなしきい値） */
+/* 露出判定：領域平均α */
 function isRevealedAt(x,y){
-  // x,y は CSS座標。getImageData は物理px基準なので DPR を掛ける
   const cx = Math.round(x * DPR), cy = Math.round(y * DPR);
-  // 中心半径：貝サイズの ~0.36 or ブラシの ~0.8 を採用（広めに見る）
   const radiusCss = Math.max(SHELL_SIZE * 0.36, BRUSH * 0.8);
-  const rpx = Math.max(6, Math.round(radiusCss * DPR)); // 最低 6px
+  const rpx = Math.max(6, Math.round(radiusCss * DPR));
   const x0 = clampV(cx - rpx, 0, sand.width  - 1);
   const y0 = clampV(cy - rpx, 0, sand.height - 1);
   const w  = Math.min(rpx*2 + 1, sand.width  - x0);
   const h  = Math.min(rpx*2 + 1, sand.height - y0);
   if(w<=0 || h<=0) return false;
 
-  let transparent = 0, total = 0;
   try{
     const data = ctx.getImageData(x0, y0, w, h).data;
-    // α<=64 を「透明寄り」とみなし、領域の28%以上が透明寄りならOK
-    for(let i=3;i<data.length;i+=4){ total++; if(data[i] <= 64) transparent++; }
-    return total>0 && (transparent/total) >= 0.28;
-  }catch(e){
-    // 稀にセキュリティ例外などが起きた場合は厳しめに false
-    return false;
-  }
+    let transparent=0, total=0;
+    for(let i=3;i<data.length;i+=4){ total++; if(data[i] <= REVEAL_ALPHA_THRESHOLD) transparent++; }
+    return total>0 && (transparent/total) >= REVEAL_RATIO;
+  }catch(e){ return false; }
 }
 
-/* 取得判定（クリック/離し/タップ） */
+/* 取得判定 */
 function tryCollectAtCanvasXY(cx,cy){
   if(isPreview) return false;
   const R = SHELL_SIZE * 0.5;
@@ -368,7 +332,6 @@ function revealTimeScene(){
   brightenBackground();
   setTimeout(()=>$('#complete').classList.add('show'), 500);
 }
-
 function collectShell(it){
   if(it.collected) return;
   it.collected = true; it.el.classList.add('hidden');
@@ -379,40 +342,60 @@ function collectShell(it){
   if(gotShells>=totalShells) revealTimeScene();
 }
 
-/* ===== 砂消しゴム ===== */
+/* ===== 入力処理（確実版） ===== */
 let erasing=false, lastClientX=0, lastClientY=0;
-function clientToCanvasXY(cx,cy){ const r=sand.getBoundingClientRect(); return { x: cx - r.left, y: cy - r.top }; }
+
+/* 汎用：イベントからキャンバス座標を計算 */
+function eventToCanvasXY(e){
+  // offsetX/Y が最も正確（キャンバス内相対）。なければ clientX/Y で補正
+  if(typeof e.offsetX === 'number' && typeof e.offsetY === 'number'){
+    return { x: e.offsetX, y: e.offsetY };
+  }
+  const r = sand.getBoundingClientRect();
+  const clientX = ('clientX' in e) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : lastClientX);
+  const clientY = ('clientY' in e) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : lastClientY);
+  return { x: clientX - r.left, y: clientY - r.top };
+}
+
 function startErase(e){
   if(isPreview) return;
   erasing = true;
-  try{ sand.setPointerCapture && sand.setPointerCapture(e.pointerId); }catch(_){}
+  try{ sand.setPointerCapture && e.pointerId != null && sand.setPointerCapture(e.pointerId); }catch(_){}
 }
 function endErase(e){
   if(isPreview) return;
   erasing = false;
-  const clientX = (e && 'clientX' in e) ? e.clientX : lastClientX;
-  const clientY = (e && 'clientY' in e) ? e.clientY : lastClientY;
-  const {x,y}=clientToCanvasXY(clientX,clientY);
+  const {x,y}=eventToCanvasXY(e||{clientX:lastClientX,clientY:lastClientY});
   tryCollectAtCanvasXY(x,y);
 }
-function eraseAt(cx,cy){
+function eraseAt(e){
   if(!ctx || isPreview) return;
-  const {x,y}=clientToCanvasXY(cx,cy);
+  const {x,y}=eventToCanvasXY(e);
   ctx.save(); ctx.globalCompositeOperation='destination-out';
   const r = BRUSH;
   const g = ctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
 }
 
-/* 入力イベント：PC/モバイル（確実に拾う） */
-sand.addEventListener('pointerdown', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; startErase(e); eraseAt(e.clientX,e.clientY); e.preventDefault(); });
-sand.addEventListener('pointermove', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; if(erasing) eraseAt(e.clientX,e.clientY); });
+/* pointer 事件（メイン） */
+sand.addEventListener('pointerdown', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; startErase(e); eraseAt(e); e.preventDefault(); }, {passive:false});
+sand.addEventListener('pointermove', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; if(erasing) eraseAt(e); });
 sand.addEventListener('pointerup',   e=>{ endErase(e); });
 sand.addEventListener('pointercancel', endErase);
 sand.addEventListener('mouseleave',   endErase);
-/* クリックでも取得試行（保険） */
-sand.addEventListener('click', e=>{ const {x,y}=clientToCanvasXY(e.clientX,e.clientY); tryCollectAtCanvasXY(x,y); });
-/* 右クリック長押し等のメニュー無効化（誤爆防止） */
+
+/* mouse/touch も冗長にサポート（環境差吸収） */
+sand.addEventListener('mousedown', e=>{ startErase(e); eraseAt(e); }, {passive:false});
+window.addEventListener('mousemove', e=>{ if(erasing) eraseAt(e); }, {passive:false});
+window.addEventListener('mouseup',   e=>{ if(erasing) endErase(e); }, {passive:false});
+
+sand.addEventListener('touchstart', e=>{ startErase(e); eraseAt(e); e.preventDefault(); }, {passive:false});
+sand.addEventListener('touchmove',  e=>{ if(erasing) eraseAt(e); e.preventDefault(); }, {passive:false});
+sand.addEventListener('touchend',   e=>{ endErase(e); }, {passive:false});
+sand.addEventListener('touchcancel',endErase, {passive:false});
+
+/* click でも取得試行（保険） */
+sand.addEventListener('click', e=>{ const {x,y}=eventToCanvasXY(e); tryCollectAtCanvasXY(x,y); });
 sand.addEventListener('contextmenu', e=>e.preventDefault(), {passive:false});
 
 /* プレビュー切替・スナップショット */
@@ -422,19 +405,15 @@ function getBgSrc(){ const s=getComputedStyle($('#bg')).backgroundImage; const m
 function drawImageFit(c, img, x,y,w,h){ c.drawImage(img,x,y,w,h); }
 async function snapshotScene(){
   const W=cw,H=ch, cvs=document.createElement('canvas'); cvs.width=W; cvs.height=H; const c=cvs.getContext('2d');
-
   const bgImg=new Image(); bgImg.crossOrigin='anonymous'; bgImg.src=getBgSrc(); await new Promise(r=>{bgImg.onload=r; bgImg.onerror=r;}); if(bgImg.width) drawImageFit(c,bgImg,0,0,W,H);
-
   const gr=game.getBoundingClientRect();
   $$('#shellLayer .shell').forEach(el=>{ if(el.classList.contains('hidden')) return; const r=el.getBoundingClientRect(); const x=r.left-gr.left, y=r.top-gr.top; try{ c.drawImage(el,x,y,r.width,r.height); }catch(_){} });
   try{ c.drawImage(sand,0,0,W,H); }catch(_){}
   const fwr=friendWrap.getBoundingClientRect(); const fx=fwr.left-gr.left, fy=fwr.top-gr.top, fw=fwr.width, fh=fwr.height;
   const drawEl=el=>{ if(el && el.src) try{ c.drawImage(el,fx,fy,fw,fh);}catch(_){} };
   drawEl(friendImg); drawEl(equipImgs.style); drawEl(equipImgs.head); drawEl(equipImgs.body); drawEl(equipImgs.back); drawEl(equipImgs.hands); drawEl(equipImgs.shoes);
-
   const url=cvs.toDataURL('image/png'); const list=readJSON('who_snaps',[]); const eq=readJSON('who_equipment',{head:null,body:null,back:null,hands:null,shoes:null,style:null});
   list.unshift({ts:new Date().toISOString(),mode:isPreview?'preview':'play',got:gotShells,total:totalShells,equip:eq,dataUrl:url}); if(list.length>12) list.length=12; writeJSON('who_snaps',list);
-
   const a=document.createElement('a'); a.href=url; a.download=`who_asari_${isPreview?'preview':'play'}_${Date.now()}.png`; document.body.appendChild(a); a.click(); a.remove();
   showBubble('写真を保存しました');
 }
@@ -450,10 +429,8 @@ $('#toPreview').addEventListener('click', ()=>location.href='asari.html?preview=
 (async function init(){
   applyTimeBackground();
   resize(); initPointer();
-
   if(isPreview){ $('#previewCurtain').classList.add('show'); sand.style.display='none'; $('#shellLayer').style.display='none'; }
   else{ placeShells(4); }
-
   friendImg.src = resolveFriendSrc(); friendImg.crossOrigin='anonymous'; applyEquipment();
   $('#got').textContent='0';
   requestAnimationFrame(loop);
