@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>WHO VQ — コレクション図鑑</title>
+<style>
+  :root{
+    --ui: rgba(255,255,255,.08);
+    --bd: rgba(255,255,255,.18);
+    --card: rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif}
+  html, body, button, img { -webkit-tap-highlight-color: transparent; }
+  img { -webkit-user-drag:none; user-select:none; }
+
+  .page{min-height:100%;display:grid;grid-template-rows:auto 1fr;gap:10px}
+  header{
+    position:sticky;top:0;z-index:5;
+    padding:12px 14px;background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,0));
+    display:flex;gap:10px;align-items:center;justify-content:space-between
+  }
+  header h1{font-size:16px}
+  .btn{
+    background:var(--card);border:1px solid var(--bd);color:#fff;border-radius:12px;
+    padding:8px 12px;cursor:pointer
+  }
+  .btn:hover{background:rgba(255,255,255,.1)}
+  .ghost{background:transparent}
+  .wrap{
+    padding:12px 14px;
+    display:grid;gap:12px;
+    grid-template-columns: minmax(280px,1fr) minmax(260px,360px);
+  }
+  @media (max-width:920px){ .wrap{ grid-template-columns: 1fr; } }
+
+  /* 図鑑 */
+  .box{
+    background:var(--ui);border:1px solid var(--bd);border-radius:14px;padding:12px
+  }
+  .box h2{font-size:14px;margin-bottom:10px;opacity:.95}
+  .pokedex{
+    display:grid;gap:8px;
+    grid-template-columns:repeat(auto-fill,minmax(80px,1fr));
+  }
+  .tile{
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+    border-radius:12px;padding:6px;display:grid;gap:6px;place-items:center
+  }
+  .tile img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+  .tile .name{font-size:12px;opacity:.9;text-align:center}
+  .tile .cnt{font-variant-numeric:tabular-nums;font-size:12px;opacity:.9}
+  .tile.zero{opacity:.45;filter:grayscale(1)}
+  .legend{display:flex;gap:10px;align-items:center;font-size:12px;opacity:.8;margin-top:8px}
+
+  /* アクセサリー＋プレビュー */
+  .flexcol{display:flex;flex-direction:column;gap:10px}
+  .acc-list{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(100px,1fr))}
+  .acc{
+    display:grid;grid-template-columns:56px 1fr;gap:8px;align-items:center;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:6px
+  }
+  .acc img{width:52px;height:52px;object-fit:contain}
+  .acc .meta{display:flex;flex-direction:column;gap:4px}
+  .acc .meta small{opacity:.8}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+
+  .preview{
+    position:relative;display:grid;place-items:center;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.1);border-radius:12px;min-height:220px;
+  }
+  #friendWrap{
+    position:relative;width:min(18vh,140px);min-width:92px;aspect-ratio:1/1;
+    filter:drop-shadow(0 8px 12px rgba(0,0,0,.4));
+  }
+  #friend{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain}
+  .equip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain;pointer-events:none}
+  .slots{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+  .slot-tag{font-size:12px;opacity:.9;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:2px 8px;background:rgba(255,255,255,.06)}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>コレクション図鑑</h1>
+    <div class="row">
+      <button class="btn ghost" id="toAsari">浜辺に戻る</button>
+      <button class="btn" id="toExchange">交換所へ</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- 左：貝図鑑 -->
+    <section class="box">
+      <h2>貝のコレクション</h2>
+      <div class="pokedex" id="pokedex"></div>
+      <div class="legend">※ 所持数が 0 の貝はグレー表示</div>
+    </section>
+
+    <!-- 右：アクセ & プレビュー -->
+    <section class="flexcol">
+      <div class="box">
+        <h2>キャラ プレビュー & 装備</h2>
+        <div class="preview">
+          <div id="friendWrap">
+            <img id="friend" alt="friend">
+            <img class="equip equip--style" data-slot="style" alt="">
+            <img class="equip equip--head"  data-slot="head"  alt="">
+            <img class="equip equip--body"  data-slot="body"  alt="">
+            <img class="equip equip--back"  data-slot="back"  alt="">
+            <img class="equip equip--hands" data-slot="hands" alt="">
+            <img class="equip equip--shoes" data-slot="shoes" alt="">
+          </div>
+        </div>
+        <div class="row" style="justify-content:center;margin-top:8px">
+          <span class="slot-tag">head</span>
+          <span class="slot-tag">style</span>
+          <span class="slot-tag">back</span>
+          <span class="slot-tag">hands</span>
+          <span class="slot-tag">body</span>
+          <span class="slot-tag">shoes</span>
+        </div>
+      </div>
+
+      <div class="box">
+        <h2>所持アクセサリー</h2>
+        <div class="acc-list" id="accList"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ===== 404を出さないスマートナビ ===== */
+const NAV = {
+  asari: [
+    'asari.html','./asari.html','../asari.html',
+    'game/asari.html','scenes/asari.html'
+  ],
+  exchange: [
+    'exchange.html','./exchange.html','../exchange.html',
+    'shop/exchange.html','pages/exchange.html','exchange/index.html'
+  ]
+};
+async function gotoSmart(key){
+  for(const rel of NAV[key]||[]){
+    const href = new URL(rel, location.href).href;
+    try{ const r = await fetch(href,{method:'HEAD',cache:'no-store'}); if(r.ok){ location.href = href; return; } }catch(e){}
+  }
+  alert('遷移先が見つかりませんでした。配置を確認してください。');
+}
+
+/* ===== 画像ロード（フォールバック対応） ===== */
+function loadIconWithFallback(id){
+  const paths = [`public/items/ex_${id}.png`,`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`];
+  return new Promise(res=>{
+    const img = new Image(); let i=0;
+    const next=()=>{ if(i>=paths.length){ res(null); return; }
+      img.src=paths[i++]; img.onload=()=>res(img); img.onerror=next; };
+    next();
+  });
+}
+function emojiDataURI(emoji="🐚", size=96){
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/* ===== ストレージ ===== */
+function readJSON(k,f){ try{const v=localStorage.getItem(k); return v?JSON.parse(v):f;}catch(e){return f;} }
+function writeJSON(k,o){ try{localStorage.setItem(k,JSON.stringify(o));}catch(e){} }
+function ensureShells(){
+  let s = readJSON('who_shells', null);
+  if(!s || s.schema!=='who_shells/v1'){ s = {schema:'who_shells/v1',updatedAt:new Date().toISOString(),items:{}}; writeJSON('who_shells',s); }
+  return s;
+}
+
+/* ===== データ定義 ===== */
+const SHELLS = [
+  {id:'asari1', name:'アサリ(小)'},
+  {id:'asari2', name:'アサリ(中)'},
+  {id:'asari3', name:'アサリ(大)'},
+];
+
+const ACCESSORY_DB = [
+  { id:'sunglasses',   name:'サングラス',  slot:'head'  },
+  { id:'knit_hat',     name:'ニット帽',    slot:'head'  },
+  { id:'straw_hat',    name:'麦わら帽',    slot:'head'  },
+  { id:'ribbon_yellow',name:'リボン(黄)',  slot:'style' },
+  { id:'star_yellow',  name:'スター(黄)',  slot:'style' },
+];
+
+/* 所持アクセの例: { sunglasses:1, knit_hat:1 } */
+function ensureInventory(){
+  let inv = readJSON('who_inventory', null);
+  if(!inv){ inv = { sunglasses:1, knit_hat:1, straw_hat:0, ribbon_yellow:0, star_yellow:0 }; writeJSON('who_inventory', inv); }
+  return inv;
+}
+
+/* ===== プレビュー・装備 ===== */
+const friendImg = document.getElementById('friend');
+const equipImgs = {
+  head:  document.querySelector('.equip--head'),
+  style: document.querySelector('.equip--style'),
+  back:  document.querySelector('.equip--back'),
+  hands: document.querySelector('.equip--hands'),
+  body:  document.querySelector('.equip--body'),
+  shoes: document.querySelector('.equip--shoes'),
+};
+const ANCHOR = {
+  head:{x:0,y:-38,scale:.9},
+  style:{x:4,y:-10,scale:.95},
+  back:{x:-6,y:-8,scale:.94},
+  hands:{x:10,y:4,scale:.95},
+  body:{x:0,y:-2,scale:.96},
+  shoes:{x:4,y:40,scale:.92},
+};
+function applyEquipment(){
+  const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
+  for(const [slot, pid] of Object.entries(eq)){
+    const el = equipImgs[slot]; if(!el) continue;
+    if(!pid){ el.style.display='none'; el.removeAttribute('src'); continue; }
+    const a = ANCHOR[slot] || {x:0,y:0,scale:1};
+    const src = `public/accessories/${pid}.png`;
+    const im = new Image();
+    im.onload=()=>{ el.src=src; el.style.display='block';
+      el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
+    };
+    im.onerror=()=>{ el.style.display='none'; el.removeAttribute('src'); };
+    im.src = src;
+  }
+}
+function equip(pid, slot){
+  const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
+  eq[slot] = pid; writeJSON('who_equipment', eq); applyEquipment();
+}
+function unequip(slot){
+  const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
+  eq[slot] = null; writeJSON('who_equipment', eq); applyEquipment();
+}
+
+/* ===== 図鑑表示 ===== */
+async function renderPokedex(){
+  const host = document.getElementById('pokedex'); host.innerHTML='';
+  const s = ensureShells();
+  for(const sh of SHELLS){
+    const cnt = s.items[sh.id] || 0;
+    const tile = document.createElement('div'); tile.className = 'tile' + (cnt? '' : ' zero');
+    const img = document.createElement('img');
+    const name = document.createElement('div'); name.className='name'; name.textContent = sh.name;
+    const c = document.createElement('div'); c.className='cnt'; c.textContent = `× ${cnt}`;
+    const ic = await loadIconWithFallback(sh.id);
+    img.src = ic ? ic.src : emojiDataURI('🐚',96);
+    tile.appendChild(img); tile.appendChild(name); tile.appendChild(c);
+    host.appendChild(tile);
+  }
+}
+
+/* ===== アクセ表示 ===== */
+function renderAccessories(){
+  const list = document.getElementById('accList'); list.innerHTML='';
+  const inv = ensureInventory();
+  ACCESSORY_DB.forEach(item=>{
+    const row = document.createElement('div'); row.className='acc';
+    const img = document.createElement('img'); img.src = `public/accessories/${item.id}.png`; img.alt=item.name;
+    const meta = document.createElement('div'); meta.className='meta';
+    const title = document.createElement('div'); title.textContent = item.name;
+    const sub = document.createElement('small'); sub.textContent = `slot: ${item.slot} ／ 所持: ${inv[item.id]??0}`;
+    const line = document.createElement('div'); line.className='row';
+    const bSet = document.createElement('button'); bSet.className='btn'; bSet.textContent='装着';
+    const bUnset = document.createElement('button'); bUnset.className='btn ghost'; bUnset.textContent='外す';
+    bSet.onclick = ()=> equip(item.id, item.slot);
+    bUnset.onclick = ()=> unequip(item.slot);
+    meta.appendChild(title); meta.appendChild(sub); meta.appendChild(line);
+    line.appendChild(bSet); line.appendChild(bUnset);
+    row.appendChild(img); row.appendChild(meta);
+    list.appendChild(row);
+  });
+}
+
+/* ===== 初期化 ===== */
+(function init(){
+  // 戻る/交換所
+  document.getElementById('toAsari').onclick = ()=> gotoSmart('asari');
+  document.getElementById('toExchange').onclick = ()=> gotoSmart('exchange');
+
+  // キャラ画像
+  const color = (localStorage.getItem('who_character')||'pink').replace(/[^a-z]/g,'') || 'pink';
+  friendImg.src = `public/assets/stage1/${color}_open.png`;
+
+  // 表示
+  renderPokedex();
+  renderAccessories();
+  applyEquipment();
+})();
+</script>
+</body>
+</html>
