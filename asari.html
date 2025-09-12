@@ -46,17 +46,15 @@
   }
   .shell.hidden{opacity:0;transform:translate(-50%,-50%) scale(.6) translateY(-6px)}
 
-  #sand{
-    position:absolute;inset:0;z-index:3;cursor:crosshair; /* ← 明示 */
-    pointer-events:auto; touch-action:none; background:rgba(0,0,0,0.0001); /* 透過でもヒットさせるため極小α */
-  }
+  /* ← 背景は絶対に入れない（透明を下に通すため） */
+  #sand{position:absolute;inset:0;z-index:3;cursor:crosshair;pointer-events:auto;touch-action:none;}
 
   #friendWrap{
     position:absolute;z-index:4;width:var(--friend-size);aspect-ratio:1/1;transform-origin:50% 80%;
     filter:drop-shadow(0 8px 12px rgba(0,0,0,.4))
   }
   #friendWrap.spin{animation:spin .6s ease}
-  @keyframes spin{from{transform:rotate(0deg)}50%{transform:rotate(20deg)}to{transform:rotate(0deg)}}
+  @keyframes spin{from{transform:rotate(0)}50%{transform:rotate(20deg)}to{transform:rotate(0)}}
   #friend{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain}
   .equip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:100%;height:100%;object-fit:contain;pointer-events:none}
 
@@ -125,9 +123,9 @@
 </div>
 
 <script>
-/* ============ 定数 ============ */
-const REVEAL_ALPHA_THRESHOLD = 64;   // α<=閾値 を「透明寄り」
-const REVEAL_RATIO = 0.28;           // 領域のこの割合以上が透明寄りなら露出OK
+/* === 調整用 === */
+const REVEAL_ALPHA_THRESHOLD = 64; // α<=で「透明寄り」
+const REVEAL_RATIO = 0.28;         // 領域の28%以上が透明寄りで露出OK
 
 /* ===== ユーティリティ ===== */
 const $ = s => document.querySelector(s);
@@ -138,19 +136,17 @@ const DPR = Math.max(1, window.devicePixelRatio || 1);
 const csspx = name => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
 
 /* レスポンシブ連動サイズ */
-let FRIEND_SIZE = 0, SHELL_SIZE = 0, BRUSH = 0;
+let FRIEND_SIZE=0, SHELL_SIZE=0, BRUSH=0;
 function syncSizesFromCSS(){ FRIEND_SIZE=csspx('--friend-size'); SHELL_SIZE=csspx('--shell-size'); BRUSH=csspx('--brush'); }
 
 /* 画像フォールバック */
 function loadIconWithFallback(id, preferEx=true){
-  const paths = [];
-  if(preferEx) paths.push(`public/items/ex_${id}.png`);
+  const paths=[]; if(preferEx) paths.push(`public/items/ex_${id}.png`);
   paths.push(`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`);
-  return new Promise(resolve=>{
-    const img = new Image(); img.crossOrigin='anonymous';
-    let i=0; const tryNext=()=>{ if(i>=paths.length){ resolve(null); return; }
-      img.src=paths[i++]; img.onload=()=>resolve(img); img.onerror=tryNext; };
-    tryNext();
+  return new Promise(res=>{
+    const img=new Image(); img.crossOrigin='anonymous'; let i=0;
+    const next=()=>{ if(i>=paths.length){ res(null); return; } img.src=paths[i++]; img.onload=()=>res(img); img.onerror=next; };
+    next();
   });
 }
 function emojiDataURI(emoji="🐚", size=128){
@@ -172,8 +168,8 @@ function pickBgByTime(){ const h=new Date().getHours(); if(h>=5 && h<=8) return 
 function applyTimeBackground(){ $('#bg').style.backgroundImage = `url("${pickBgByTime()}")`; }
 
 /* ===== 初期設定 ===== */
-const search = new URLSearchParams(location.search);
-const isPreview = search.get('preview') === '1';
+const search=new URLSearchParams(location.search);
+const isPreview=search.get('preview')==='1';
 if(isPreview) document.body.classList.add('preview');
 
 const FRIEND_OFFSET = { x: 40, y: 10 };
@@ -181,23 +177,16 @@ const FLOAT_AMPL = 6;
 const FLOAT_SPEED = 0.0016;
 
 /* ===== 画面・キャンバス（DPR対応） ===== */
-const game = $('#game');
-const sand = $('#sand');
-const shellLayer = $('#shellLayer');
+const game=$('#game'), sand=$('#sand'), shellLayer=$('#shellLayer');
 let cw=0,ch=0, ctx=null;
 
 function resize(){
   syncSizesFromCSS();
   cw = game.clientWidth; ch = game.clientHeight;
-
-  sand.style.width = cw + 'px';
-  sand.style.height = ch + 'px';
-  sand.width = Math.floor(cw * DPR);
-  sand.height = Math.floor(ch * DPR);
-
-  ctx = sand.getContext('2d', { willReadFrequently: true });
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); // CSS座標で描けるように
-
+  sand.style.width = cw+'px'; sand.style.height = ch+'px';
+  sand.width = Math.floor(cw * DPR); sand.height = Math.floor(ch * DPR);
+  ctx = sand.getContext('2d', { willReadFrequently:true });
+  ctx.setTransform(DPR,0,0,DPR,0,0); // CSS座標で描画
   drawSand();
 }
 window.addEventListener('resize', resize);
@@ -206,195 +195,169 @@ window.addEventListener('resize', resize);
 function drawSand(){
   if(!ctx) return;
   ctx.clearRect(0,0,cw,ch);
-  ctx.fillStyle = '#D9C7A1'; ctx.fillRect(0,0,cw,ch);
-  const density = Math.floor((cw*ch)/9000);
-  ctx.globalAlpha = 0.15; ctx.fillStyle = '#bca67e';
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='#D9C7A1'; ctx.fillRect(0,0,cw,ch);
+  const density=Math.floor((cw*ch)/9000);
+  ctx.globalAlpha=0.15; ctx.fillStyle='#bca67e';
   for(let i=0;i<density;i++){
-    const x = Math.random()*cw, y=Math.random()*ch, r = Math.random()*1.8;
+    const x=Math.random()*cw, y=Math.random()*ch, r=Math.random()*1.8;
     ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha=1;
 }
 
 /* ===== キャラ＆装備 ===== */
-const friendWrap = $('#friendWrap');
-const friendImg = $('#friend');
-const equipImgs = {
-  head: $('.equip--head'), body: $('.equip--body'), back: $('.equip--back'),
-  hands: $('.equip--hands'), shoes: $('.equip--shoes'), style: $('.equip--style')
-};
-
-const ANCHOR = { head:{x:0,y:-42,scale:1}, body:{x:0,y:-2,scale:1}, back:{x:-6,y:-6,scale:1}, hands:{x:10,y:0,scale:1}, shoes:{x:6,y:44,scale:1}, style:{x:0,y:0,scale:1} };
+const friendWrap=$('#friendWrap'), friendImg=$('#friend');
+const equipImgs={ head:$('.equip--head'), body:$('.equip--body'), back:$('.equip--back'), hands:$('.equip--hands'), shoes:$('.equip--shoes'), style:$('.equip--style') };
+const ANCHOR={ head:{x:0,y:-42,scale:1}, body:{x:0,y:-2,scale:1}, back:{x:-6,y:-6,scale:1}, hands:{x:10,y:0,scale:1}, shoes:{x:6,y:44,scale:1}, style:{x:0,y:0,scale:1} };
 function resolveFriendSrc(){ const color=(localStorage.getItem('who_character')||'pink').replace(/[^a-z]/g,'')||'pink'; return `public/assets/stage1/${color}_open.png`; }
-function setEquipLayer(slot, pid){
-  const el = equipImgs[slot]; if(!el) return;
+function setEquipLayer(slot,pid){
+  const el=equipImgs[slot]; if(!el) return;
   if(!pid){ el.style.display='none'; el.removeAttribute('src'); return; }
-  const src = `public/stage1/equip/${slot}/${pid}.png`;
-  const img = new Image(); img.crossOrigin='anonymous';
+  const src=`public/stage1/equip/${slot}/${pid}.png`;
+  const img=new Image(); img.crossOrigin='anonymous';
   img.onload=()=>{ el.src=src; el.style.display='block'; const a=ANCHOR[slot]||{x:0,y:0,scale:1}; el.style.transform=`translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`; };
   img.onerror=()=>{ el.style.display='none'; el.removeAttribute('src'); };
   img.src=src;
 }
-function applyEquipment(){
-  const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
-  Object.entries(eq).forEach(([slot,pid])=>setEquipLayer(slot,pid));
-}
+function applyEquipment(){ const eq=readJSON('who_equipment',{head:null,body:null,back:null,hands:null,shoes:null,style:null}); Object.entries(eq).forEach(([slot,pid])=>setEquipLayer(slot,pid)); }
 
 /* ===== 追従（ふわふわ） ===== */
-let mx=0, my=0, fx=0, fy=0, t0=now();
-function initPointer(){
-  const r = game.getBoundingClientRect();
-  mx = r.left + r.width*0.5 + FRIEND_OFFSET.x;
-  my = r.top  + r.height*0.6 + FRIEND_OFFSET.y;
-  fx = mx; fy = my;
-}
-function onPointer(e){
-  const p = e.touches ? e.touches[0] : e;
-  lastClientX = p.clientX; lastClientY = p.clientY;
-  mx = p.clientX + FRIEND_OFFSET.x; my = p.clientY + FRIEND_OFFSET.y;
-}
+let mx=0,my=0,fx=0,fy=0,t0=now();
+function initPointer(){ const r=game.getBoundingClientRect(); mx=r.left+r.width*0.5+FRIEND_OFFSET.x; my=r.top+r.height*0.6+FRIEND_OFFSET.y; fx=mx; fy=my; }
+function onPointer(e){ const p=e.touches?e.touches[0]:e; lastClientX=p.clientX; lastClientY=p.clientY; mx=p.clientX+FRIEND_OFFSET.x; my=p.clientY+FRIEND_OFFSET.y; }
 ['pointermove','touchmove'].forEach(ev=>game.addEventListener(ev,onPointer,{passive:true}));
-function loop(){
-  const dt = now()-t0; t0 = now();
-  const f = Math.min(1, dt/1000*6), bob = Math.sin(performance.now()*FLOAT_SPEED)*FLOAT_AMPL;
-  fx += (mx - fx) * f * 0.2; fy += (my - fy) * f * 0.2;
-  friendWrap.style.left = `${clampV(fx, 40, cw-40)}px`;
-  friendWrap.style.top  = `${clampV(fy + bob, 40, ch-40)}px`;
-  requestAnimationFrame(loop);
-}
+function loop(){ const dt=now()-t0; t0=now(); const f=Math.min(1,dt/1000*6), bob=Math.sin(performance.now()*FLOAT_SPEED)*FLOAT_AMPL; fx+=(mx-fx)*f*0.2; fy+=(my-fy)*f*0.2; friendWrap.style.left=`${clampV(fx,40,cw-40)}px`; friendWrap.style.top=`${clampV(fy+bob,40,ch-40)}px`; requestAnimationFrame(loop); }
 
 /* ===== シェル配置・取得 ===== */
-const SHELL_POOL = [{id:'asari1',label:'アサリ(小)'},{id:'asari2',label:'アサリ(中)'},{id:'asari3',label:'アサリ(大)'}];
-let totalShells=0, gotShells=0, shells=[]; // {id,label,x,y,el,collected:false}
-
+const SHELL_POOL=[{id:'asari1',label:'アサリ(小)'},{id:'asari2',label:'アサリ(中)'},{id:'asari3',label:'アサリ(大)'}];
+let totalShells=0, gotShells=0, shells=[];
 function placeShells(nEach=4){
   shellLayer.innerHTML=''; shells=[];
-  const margin = Math.max(40, SHELL_SIZE);
+  const margin=Math.max(40,SHELL_SIZE);
   SHELL_POOL.forEach(s=>{
     for(let i=0;i<nEach;i++){
-      const x = margin + Math.random()*(cw - margin*2);
-      const y = margin + Math.random()*(ch - margin*2);
-      const el = document.createElement('img');
+      const x=margin+Math.random()*(cw-margin*2);
+      const y=margin+Math.random()*(ch-margin*2);
+      const el=document.createElement('img');
       el.className='shell'; el.alt=s.label; el.style.left=`${x}px`; el.style.top=`${y}px`;
-      loadIconWithFallback(s.id).then(img=>{ el.src = img ? img.src : emojiDataURI('🐚'); });
+      loadIconWithFallback(s.id).then(img=>{ el.src=img?img.src:emojiDataURI('🐚'); });
       shellLayer.appendChild(el);
       shells.push({id:s.id,label:s.label,x,y,el,collected:false});
     }
   });
-  totalShells = shells.length; $('#total').textContent = totalShells;
+  totalShells=shells.length; $('#total').textContent=totalShells;
 }
 
 /* 露出判定：領域平均α */
 function isRevealedAt(x,y){
-  const cx = Math.round(x * DPR), cy = Math.round(y * DPR);
-  const radiusCss = Math.max(SHELL_SIZE * 0.36, BRUSH * 0.8);
-  const rpx = Math.max(6, Math.round(radiusCss * DPR));
-  const x0 = clampV(cx - rpx, 0, sand.width  - 1);
-  const y0 = clampV(cy - rpx, 0, sand.height - 1);
-  const w  = Math.min(rpx*2 + 1, sand.width  - x0);
-  const h  = Math.min(rpx*2 + 1, sand.height - y0);
-  if(w<=0 || h<=0) return false;
-
+  const cx=Math.round(x*DPR), cy=Math.round(y*DPR);
+  const rpx=Math.max(6, Math.round(Math.max(SHELL_SIZE*0.36, BRUSH*0.8)*DPR));
+  const x0=clampV(cx-rpx,0,sand.width-1), y0=clampV(cy-rpx,0,sand.height-1);
+  const w=Math.min(rpx*2+1, sand.width-x0), h=Math.min(rpx*2+1, sand.height-y0);
+  if(w<=0||h<=0) return false;
   try{
-    const data = ctx.getImageData(x0, y0, w, h).data;
-    let transparent=0, total=0;
-    for(let i=3;i<data.length;i+=4){ total++; if(data[i] <= REVEAL_ALPHA_THRESHOLD) transparent++; }
-    return total>0 && (transparent/total) >= REVEAL_RATIO;
+    const data=ctx.getImageData(x0,y0,w,h).data; let trans=0, tot=0;
+    for(let i=3;i<data.length;i+=4){ tot++; if(data[i]<=REVEAL_ALPHA_THRESHOLD) trans++; }
+    return tot>0 && (trans/tot)>=REVEAL_RATIO;
   }catch(e){ return false; }
 }
 
 /* 取得判定 */
 function tryCollectAtCanvasXY(cx,cy){
   if(isPreview) return false;
-  const R = SHELL_SIZE * 0.5;
+  const R=SHELL_SIZE*0.5;
   for(const it of shells){
     if(it.collected) continue;
-    const dx = cx - it.x, dy = cy - it.y;
-    if((dx*dx + dy*dy) <= R*R){
-      if(isRevealedAt(it.x,it.y)){ collectShell(it); return true; }
-    }
+    const dx=cx-it.x, dy=cy-it.y;
+    if((dx*dx+dy*dy)<=R*R){ if(isRevealedAt(it.x,it.y)){ collectShell(it); return true; } }
   }
   return false;
 }
 
-/* UI演出 */
-function showBubble(text){
-  const b = $('#bubble'), r = friendWrap.getBoundingClientRect();
-  b.style.left = `${r.left + r.width*0.5}px`; b.style.top  = `${r.top}px`;
-  b.textContent = text; b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),700);
-}
-function brightenBackground(){
-  const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bg-brightness'))||1;
-  document.documentElement.style.setProperty('--bg-brightness', String(Math.min(1.25, cur + 0.08)));
-}
-function revealTimeScene(){
-  $('#bg').style.backgroundImage = `url("${pickBgByTime()}")`;
-  brightenBackground();
-  setTimeout(()=>$('#complete').classList.add('show'), 500);
-}
+/* UI */
+function showBubble(text){ const b=$('#bubble'), r=friendWrap.getBoundingClientRect(); b.style.left=`${r.left+r.width*0.5}px`; b.style.top=`${r.top}px`; b.textContent=text; b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),700); }
+function brightenBackground(){ const cur=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bg-brightness'))||1; document.documentElement.style.setProperty('--bg-brightness', String(Math.min(1.25, cur+0.08))); }
+function revealTimeScene(){ $('#bg').style.backgroundImage=`url("${pickBgByTime()}")`; brightenBackground(); setTimeout(()=>$('#complete').classList.add('show'),500); }
 function collectShell(it){
   if(it.collected) return;
-  it.collected = true; it.el.classList.add('hidden');
-  gotShells++; $('#got').textContent = gotShells;
-  const st = ensureShells(); st.items[it.id] = (st.items[it.id]||0)+1; st.updatedAt=new Date().toISOString(); writeJSON('who_shells', st);
+  it.collected=true; it.el.classList.add('hidden');
+  gotShells++; $('#got').textContent=gotShells;
+  const st=ensureShells(); st.items[it.id]=(st.items[it.id]||0)+1; st.updatedAt=new Date().toISOString(); writeJSON('who_shells',st);
   friendWrap.classList.remove('spin'); void friendWrap.offsetWidth; friendWrap.classList.add('spin');
   showBubble(`GET! ${it.label}`);
   if(gotShells>=totalShells) revealTimeScene();
 }
 
-/* ===== 入力処理（確実版） ===== */
-let erasing=false, lastClientX=0, lastClientY=0;
+/* ===== 消しゴム：線ストローク方式 ===== */
+let erasing=false, lastClientX=0,lastClientY=0, lastPt=null;
 
-/* 汎用：イベントからキャンバス座標を計算 */
 function eventToCanvasXY(e){
-  // offsetX/Y が最も正確（キャンバス内相対）。なければ clientX/Y で補正
-  if(typeof e.offsetX === 'number' && typeof e.offsetY === 'number'){
-    return { x: e.offsetX, y: e.offsetY };
-  }
-  const r = sand.getBoundingClientRect();
-  const clientX = ('clientX' in e) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : lastClientX);
-  const clientY = ('clientY' in e) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : lastClientY);
-  return { x: clientX - r.left, y: clientY - r.top };
+  if(typeof e.offsetX==='number' && typeof e.offsetY==='number'){ return {x:e.offsetX, y:e.offsetY}; }
+  const r=sand.getBoundingClientRect();
+  const cx=('clientX' in e)?e.clientX:(e.touches&&e.touches[0]?e.touches[0].clientX:lastClientX);
+  const cy=('clientY' in e)?e.clientY:(e.touches&&e.touches[0]?e.touches[0].clientY:lastClientY);
+  return { x: cx - r.left, y: cy - r.top };
+}
+
+function eraseDot(pt){
+  ctx.save();
+  ctx.globalCompositeOperation='destination-out';
+  ctx.beginPath(); ctx.arc(pt.x, pt.y, BRUSH, 0, Math.PI*2); ctx.fillStyle='rgba(0,0,0,1)'; ctx.fill();
+  ctx.restore();
+}
+function eraseLine(from, to){
+  ctx.save();
+  ctx.globalCompositeOperation='destination-out';
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.strokeStyle='rgba(0,0,0,1)';
+  ctx.lineWidth=BRUSH*2;
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function startErase(e){
   if(isPreview) return;
-  erasing = true;
-  try{ sand.setPointerCapture && e.pointerId != null && sand.setPointerCapture(e.pointerId); }catch(_){}
+  erasing=true;
+  try{ sand.setPointerCapture && e.pointerId!=null && sand.setPointerCapture(e.pointerId); }catch(_){}
+  lastPt = eventToCanvasXY(e);
+  eraseDot(lastPt); // 初期点を確実に削る
+}
+function moveErase(e){
+  if(!erasing || !ctx) return;
+  const pt=eventToCanvasXY(e);
+  if(!lastPt){ lastPt=pt; eraseDot(pt); return; }
+  eraseLine(lastPt, pt);
+  lastPt=pt;
 }
 function endErase(e){
-  if(isPreview) return;
-  erasing = false;
+  if(!erasing) return;
+  erasing=false;
+  if(e){ const pt=eventToCanvasXY(e); if(lastPt) eraseLine(lastPt, pt); lastPt=null; }
   const {x,y}=eventToCanvasXY(e||{clientX:lastClientX,clientY:lastClientY});
   tryCollectAtCanvasXY(x,y);
 }
-function eraseAt(e){
-  if(!ctx || isPreview) return;
-  const {x,y}=eventToCanvasXY(e);
-  ctx.save(); ctx.globalCompositeOperation='destination-out';
-  const r = BRUSH;
-  const g = ctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
-}
 
-/* pointer 事件（メイン） */
-sand.addEventListener('pointerdown', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; startErase(e); eraseAt(e); e.preventDefault(); }, {passive:false});
-sand.addEventListener('pointermove', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; if(erasing) eraseAt(e); });
-sand.addEventListener('pointerup',   e=>{ endErase(e); });
+/* 入力イベント */
+sand.addEventListener('pointerdown', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; startErase(e); e.preventDefault(); }, {passive:false});
+sand.addEventListener('pointermove', e=>{ lastClientX=e.clientX; lastClientY=e.clientY; moveErase(e); });
+sand.addEventListener('pointerup',   endErase);
 sand.addEventListener('pointercancel', endErase);
 sand.addEventListener('mouseleave',   endErase);
 
-/* mouse/touch も冗長にサポート（環境差吸収） */
-sand.addEventListener('mousedown', e=>{ startErase(e); eraseAt(e); }, {passive:false});
-window.addEventListener('mousemove', e=>{ if(erasing) eraseAt(e); }, {passive:false});
+/* 念のため mouse/touch でも */
+sand.addEventListener('mousedown', e=>{ startErase(e); }, {passive:false});
+window.addEventListener('mousemove', e=>{ if(erasing) moveErase(e); }, {passive:false});
 window.addEventListener('mouseup',   e=>{ if(erasing) endErase(e); }, {passive:false});
-
-sand.addEventListener('touchstart', e=>{ startErase(e); eraseAt(e); e.preventDefault(); }, {passive:false});
-sand.addEventListener('touchmove',  e=>{ if(erasing) eraseAt(e); e.preventDefault(); }, {passive:false});
-sand.addEventListener('touchend',   e=>{ endErase(e); }, {passive:false});
+sand.addEventListener('touchstart', e=>{ startErase(e); e.preventDefault(); }, {passive:false});
+sand.addEventListener('touchmove',  e=>{ moveErase(e);  e.preventDefault(); }, {passive:false});
+sand.addEventListener('touchend',   endErase, {passive:false});
 sand.addEventListener('touchcancel',endErase, {passive:false});
 
-/* click でも取得試行（保険） */
+/* クリックでも取得試行（保険） */
 sand.addEventListener('click', e=>{ const {x,y}=eventToCanvasXY(e); tryCollectAtCanvasXY(x,y); });
 sand.addEventListener('contextmenu', e=>e.preventDefault(), {passive:false});
 
@@ -419,7 +382,7 @@ async function snapshotScene(){
 }
 $('#snapBtn').addEventListener('click', snapshotScene);
 
-/* 完了オーバーレイの遷移 */
+/* 完了オーバーレイ遷移 */
 $('#toExchange').addEventListener('click', ()=>location.href='exchange.html');
 $('#toCollection').addEventListener('click', ()=>location.href='collection.html');
 $('#toSnap').addEventListener('click', snapshotScene);
@@ -431,7 +394,7 @@ $('#toPreview').addEventListener('click', ()=>location.href='asari.html?preview=
   resize(); initPointer();
   if(isPreview){ $('#previewCurtain').classList.add('show'); sand.style.display='none'; $('#shellLayer').style.display='none'; }
   else{ placeShells(4); }
-  friendImg.src = resolveFriendSrc(); friendImg.crossOrigin='anonymous'; applyEquipment();
+  friendImg.src=resolveFriendSrc(); friendImg.crossOrigin='anonymous'; applyEquipment();
   $('#got').textContent='0';
   requestAnimationFrame(loop);
 })();
