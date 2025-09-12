@@ -10,19 +10,10 @@
   html,body{height:100%;background:#000;color:#fff;font-family:system-ui,"Noto Sans JP",sans-serif;overscroll-behavior:none}
   .game{position:relative;width:100vw;height:100vh;overflow:hidden;touch-action:none;cursor:crosshair}
 
-  /* ▼▼ ここが追加（タップ青ハイライト&選択/ドラッグ無効） ▼▼ */
-  html, body, .game, img, .shell, button {
-    -webkit-tap-highlight-color: transparent; /* iOS/Android ブルー矩形無効 */
-  }
-  img, .shell {
-    -webkit-user-drag: none;
-    user-drag: none;
-    -webkit-user-select: none;
-    user-select: none;
-    outline: none;
-  }
+  /* タップ青ハイライト&選択/ドラッグ無効 */
+  html, body, .game, img, .shell, button { -webkit-tap-highlight-color: transparent; }
+  img, .shell { -webkit-user-drag: none; user-drag: none; -webkit-user-select: none; user-select: none; outline: none; }
   .shell:focus { outline: none; }
-  /* ▲▲ 追加ここまで ▲▲ */
 
   /* 背景（2レイヤでクロスフェード） */
   .bg, .bg2{
@@ -52,15 +43,15 @@
   /* 砂レイヤ＆貝 */
   #shellLayer{position:absolute;inset:0;z-index:2}
   .shell{
-    position:absolute;width:48px;height:48px;object-fit:contain;image-rendering:auto;
+    position:absolute;width:52px;height:52px;object-fit:contain;image-rendering:auto;
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));
     transition:transform .25s ease, opacity .25s ease; cursor:pointer; will-change:transform, opacity;
-    background:transparent; /* 念のため */
+    background:transparent;
   }
   .shell.hidden{opacity:0;transform:scale(.6) translateY(-6px);pointer-events:none}
 
   #sand{
-    position:absolute;inset:0;z-index:3;pointer-events:none;
+    position:absolute;inset:0;z-index:3;pointer-events:none; /* 見た目は上、イベントはゲーム全体で拾う */
     transition:opacity .8s ease;
   }
   #sand.fadeout{ opacity:0; }
@@ -119,9 +110,12 @@
     </div>
   </div>
 
+  <!-- シェル層 -->
   <div id="shellLayer" aria-hidden="false"></div>
+  <!-- 砂キャンバス -->
   <canvas id="sand"></canvas>
 
+  <!-- キャラ＆装備 -->
   <div id="friendWrap" aria-label="friend">
     <img id="friend" alt="friend" />
     <img class="equip equip--style" data-slot="style" alt="" />
@@ -175,20 +169,44 @@ const $$ = sel => Array.from(document.querySelectorAll(sel));
 const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
 const now = ()=>performance.now();
 
-/* 画像フォールバック */
+/* 画像フォールバック（items系） */
 function loadIconWithFallback(id, preferEx=true){
-  const paths = []; if(preferEx) paths.push(`public/items/ex_${id}.png`);
-  paths.push(`public/items/${id}.png`,`./public/items/${id}.png`,`/public/items/${id}.png`);
+  const paths = [];
+  if(preferEx) paths.push(`public/items/ex_${id}.png`);
+  paths.push(
+    `public/items/${id}.png`,
+    `./public/items/${id}.png`,
+    `/public/items/${id}.png`
+  );
   return new Promise(resolve=>{
-    const img = new Image(); let i = 0;
-    const tryNext = () => { if(i>=paths.length){ resolve(null); return; }
-      img.src = paths[i++]; img.onload = ()=>resolve(img); img.onerror = tryNext; };
+    const img = new Image();
+    let i = 0;
+    const tryNext = () => {
+      if(i>=paths.length){ resolve(null); return; }
+      img.src = paths[i++]; img.onload = ()=>resolve(img); img.onerror = tryNext;
+    };
     tryNext();
   });
 }
 function emojiDataURI(emoji="🐚", size=128){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><text x='50%' y='50%' font-size='${size*0.8}' dominant-baseline='central' text-anchor='middle'>${emoji}</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+/* ===== アクセ画像フォールバック（装着不具合対策：複数パス探索） ===== */
+function loadAccessoryWithFallback(id){
+  const paths = [
+    `public/accessories/${id}.png`,
+    `./public/accessories/${id}.png`,
+    `/public/accessories/${id}.png`,
+    `public/items/accessories/${id}.png` // 置き場所が違っても拾う
+  ];
+  return new Promise(resolve=>{
+    const img = new Image(); let i=0;
+    const next=()=>{ if(i>=paths.length){ resolve(null); return; }
+      img.src=paths[i++]; img.onload=()=>resolve(img); img.onerror=next; };
+    next();
+  });
 }
 
 /* ===== ストレージ ===== */
@@ -211,12 +229,12 @@ const FLOAT_SPEED = 0.0016;
 
 /* 装備アンカー */
 const ANCHOR = {
-  head:{x:0, y:-38, scale:0.88},
+  head:{x:0, y:-38, scale:0.9},
   body:{x:0, y:-2,  scale:0.96},
   back:{x:-4,y:-8,  scale:0.94},
   hands:{x:10,y:4,  scale:0.95},
   shoes:{x:4, y:40, scale:0.92},
-  style:{x:0, y:0,  scale:1.0}
+  style:{x:2, y:-10,  scale:0.96}
 };
 
 /* ===== 画面・キャンバス準備 ===== */
@@ -236,7 +254,7 @@ function resize(){
 }
 window.addEventListener('resize', resize);
 
-/* 砂キャンバス */
+/* 砂キャンバス：単色＋ノイズ風 */
 function drawSand(){
   if(!ctx) return;
   ctx.clearRect(0,0,cw,ch);
@@ -251,7 +269,7 @@ function drawSand(){
   ctx.globalAlpha = 1;
 }
 
-/* ===== キャラ・装備 ===== */
+/* ===== キャラ表示・装備レイヤ ===== */
 const friendWrap = $('#friendWrap');
 const friendImg = $('#friend');
 const equipImgs = {
@@ -262,24 +280,30 @@ function resolveFriendSrc(){
   const color = (localStorage.getItem('who_character') || 'pink').replace(/[^a-z]/g,'') || 'pink';
   return `public/assets/stage1/${color}_open.png`;
 }
-function setEquipLayer(slot, productId){
+/* 装着不具合：存在チェックを強化し、パス違いにも対応 */
+async function setEquipLayer(slot, productId){
   const el = equipImgs[slot]; if(!el) return;
   if(!productId){ el.style.display='none'; el.removeAttribute('src'); return; }
-  const src = `public/accessories/${productId}.png`;
-  const img = new Image();
-  img.onload = ()=>{ el.src = src; el.style.display='block';
+  const img = await loadAccessoryWithFallback(productId);
+  if(img){ 
+    el.src = img.src; el.style.display='block';
     const a = ANCHOR[slot] || {x:0,y:0,scale:1};
     el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
-  };
-  img.onerror = ()=>{ el.style.display='none'; el.removeAttribute('src'); };
-  img.src = src;
+  }else{
+    // 画像が無くても「装着された」ことが判るよう薄い丸印を置く（デバッグ向け）
+    el.removeAttribute('src');
+    el.style.display='block';
+    const a = ANCHOR[slot] || {x:0,y:0,scale:1};
+    el.style.transform = `translate(calc(-50% + ${a.x}px), calc(-50% + ${a.y}px)) scale(${a.scale})`;
+    el.style.background = 'radial-gradient(rgba(255,255,255,.25), rgba(255,255,255,0))';
+  }
 }
 function applyEquipment(){
   const eq = readJSON('who_equipment', {head:null,body:null,back:null,hands:null,shoes:null,style:null});
   Object.entries(eq).forEach(([slot, pid]) => setEquipLayer(slot, pid));
 }
 
-/* ===== 追従挙動 ===== */
+/* ===== フォロー挙動 ===== */
 let mx=0, my=0, fx=0, fy=0, t0 = now();
 function onPointerPos(e){ const p = e.touches ? e.touches[0] : e; mx = p.clientX + FRIEND_OFFSET.x; my = p.clientY + FRIEND_OFFSET.y; }
 ['pointerdown','pointermove','touchstart','touchmove'].forEach(ev=>{ game.addEventListener(ev, onPointerPos, {passive:true, capture:true}); });
@@ -293,31 +317,50 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-/* ===== シェル配置・取得 ===== */
-const SHELL_POOL = [
-  {id:'asari1', label:'アサリ(小)'},
-  {id:'asari2', label:'アサリ(中)'},
-  {id:'asari3', label:'アサリ(大)'},
+/* ===== 新しい貝セット =====
+   画像例: public/items/asari1.png, asari2.png, asari3.png,
+          aurora_shell.png, flame_shell.png, luminous_shell.png,
+          mystic_shell.png, night_sky_shell.png,
+          rare_pearl.png, rare_rainbow.png
+*/
+const SHELL_DEFS = [
+  {id:'asari1',         label:'アサリ（白）',         weight: 9},
+  {id:'asari2',         label:'アサリ（橙）',         weight: 7},
+  {id:'asari3',         label:'アサリ（大）',         weight: 5},
+  {id:'aurora_shell',   label:'オーロラ貝殻',         weight: 3},
+  {id:'flame_shell',    label:'フレイム貝殻',         weight: 3},
+  {id:'luminous_shell', label:'ルミナス貝殻',         weight: 3},
+  {id:'mystic_shell',   label:'ミスティック貝殻',     weight: 3},
+  {id:'night_sky_shell',label:'夜空の貝殻',           weight: 3},
+  {id:'rare_pearl',     label:'真珠',                 weight: 1},
+  {id:'rare_rainbow',   label:'虹色の貝殻',           weight: 1}
 ];
 let totalShells = 0, gotShells = 0;
 
-function placeShells(nEach=4){
+function weightedPick(list){
+  const sum = list.reduce((a,b)=>a+b.weight,0);
+  let r = Math.random()*sum;
+  for(const it of list){ if((r-=it.weight)<=0) return it; }
+  return list[list.length-1];
+}
+
+function placeShells(nTotal=18){
   shellLayer.innerHTML = '';
   const margin = 64; const items = [];
-  SHELL_POOL.forEach(s=>{ for(let i=0;i<nEach;i++){ const x = margin + Math.random()*(cw - margin*2); const y = margin + Math.random()*(ch - margin*2); items.push({...s, x,y}); }});
+  for(let i=0;i<nTotal;i++){
+    const pick = weightedPick(SHELL_DEFS);
+    const x = margin + Math.random()*(cw - margin*2);
+    const y = margin + Math.random()*(ch - margin*2);
+    items.push({...pick, x,y});
+  }
   totalShells = items.length; $('#total').textContent = totalShells;
 
   items.forEach(it=>{
     const el = document.createElement('img');
     el.className = 'shell'; el.alt = it.label;
-    el.style.left = `${Math.round(it.x - 24)}px`; el.style.top  = `${Math.round(it.y - 24)}px`;
+    el.style.left = `${Math.round(it.x - 26)}px`; el.style.top  = `${Math.round(it.y - 26)}px`;
     el.dataset.cx = String(it.x); el.dataset.cy = String(it.y);
-
-    /* ▼ 追加：タップ青枠対策（要素側でも無効化） */
-    el.draggable = false;
-    el.setAttribute('draggable','false');
-    el.tabIndex = -1; // フォーカス輪郭を出さない
-    /* ▲ 追加ここまで */
+    el.draggable = false; el.setAttribute('draggable','false'); el.tabIndex = -1;
 
     loadIconWithFallback(it.id).then(img=>{ el.src = img ? img.src : emojiDataURI('🐚',128); });
     el.addEventListener('click', (ev)=>{
@@ -425,7 +468,7 @@ document.getElementById('goCollection').addEventListener('click', ()=> smartNavi
 document.getElementById('backBtn').addEventListener('click', ()=> smartNavigate('exchange'));
 
 /* ===== 起動 ===== */
-(function init(){
+(async function init(){
   resize();
 
   if(isPreview){
@@ -433,15 +476,15 @@ document.getElementById('backBtn').addEventListener('click', ()=> smartNavigate(
     sand.style.opacity = 0.15;
     document.getElementById('shellLayer').style.display = 'none';
   }else{
-    placeShells(4);
+    placeShells(18);
   }
 
   friendImg.src = resolveFriendSrc();
   applyEquipment();
 
   document.getElementById('got').textContent = '0';
-  let mx0 = cw*0.5, my0 = ch*0.65; // 初期位置
-  window.mx = mx0; window.my = my0; window.fx = mx0; window.fy = my0;
+
+  mx = cw*0.5; my = ch*0.65; fx = mx; fy = my;
   requestAnimationFrame(loop);
 })();
 </script>
